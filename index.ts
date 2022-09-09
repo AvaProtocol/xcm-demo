@@ -7,7 +7,10 @@ import { cryptoWaitReady } from '@polkadot/util-crypto';
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const OAK_PARA_ID = 2114;
 const TEM_PARA_ID = 1999;
+const TEM_TUR_FEE_PER_SECOND = 416_000_000_000;
+const TEM_INSTRUCTION_WEIGHT = 6_000_000_000;
 const SUBSTRATE_NETWORK = 42;
+const SOME_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000000000000000";
 
 const LOCAL_OAK_ENDPOINT = "ws://localhost:9946";
 const LOCAL_TEM_ENDPOINT = "ws://localhost:9947";
@@ -27,19 +30,41 @@ async function main () {
   });
 
   // send money to temp
-  // 0x2c000000407a10f35a00000000000000000000010102003d1f01007369626c420800000000000000000000000000000000000000000000000000000010a5d4e8000000
+  await oakApi.tx.xTokens.transfer(
+    "Native",
+    100000000000000,
+    {
+      V1: {
+        parents: 1,
+        interior: {
+          X2: [
+            { parachain: 1999 },
+            { 
+              AccountId32: {
+                network: "Any",
+                id: SOME_SOV_ACCOUNT,
+              }
+            }
+          ]
+        }
+      }
+    },
+    1000000000000,
+  ).signAndSend(alice_key, { nonce: -1 });
 
   // add currency combo - bad origin for some reason. manual
-  // await oakApi.tx.sudo
-  //  .sudo("0x32003e00420800000000320000000000000000000000000000003200000000000000")
-  //  .signAndSend(alice_key);
-  // Actually should be I think: 0x32003e004208000000003200000000000000000000000000000000bca06501000000
-  // 0x32003e00cf07000000003200000000000000000000000000000000bca06501000000
-  //{
-  //  native: false
-  //  feePerSecond: 416,000,000,000
-  //  instructionWeight: 6,000,000,000
-  //}
+  await oakApi.tx.sudo.sudo(
+    oakApi.tx.xcmpHandler.addChainCurrencyData(
+      1999,
+      "Native",
+      {
+        native: "No",
+        feePerSecond: TEM_TUR_FEE_PER_SECOND,
+        instructionWeight: TEM_INSTRUCTION_WEIGHT
+      }
+    )
+  ).signAndSend(alice_key, { nonce: -1 });
+
   // find derived account for chain 1
   const location = {
     parents: 1,
@@ -75,24 +100,16 @@ async function main () {
   await temApi.tx.proxy.addProxy(descendAddress, "Any", 0).signAndSend(alice_key);
 
   // create encoded transaction to trigger on chain 2
-  // const encodedSystemWithRemark = await temApi.tx.system.remarkWithEvent("Hello, world!").toHex();
-  // const encodedProxyCall = await temApi.tx.proxy.proxy(ALICE, "Any", encodedSystemWithRemark).toHex();
-  // temApi doesn't know it's proxy pallet?  Issue creating call. Hardcode for now
-  const encodedProxyCall = "0x3c00d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000083448656c6c6f2c20776f726c6421";
+  const encodedProxyCall = temApi.tx.proxy.proxy(
+    ALICE,
+    "Any",
+    temApi.tx.system.remarkWithEvent("Hello, world!"),
+  ).toHex();
+  // 0xd4043c00d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d010000083448656c6c6f2c20776f726c6421
+  // 0x    3c00d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d010000083448656c6c6f2c20776f726c6421
 
   // schedule transaction on chain 1
-  const a =   oakApi.tx.automationTime
-  .scheduleXcmpTask(
-    (Math.random() + 1).toString(36).substring(7),
-    [0],
-    TEM_PARA_ID,
-    "Native",
-    encodedProxyCall,
-    6_000_000_000
-  ).toHex();
-  console.log(a);
-
-  oakApi.tx.automationTime
+  await oakApi.tx.automationTime
     .scheduleXcmpTask(
       (Math.random() + 1).toString(36).substring(7),
       [0],
@@ -104,13 +121,10 @@ async function main () {
     .signAndSend(alice_key, { nonce: -1 },({ events = [], status }) => {
       if (status.isInBlock) {
         console.log('Successful with hash ' + status.asInBlock.toHex());
+        process.exit();
       } else {
         console.log('Status: ' + status.type);
       }
-    
-      events.forEach(({ phase, event: { data, method, section } }) => {
-        console.log(phase.toString() + ' : ' + section + '.' + method + ' ' + data.toString());
-      });
     });
 }
 
