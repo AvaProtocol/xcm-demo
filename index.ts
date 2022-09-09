@@ -104,9 +104,7 @@ async function main () {
     ALICE,
     "Any",
     temApi.tx.system.remarkWithEvent("Hello, world!"),
-  ).toHex();
-  // 0xd4043c00d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d010000083448656c6c6f2c20776f726c6421
-  // 0x    3c00d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d010000083448656c6c6f2c20776f726c6421
+  ).method.toHex();
 
   // schedule transaction on chain 1
   await oakApi.tx.automationTime
