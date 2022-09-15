@@ -3,6 +3,7 @@ import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { XcmV1MultiLocation } from "@polkadot/types/lookup"
 import { cryptoWaitReady } from '@polkadot/util-crypto';
+import { rpc } from '@oak-foundation/types';
 
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const OAK_PARA_ID = 2114;
@@ -23,7 +24,8 @@ async function main () {
 
   // setup API
   const oakApi = await ApiPromise.create({
-    provider: new WsProvider(LOCAL_OAK_ENDPOINT)
+    provider: new WsProvider(LOCAL_OAK_ENDPOINT),
+    rpc: rpc,
   });
   const temApi = await ApiPromise.create({
     provider: new WsProvider(LOCAL_TEM_ENDPOINT)
@@ -100,14 +102,17 @@ async function main () {
   await temApi.tx.proxy.addProxy(descendAddress, "Any", 0).signAndSend(alice_key);
 
   // create encoded transaction to trigger on chain 2
-  const encodedProxyCall = temApi.tx.proxy.proxy(
+  const proxyCall = temApi.tx.proxy.proxy(
     ALICE,
     "Any",
     temApi.tx.system.remarkWithEvent("Hello, world!"),
-  ).method.toHex();
+  );
+  const chain2Fees = await proxyCall.paymentInfo(ALICE);
+  console.log("Chain 2 fees:", chain2Fees.toHuman());
+  const encodedProxyCall = proxyCall.method.toHex();
 
   // schedule transaction on chain 1
-  await oakApi.tx.automationTime
+  const xcmpCall =  oakApi.tx.automationTime
     .scheduleXcmpTask(
       (Math.random() + 1).toString(36).substring(7),
       [0],
@@ -115,8 +120,17 @@ async function main () {
       "Native",
       encodedProxyCall,
       6_000_000_000
-    )
-    .signAndSend(alice_key, { nonce: -1 },({ events = [], status }) => {
+    );
+  const fakeSignedXcmpCall = xcmpCall.signFake(ALICE, {
+    blockHash: oakApi.genesisHash,
+    genesisHash: oakApi.genesisHash,
+    nonce: 100, // does not except negative?
+    runtimeVersion: oakApi.runtimeVersion,
+  });
+  const fees = await oakApi.rpc.xcmpHandler.fees(fakeSignedXcmpCall.toHex());
+  console.log("rpc.xcmpHandler.fees:", fees.toHuman());
+
+  await xcmpCall.signAndSend(alice_key, { nonce: -1 },({ events = [], status }) => {
       if (status.isInBlock) {
         console.log('Successful with hash ' + status.asInBlock.toHex());
         process.exit();
