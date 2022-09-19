@@ -33,7 +33,7 @@ async function main () {
 
   // send money to temp
   await oakApi.tx.xTokens.transfer(
-    "Native",
+    1,
     100000000000000,
     {
       V1: {
@@ -58,7 +58,7 @@ async function main () {
   await oakApi.tx.sudo.sudo(
     oakApi.tx.xcmpHandler.addChainCurrencyData(
       1999,
-      "Native",
+      1,
       {
         native: "No",
         feePerSecond: TEM_TUR_FEE_PER_SECOND,
@@ -117,7 +117,7 @@ async function main () {
       (Math.random() + 1).toString(36).substring(7),
       [0],
       TEM_PARA_ID,
-      "Native",
+      1,
       encodedProxyCall,
       6_000_000_000
     );

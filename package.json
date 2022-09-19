@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@oak-foundation/api-augment": "^0.0.9",
+    "@oak-foundation/api-augment": "^0.0.10",
     "@oak-foundation/types": "^0.0.5",
     "@polkadot/api": "^9.3.3",
     "@polkadot/util": "^10.1.7"
