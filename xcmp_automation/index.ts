@@ -120,18 +120,23 @@ async function main () {
   const fees = await oakApi.rpc.xcmpHandler.fees(fakeSignedXcmpCall.toHex());
   console.log("rpc.xcmpHandler.fees:", fees.toHuman());
 
-  await xcmpCall.signAndSend(alice_key, { nonce: -1 },({ events = [], status }) => {
+  // Get TaskId for Task.
+  const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
+  console.log("TaskId:", taskId.toHuman());
+
+  await xcmpCall.signAndSend(alice_key, { nonce: -1 }, async ({ status }) => {
       if (status.isInBlock) {
         console.log('Successful with hash ' + status.asInBlock.toHex());
+
+        // Get Task
+        const task = await oakApi.query.automationTime.accountTasks(ALICE, taskId);
+        console.log("Task:", task.toHuman());
+
         process.exit();
       } else {
         console.log('Status: ' + status.type);
       }
     });
-
-  // Get TaskId for Task.
-  const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
-  console.log("TaskId:", taskId.toHuman());
 }
 
 main() // .catch(console.error).finally(() => process.exit());
