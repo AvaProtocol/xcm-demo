@@ -10,7 +10,7 @@ Create Local Testnet with Zombienet
 ```bash
 cargo build --release --features neumann-node --features dev-queue
 ```
-* Compile the template-parachain from source:
+* Compile the example target parachain from source:
 ```bash
 gh repo clone OAK-Foundation/substrate-parachain-template
 cargo build --release
