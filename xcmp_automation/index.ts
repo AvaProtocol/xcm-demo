@@ -54,16 +54,35 @@ async function main () {
     1000000000000,
   ).signAndSend(alice_key, { nonce: -1 });
 
-  // Find derived proxy account for Oak + Alice using Oak RPC.
-  // This will be the account Alice delegates a proxy to on the Target Chain.
-  const proxyAccount = await oakApi.rpc.xcmpHandler.crossChainAccount(ALICE);
-  console.log("rpc.xcmpHandler.fees:", proxyAccount.toHuman());
-  console.log(
-    "Proxy Account:", keyring.encodeAddress(proxyAccount, SUBSTRATE_NETWORK)
+  // Find derived proxy account for Oak + Alice.
+  // This will be the account Alice delegates as a proxy on the Target Chain.
+  const location = {
+    parents: 1,
+    interior: {
+      X2: [
+        { Parachain: OAK_PARA_ID },
+        {
+          AccountId32: {
+            network: "Any",
+            id: keyring.decodeAddress(ALICE),
+          }
+        }
+      ]
+    }
+  };
+  const multilocation: XcmV1MultiLocation = oakApi.createType(
+    "XcmV1MultiLocation",
+    location
   );
+  const toHash = new Uint8Array([
+    ...new Uint8Array([32]),
+    ...new TextEncoder().encode("multiloc"),
+    ...multilocation.toU8a(),
+  ]);
+  const proxyAddress = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
 
   // Delegate access to proxy account on Target Chain
-  await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
+  await temApi.tx.proxy.addProxy(proxyAddress, "Any", 0).signAndSend(alice_key);
 
   // Create encoded transaction to trigger on Target Chain
   const proxyCall = temApi.tx.proxy.proxy(
