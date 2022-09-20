@@ -14,8 +14,6 @@ const SOME_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000
 const LOCAL_OAK_ENDPOINT = "ws://localhost:9946";
 const LOCAL_TARGET_ENDPOINT = "ws://localhost:9947";
 
-const PROVIDED_ID = "xcmp_automation_test_1";
-
 async function main () {
   await cryptoWaitReady();
 
@@ -80,6 +78,9 @@ async function main () {
     ...multilocation.toU8a(),
   ]);
   const proxyAccount = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
+  console.log(
+    "Proxy Account:", keyring.encodeAddress(proxyAccount, SUBSTRATE_NETWORK)
+  );
 
   // Delegate access to proxy account on Target Chain
   await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
@@ -100,9 +101,10 @@ async function main () {
   //    Turing xcmpHandler_fees RPC requires the encoded call in this format.
   //    Fees returned include inclusion, all executions, and XCMP fees to run on Target Chain.
   // 3. Sign and send scheduleXcmpTask call.
+  const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
   const xcmpCall =  oakApi.tx.automationTime
     .scheduleXcmpTask(
-      PROVIDED_ID,
+      providedId,
       [0],
       TARGET_PARA_ID,
       1,
@@ -128,7 +130,7 @@ async function main () {
     });
 
   // Get TaskId for Task.
-  const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, PROVIDED_ID);
+  const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
   console.log("TaskId:", taskId.toHuman());
 
   // Get Task
