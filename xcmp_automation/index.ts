@@ -79,10 +79,10 @@ async function main () {
     ...new TextEncoder().encode("multiloc"),
     ...multilocation.toU8a(),
   ]);
-  const proxyAddress = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
+  const proxyAccount = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
 
   // Delegate access to proxy account on Target Chain
-  await temApi.tx.proxy.addProxy(proxyAddress, "Any", 0).signAndSend(alice_key);
+  await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
 
   // Create encoded transaction to trigger on Target Chain
   const proxyCall = temApi.tx.proxy.proxy(
