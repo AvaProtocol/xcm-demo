@@ -9,7 +9,7 @@ const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const OAK_PARA_ID = 2114;
 const TARGET_PARA_ID = 1999;
 const SUBSTRATE_NETWORK = 42;
-const SOME_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000000000000000";
+const OAK_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000000000000000";
 
 const LOCAL_OAK_ENDPOINT = "ws://localhost:9946";
 const LOCAL_TARGET_ENDPOINT = "ws://localhost:9947";
@@ -42,7 +42,7 @@ async function main () {
             { 
               AccountId32: {
                 network: "Any",
-                id: SOME_SOV_ACCOUNT,
+                id: OAK_SOV_ACCOUNT,
               }
             }
           ]
@@ -132,10 +132,6 @@ async function main () {
   // Get TaskId for Task.
   const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
   console.log("TaskId:", taskId.toHuman());
-
-  // Get Task
-  const task = await oakApi.query.automationTime.accountTasks(ALICE, taskId);
-  console.log("Task:", task.toHuman());
 }
 
 main() // .catch(console.error).finally(() => process.exit());
