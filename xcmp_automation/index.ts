@@ -7,14 +7,12 @@ import { rpc } from '@oak-foundation/types';
 
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const OAK_PARA_ID = 2114;
-const TEM_PARA_ID = 1999;
-const TEM_TUR_FEE_PER_SECOND = 416_000_000_000;
-const TEM_INSTRUCTION_WEIGHT = 6_000_000_000;
+const TARGET_PARA_ID = 1999;
 const SUBSTRATE_NETWORK = 42;
-const SOME_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000000000000000";
+const OAK_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000000000000000";
 
 const LOCAL_OAK_ENDPOINT = "ws://localhost:9946";
-const LOCAL_TEM_ENDPOINT = "ws://localhost:9947";
+const LOCAL_TARGET_ENDPOINT = "ws://localhost:9947";
 
 async function main () {
   await cryptoWaitReady();
@@ -22,16 +20,16 @@ async function main () {
   const keyring = new Keyring();
   const alice_key = await keyring.addFromUri('//Alice', undefined, 'sr25519');
 
-  // setup API
+  // Setup: API
   const oakApi = await ApiPromise.create({
     provider: new WsProvider(LOCAL_OAK_ENDPOINT),
     rpc: rpc,
   });
   const temApi = await ApiPromise.create({
-    provider: new WsProvider(LOCAL_TEM_ENDPOINT)
+    provider: new WsProvider(LOCAL_TARGET_ENDPOINT)
   });
 
-  // send money to temp
+  // Setup: Send TUR from Oak to Target Chain in order for Target Chain to pay fees.
   await oakApi.tx.xTokens.transfer(
     1,
     100000000000000,
@@ -44,7 +42,7 @@ async function main () {
             { 
               AccountId32: {
                 network: "Any",
-                id: SOME_SOV_ACCOUNT,
+                id: OAK_SOV_ACCOUNT,
               }
             }
           ]
@@ -54,20 +52,8 @@ async function main () {
     1000000000000,
   ).signAndSend(alice_key, { nonce: -1 });
 
-  // add currency combo - bad origin for some reason. manual
-  await oakApi.tx.sudo.sudo(
-    oakApi.tx.xcmpHandler.addChainCurrencyData(
-      1999,
-      1,
-      {
-        native: "No",
-        feePerSecond: TEM_TUR_FEE_PER_SECOND,
-        instructionWeight: TEM_INSTRUCTION_WEIGHT
-      }
-    )
-  ).signAndSend(alice_key, { nonce: -1 });
-
-  // find derived account for chain 1
+  // Find derived proxy account for Oak + Alice.
+  // This will be the account Alice delegates as a proxy on the Target Chain.
   const location = {
     parents: 1,
     interior: {
@@ -86,40 +72,44 @@ async function main () {
     "XcmV1MultiLocation",
     location
   );
-
   const toHash = new Uint8Array([
     ...new Uint8Array([32]),
     ...new TextEncoder().encode("multiloc"),
     ...multilocation.toU8a(),
   ]);
-  const descendAddress = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
-
+  const proxyAccount = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
   console.log(
-    "Derived:", keyring.encodeAddress(descendAddress, SUBSTRATE_NETWORK)
+    "Proxy Account:", keyring.encodeAddress(proxyAccount, SUBSTRATE_NETWORK)
   );
 
-  // delegate access to proxy account on chain 2
-  await temApi.tx.proxy.addProxy(descendAddress, "Any", 0).signAndSend(alice_key);
+  // Delegate access to proxy account on Target Chain
+  await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
 
-  // create encoded transaction to trigger on chain 2
+  // Create encoded transaction to trigger on Target Chain
   const proxyCall = temApi.tx.proxy.proxy(
     ALICE,
     "Any",
     temApi.tx.system.remarkWithEvent("Hello, world!"),
   );
-  const chain2Fees = await proxyCall.paymentInfo(ALICE);
-  console.log("Chain 2 fees:", chain2Fees.toHuman());
+  const targetChainFees = await proxyCall.paymentInfo(ALICE);
+  console.log("Target Chain fees:", targetChainFees.toHuman());
   const encodedProxyCall = proxyCall.method.toHex();
 
-  // schedule transaction on chain 1
+  // Schedule automated task on Oak
+  // 1. Create the call for scheduleXcmpTask 
+  // 2. Fake sign the call in order to get the combined fees from Turing.
+  //    Turing xcmpHandler_fees RPC requires the encoded call in this format.
+  //    Fees returned include inclusion, all executions, and XCMP fees to run on Target Chain.
+  // 3. Sign and send scheduleXcmpTask call.
+  const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
   const xcmpCall =  oakApi.tx.automationTime
     .scheduleXcmpTask(
-      (Math.random() + 1).toString(36).substring(7),
+      providedId,
       [0],
-      TEM_PARA_ID,
+      TARGET_PARA_ID,
       1,
       encodedProxyCall,
-      6_000_000_000
+      targetChainFees.weight,
     );
   const fakeSignedXcmpCall = xcmpCall.signFake(ALICE, {
     blockHash: oakApi.genesisHash,
@@ -130,9 +120,18 @@ async function main () {
   const fees = await oakApi.rpc.xcmpHandler.fees(fakeSignedXcmpCall.toHex());
   console.log("rpc.xcmpHandler.fees:", fees.toHuman());
 
-  await xcmpCall.signAndSend(alice_key, { nonce: -1 },({ events = [], status }) => {
+  // Get TaskId for Task.
+  const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
+  console.log("TaskId:", taskId.toHuman());
+
+  await xcmpCall.signAndSend(alice_key, { nonce: -1 }, async ({ status }) => {
       if (status.isInBlock) {
         console.log('Successful with hash ' + status.asInBlock.toHex());
+
+        // Get Task
+        const task = await oakApi.query.automationTime.accountTasks(ALICE, taskId);
+        console.log("Task:", task.toHuman());
+
         process.exit();
       } else {
         console.log('Status: ' + status.type);
