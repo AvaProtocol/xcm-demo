@@ -1,18 +1,19 @@
-import "@oak-foundation/api-augment";
+import "@imstar15/api-augment";
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { XcmV1MultiLocation } from "@polkadot/types/lookup"
 import { cryptoWaitReady } from '@polkadot/util-crypto';
-import { rpc } from '@oak-foundation/types';
+import { rpc } from '@imstar15/types';
+import moment from 'moment-timezone';
 
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const OAK_PARA_ID = 2114;
 const TARGET_PARA_ID = 1999;
 const SUBSTRATE_NETWORK = 42;
-const OAK_SOV_ACCOUNT = "0x7369626c42080000000000000000000000000000000000000000000000000000";
+// const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
-const LOCAL_OAK_ENDPOINT = "ws://localhost:9946";
-const LOCAL_TARGET_ENDPOINT = "ws://localhost:9947";
+const LOCAL_OAK_ENDPOINT = "ws://localhost:8846";
+const LOCAL_TARGET_ENDPOINT = "ws://localhost:6644";
 
 async function main () {
   await cryptoWaitReady();
@@ -29,28 +30,28 @@ async function main () {
     provider: new WsProvider(LOCAL_TARGET_ENDPOINT)
   });
 
-  // Setup: Send TUR from Oak to Target Chain in order for Target Chain to pay fees.
-  await oakApi.tx.xTokens.transfer(
-    1,
-    100000000000000,
-    {
-      V1: {
-        parents: 1,
-        interior: {
-          X2: [
-            { parachain: 1999 },
-            { 
-              AccountId32: {
-                network: "Any",
-                id: OAK_SOV_ACCOUNT,
-              }
-            }
-          ]
-        }
-      }
-    },
-    1000000000000,
-  ).signAndSend(alice_key, { nonce: -1 });
+  // // Setup: Send TUR from Oak to Target Chain in order for Target Chain to pay fees.
+  // await oakApi.tx.xTokens.transfer(
+  //   1,
+  //   100000000000000,
+  //   {
+  //     V1: {
+  //       parents: 1,
+  //       interior: {
+  //         X2: [
+  //           { parachain: 1999 },
+  //           { 
+  //             AccountId32: {
+  //               network: "Any",
+  //               id: OAK_SOV_ACCOUNT,
+  //             }
+  //           }
+  //         ]
+  //       }
+  //     }
+  //   },
+  //   1000000000000,
+  // ).signAndSend(alice_key, { nonce: -1 });
 
   // Find derived proxy account for Oak + Alice.
   // This will be the account Alice delegates as a proxy on the Target Chain.
@@ -95,6 +96,21 @@ async function main () {
   console.log("Target Chain fees:", targetChainFees.toHuman());
   const encodedProxyCall = proxyCall.method.toHex();
 
+  // Create encoded transaction to trigger on Mangta Chain
+  // const proxyCall = temApi.tx.proxy.proxy(
+  //   ALICE,
+  //   "Any",
+  //   temApi.tx.xyk.compoundRewards(4, 500),
+  // );
+  // const targetChainFees = await proxyCall.paymentInfo(ALICE);
+  // console.log("Target Chain fees:", targetChainFees.toHuman());
+  // const encodedProxyCall = proxyCall.method.toHex();
+
+  const currentHour = moment.tz(undefined, 'utc').add(1, 'hours').format('YYYY-MM-DD HH');
+  console.log('currentHour: ', currentHour);
+  const execTime = moment.tz(currentHour, 'YYYY-MM-DD HH', 'utc').valueOf() / 1000;
+  console.log('execTime: ', execTime);
+
   // Schedule automated task on Oak
   // 1. Create the call for scheduleXcmpTask 
   // 2. Fake sign the call in order to get the combined fees from Turing.
@@ -105,9 +121,9 @@ async function main () {
   const xcmpCall =  oakApi.tx.automationTime
     .scheduleXcmpTask(
       providedId,
-      [0],
+      { Fixed: { executionTimes: [0] } },
       TARGET_PARA_ID,
-      1,
+      0,
       encodedProxyCall,
       targetChainFees.weight,
     );
