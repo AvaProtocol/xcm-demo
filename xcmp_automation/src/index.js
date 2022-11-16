@@ -1,14 +1,14 @@
 import "@imstar15/api-augment";
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
-import { XcmV1MultiLocation } from "@polkadot/types/lookup"
+// import { XcmV1MultiLocation } from "@polkadot/types/lookup"
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { rpc } from '@imstar15/types';
 import moment from 'moment-timezone';
 
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const OAK_PARA_ID = 2114;
-const TARGET_PARA_ID = 1999;
+const TARGET_PARA_ID = 2110;
 const SUBSTRATE_NETWORK = 42;
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
@@ -69,7 +69,7 @@ async function main () {
       ]
     }
   };
-  const multilocation: XcmV1MultiLocation = oakApi.createType(
+  const multilocation = oakApi.createType(
     "XcmV1MultiLocation",
     location
   );
@@ -84,7 +84,7 @@ async function main () {
   );
 
   // Delegate access to proxy account on Target Chain
-  await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
+  // await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
 
   // Create encoded transaction to trigger on Target Chain
   const proxyCall = temApi.tx.proxy.proxy(
@@ -140,19 +140,19 @@ async function main () {
   const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
   console.log("TaskId:", taskId.toHuman());
 
-  await xcmpCall.signAndSend(alice_key, { nonce: -1 }, async ({ status }) => {
-      if (status.isInBlock) {
-        console.log('Successful with hash ' + status.asInBlock.toHex());
+  // await xcmpCall.signAndSend(alice_key, { nonce: -1 }, async ({ status }) => {
+  //     if (status.isInBlock) {
+  //       console.log('Successful with hash ' + status.asInBlock.toHex());
 
-        // Get Task
-        const task = await oakApi.query.automationTime.accountTasks(ALICE, taskId);
-        console.log("Task:", task.toHuman());
+  //       // Get Task
+  //       const task = await oakApi.query.automationTime.accountTasks(ALICE, taskId);
+  //       console.log("Task:", task.toHuman());
 
-        process.exit();
-      } else {
-        console.log('Status: ' + status.type);
-      }
-    });
+  //       process.exit();
+  //     } else {
+  //       console.log('Status: ' + status.type);
+  //     }
+  //   });
 }
 
-main() // .catch(console.error).finally(() => process.exit());
+main().catch(console.error).finally(() => process.exit());

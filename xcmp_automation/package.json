@@ -1,13 +1,23 @@
 {
+  "scripts": {
+    "start": "babel-node src/index.js",
+    "mangata": "babel-node src/mangata.js",
+    "tur-mgx": "babel-node src/tur-mgx.js"
+  },
   "dependencies": {
     "@imstar15/api-augment": "^0.0.12",
     "@imstar15/types": "^0.0.12",
+    "@mangata-finance/sdk": "^1.9.0",
     "@polkadot/api": "^9.3.3",
     "@polkadot/util": "^10.1.7",
+    "bn.js": "^5.2.1",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.38"
   },
   "devDependencies": {
+    "@babel/core": "^7.20.2",
+    "@babel/node": "^7.20.2",
+    "@babel/preset-env": "^7.20.2",
     "ts-node": "^10.9.1"
   }
 }
