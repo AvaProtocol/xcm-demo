@@ -2,10 +2,7 @@ import { rpc } from '@imstar15/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 
-// const MANGATA_ENDPOINT = 'ws://127.0.0.1:6644';
 const OAK_PARA_ID = 2114;
-const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
-const SUBSTRATE_SS58 = 42;
 
 class OakHelper {
   initialize = async (endpoint) => {
@@ -13,9 +10,7 @@ class OakHelper {
 		this.api = api;
   }
 
-  getApi = () => {
-		return this.api;
-	}
+  getApi = () => this.api;
 
   getProxyAccount = (address) => {
     const keyring = new Keyring();
@@ -62,6 +57,25 @@ class OakHelper {
   
     const fees = await this.api.rpc.xcmpHandler.fees(fakeSignedXcmpCall.toHex());
     return fees;
+  }
+
+  sendXcmExtrinsic = async (xcmpCall, keyPair, taskId) => {
+    return new Promise(async (resolve) => {
+      const unsub = await xcmpCall.signAndSend(keyPair, { nonce: -1 }, async ({ status }) => {
+        if (status.isInBlock) {
+          console.log('Successful with hash ' + status.asInBlock.toHex());
+  
+          // Get Task
+          const task = await this.api.query.automationTime.accountTasks(keyPair.address, taskId);
+          console.log("Task:", task.toHuman());
+  
+          unsub();
+          resolve();
+        } else {
+          console.log('Status: ' + status.type);
+        }
+      });
+    });
   }
 };
 

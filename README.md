@@ -3,6 +3,27 @@ Examples
 * [XCMP Automation - Native](https://github.com/OAK-Foundation/javascript-examples/tree/master/xcmp_automation)
 Schedule an automated XCMP task paying for fees in Oak's native token.
 
+	env - Environment file
+
+	```
+	OAK_ENDPOINT=ws://localhost:8846
+	TARGET_ENDPOINT=ws://localhost:6644
+	OAK_PARA_ID=2114
+	TARGET_PARA_ID=2110
+	```
+
+	Install
+
+	```
+	npm i
+	```
+
+	Launch
+
+	```
+	npm run tur-mgx
+	```
+
 Create Local Testnet with Zombienet
 ----------
 * Download and install [Zombienet](https://github.com/paritytech/zombienet).  A testing framework for Substrate based blockchains.  

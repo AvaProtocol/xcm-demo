@@ -7,8 +7,8 @@ import { rpc } from '@imstar15/types';
 import moment from 'moment-timezone';
 
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
-const OAK_PARA_ID = 2114;
-const TARGET_PARA_ID = 2110;
+const OAK_PARA_ID = process.env.OAK_PARA_ID;
+const TARGET_PARA_ID = process.env.TARGET_PARA_ID;
 const SUBSTRATE_NETWORK = 42;
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 

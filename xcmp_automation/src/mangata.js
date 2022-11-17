@@ -3,7 +3,7 @@ import { Keyring } from "@polkadot/api";
 import { getOakApi, getProxyAccount } from './common/util';
 
 const MANGATA_ENDPOINT = 'ws://127.0.0.1:6644';
-const OAK_PARA_ID = 2114;
+const OAK_PARA_ID = process.env.OAK_PARA_ID;;
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 const SUBSTRATE_SS58 = 42;
 
