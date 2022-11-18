@@ -1,8 +1,17 @@
 import { rpc } from '@imstar15/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
+import BN from 'bn.js';
 
 const OAK_PARA_ID = 2114;
+const MANGATA_SS58 = 42;
+const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
+
+const DECIMAL = {
+  MGX: '1000000000000000000',
+  KSM: '1000000000000',
+  TUR: '10000000000',
+};
 
 class OakHelper {
   initialize = async (endpoint) => {
@@ -12,28 +21,43 @@ class OakHelper {
 
   getApi = () => this.api;
 
-  getProxyAccount = (address) => {
+  getAccountInfo = async(address)=>{
+    // Retrieve the account balance & nonce via the system module
+    const { data: balance } = await this.api.query.system.account(address);
+
+    const turBalance = balance.free.div(new BN(DECIMAL.TUR)).toNumber()
+
+    // TODO: figure out how to retrieve balance of other tokens
+    return {TUR: turBalance};
+  }
+
+  getProxyAddressMangata = (address) => {
     const keyring = new Keyring();
+    const mangataAddress = keyring.encodeAddress(address, MANGATA_SS58);
+
     const location = {
       parents: 1,
       interior: {
         X2: [
-          { Parachain: OAK_PARA_ID },
+          { Parachain: MANGATA_PARA_ID },
           {
             AccountId32: {
               network: "Any",
-              id: keyring.decodeAddress(address),
+              id: keyring.decodeAddress(mangataAddress),
             }
           }
         ]
       }
     };
+
     const multilocation = this.api.createType("XcmV1MultiLocation", location);
+
     const toHash = new Uint8Array([
       ...new Uint8Array([32]),
       ...new TextEncoder().encode("multiloc"),
       ...multilocation.toU8a(),
     ]);
+
     const proxyAccount = u8aToHex(this.api.registry.hash(toHash).slice(0, 32));
     return proxyAccount;
   }
@@ -58,6 +82,23 @@ class OakHelper {
     const fees = await this.api.rpc.xcmpHandler.fees(fakeSignedXcmpCall.toHex());
     return fees;
   }
+
+  xcmSend = async (dest, message) => {
+    console.log("xcmSend,",dest,message);
+
+    return new Promise(async (resolve) => {
+      const unsub = await this.api.tx.polkadotXcm.send(dest, message).signAndSend(keyPair, { nonce: -1 }, async ({ status }) => {
+        if (status.isInBlock) {
+          console.log('Successful with hash ' + status.asInBlock.toHex());
+  
+          unsub();
+          resolve();
+        } else {
+          console.log('Status: ' + status.type);
+        }
+      });
+    });
+}
 
   sendXcmExtrinsic = async (xcmpCall, keyPair, taskId) => {
     return new Promise(async (resolve) => {

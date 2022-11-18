@@ -2,7 +2,8 @@
   "scripts": {
     "start": "babel-node src/index.js",
     "mangata": "dotenv -e .env babel-node src/mangata.js",
-    "tur-mgx": "dotenv -e .env babel-node src/tur-mgx.js"
+    "tur-mgx": "dotenv -e .env babel-node src/tur-mgx.js",
+    "xcm": "dotenv -e .env babel-node src/xcm.js"
   },
   "dependencies": {
     "@imstar15/api-augment": "^0.0.12",
