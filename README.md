@@ -3,45 +3,17 @@ Examples
 * [XCMP Automation - Native](https://github.com/OAK-Foundation/javascript-examples/tree/master/xcmp_automation)
 Schedule an automated XCMP task paying for fees in Oak's native token.
 
-	env - Environment file
+# Installation
+1. Install dependencies, `npm i`
+2. Set up environment variables. Create a `.env` file at root with the template of `.env_template`
+3. Run a local Rococo-Mangata-Turing network with instructions in https://github.com/OAK-Foundation/OAK-blockchain#quickstart-run-local-network-with-zombienet
 
+# Run
+1. Set up accounts and pools
 	```
-	TURING_ENDPOINT=ws://localhost:8846
-	MANGATA_ENDPOINT=ws://localhost:6644
-	TURING_PARA_ID=2114
-	MANGATA_PARA_ID=2110
+	npm run setup
 	```
-
-	Install
-
-	```
-	npm i
-	```
-
-	Launch
-
-	```
-	npm run tur-mgx
-	```
-
-Create Local Testnet with Zombienet
-----------
-* Download and install [Zombienet](https://github.com/paritytech/zombienet).  A testing framework for Substrate based blockchains.  
-* Build Oak blockchain from source following the directions [here](https://github.com/OAK-Foundation/OAK-blockchain#building-from-source).  When building the executable use the command:
-```bash
-cargo build --release --features neumann-node --features dev-queue
-```
-* Compile the example target parachain from source:
-```bash
-gh repo clone OAK-Foundation/substrate-parachain-template
-cargo build --release
-```
-* Compile Polkadot from source:
-```bash
-git clone https://github.com/paritytech/polkadot
-cargo build --release
-```
-* Run the local network using Zombienet
-```bash
-zombienet spawn zombienets/neumann/xcmp.toml
-```
+2. Run the program to schedule automation and wait for cross-chain execution
+   ```
+   npm start
+   ```
