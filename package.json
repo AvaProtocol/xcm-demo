@@ -10,11 +10,11 @@
   "dependencies": {
     "@imstar15/api-augment": "^0.0.12",
     "@imstar15/types": "^0.0.12",
+    "@inquirer/confirm": "^0.0.19-alpha.0",
     "@mangata-finance/sdk": "^1.9.0",
     "@polkadot/api": "^9.3.3",
     "@polkadot/util": "^10.1.7",
     "bn.js": "^5.2.1",
-    "inquirer": "^9.1.4",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.38"
   },

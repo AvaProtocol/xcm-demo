@@ -1,13 +1,10 @@
 import "@imstar15/api-augment";
-import { Keyring } from "@polkadot/api";
+import _ from 'lodash';
+import inquirer from 'inquirer';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
-import _ from 'lodash';
-import BN from 'bn.js';
-import confirm from '@inquirer/confirm';
-
 import {env} from "./common/constants";
 const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
 
@@ -44,7 +41,7 @@ const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
   console.log(`Adding proxy ${alice.assets[1].proxyAddress} for Alice on mangata successfully!`);
   await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
 
-  const answerPool = await confirm({ message: 'Account setup is completed. Press ENTRE to set up pools.' , default: true});
+  inquirer.confirm({ message: 'Account setup is completed. Press ENTRE to set up pools.' , default: true});
 
   if(answerPool){
       // Create pool
