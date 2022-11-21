@@ -44,56 +44,36 @@ const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
   console.log(`Adding proxy ${alice.assets[1].proxyAddress} for Alice on mangata successfully!`);
   await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
 
-  const answer = await confirm({ message: 'Should we proceed? Press ENTRE for confirmation.' , default: true});
+  const answerPool = await confirm({ message: 'Account setup is completed. Press ENTRE to set up pools.' , default: true});
 
+  if(answerPool){
+      // Create pool
+      const pools = await mangataHelper.getPools();
+      console.log('Pools: ', pools);
 
-  // Create pool
-  const pools = await mangataHelper.getPools();
-	console.log('Pools: ', pools);
+      const existingPool = _.find(pools, (pool)=>{
+        return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
+      });
 
-  const existingPool = _.find(pools, (pool)=>{
-    return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
-  });
+      if(_.isUndefined(existingPool))
+      {
+        console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
+        await mangataHelper.createPool("MGR" ,"TUR",alice.keyring);
+      }else{
+        console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
+      }
 
-  if(_.isUndefined(existingPool))
-  {
-    console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
-    await mangataHelper.createPool("MGR" ,"TUR",alice.keyring);
-  }else{
-    console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
+      console.log(`Promote the pool to be eligible for trading ...`);
+      await mangataHelper.promotePool( 'MGR-TUR' ,alice.keyring);
   }
 
-  // Add liquidity to 
-	
+  const answerTestPool = await confirm({ message: 'Pool setup is completed. Press ENTRE to test Swap to Mangata.' , default: true});
+  if(answerTestPool){
+    console.log('Swap MGX for TUR to test the pool ...');
+    await mangataHelper.swap(alice.keyring, "MGR", "TUR");
 
-	// Buy asset
-	console.log('Buy asset...');
-	await mangataHelper.mangata.buyAsset(alice.keyring, '0', '7', new BN('1000000000000'), new BN('100000000000000000000000000'));
-
-
-    // await mangataHelper.mangata.transferToken(
-    //     account, 
-    //     '4', // TokenID 4 is KSM
-    //     account.address, 
-    //     new BN(100000000000000), // 100 KSM (KSM is 12 decimals)
-    //     {
-    //         statusCallback: (result) => {
-    //           // result is of the form ISubmittableResult
-    //           console.log(result)
-    //         },
-    //         extrinsicStatus: (result) => {
-    //           // result is of the form MangataGenericEvent[]
-    //           for (let index = 0; index < result.length; index++) {
-    //               console.log('Phase', result[index].phase.toString())
-    //               console.log('Section', result[index].section)
-    //               console.log('Method', result[index].method)
-    //               console.log('Documentation', result[index].metaDocumentation)
-    //             }
-    //         },
-    //       }
-    // )
-
-
-  const message = "empty";
-//   await turingHelper.xcmSend(dest, message);
+    // TODO: how do we prove that the liquidity owner earned fee?
+    //       how to check the amount of fee to claim?
+    //       test claim extrinsic
+  }
 })();

@@ -119,6 +119,27 @@ class MangataHelper {
     });
   }
 
+  async promotePool(symbol, keyring) {
+    const tokenId = this.getTokenIdBySymbol('MGR-TUR');
+    console.log("symbol", symbol, "tokenId", tokenId);
+    const promotePoolExtrinsic = this.api.tx.xyk.promotePool(tokenId);
+    // await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
+  }
+
+  /**
+   * Swap sellSymol for buySymbol
+   */
+  async swap (sellSymbol, buySymbol, keyring, amount = '1000000000000' ) {
+    const sellTokenId = this.getTokenIdBySymbol(sellSymbol);
+    const buyTokenId = this.getTokenIdBySymbol(buySymbol);
+
+    console.log("selltokenId", sellTokenId);
+    console.log("buytokenId", buyTokenId);
+    
+    // The last param is the max amount; setting it a very large number for now
+    await this.mangata.buyAsset(keyring, sellTokenId, buyTokenId, new BN(amount), new BN('100000000000000000000000000'));
+  }
+
   getPools = async() =>{
     return this.mangata.getPools();
   }

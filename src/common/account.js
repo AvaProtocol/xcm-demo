@@ -1,23 +1,10 @@
-import { Mangata } from '@mangata-finance/sdk';
-import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
-import { u8aToHex } from "@polkadot/util";
-import { decodeAddress } from '@polkadot/util-crypto';
+import { Keyring } from "@polkadot/api";
 import BN from 'bn.js';
+import _ from 'lodash';
+import util from "util";
 import turingHelper from "./turingHelper";
 import mangataHelper from "./mangataHelper";
 import { chainConfig, tokenConfig } from './constants';
-import _ from 'lodash';
-import util from "util";
-
-const TURING_PARA_ID = 2114;
-const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
-
-const DECIMAL = {
-  MGR: '1000000000000000000',
-  KSM: '1000000000000',
-  TUR: '10000000000',
-};
-
 class Account {
     constructor(name) {
         this.name = name;
