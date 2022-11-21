@@ -1,6 +1,6 @@
 import "@imstar15/api-augment";
 import _ from 'lodash';
-import inquirer from 'inquirer';
+import confirm from '@inquirer/confirm';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
@@ -8,15 +8,17 @@ import Account from './common/account';
 import {env} from "./common/constants";
 const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
 
+console.log(env);
+
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
 /*** Main entrance of the program */
 (async function main () {
   await cryptoWaitReady();
 
-    console.log("Initializing APIs of both chains ...");
-    await turingHelper.initialize(TURING_ENDPOINT);
-    await mangataHelper.initialize(MANGATA_ENDPOINT);
+  console.log("Initializing APIs of both chains ...");
+  await turingHelper.initialize(TURING_ENDPOINT);
+  await mangataHelper.initialize(MANGATA_ENDPOINT);
 
   console.log("Reading token and balance of Alice and Bob accounts ...");
   const alice = new Account("Alice");
@@ -38,21 +40,23 @@ const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
 
   await Promise.all(promises);
 
+  // TODO: how do we check whether the proxy is already added for Alice?
   console.log(`Adding proxy ${alice.assets[1].proxyAddress} for Alice on mangata successfully!`);
   await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
 
-  inquirer.confirm({ message: 'Account setup is completed. Press ENTRE to set up pools.' , default: true});
+  const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.' , default: true});
 
   if(answerPool){
-      // Create pool
-      const pools = await mangataHelper.getPools();
-      console.log('Pools: ', pools);
 
-      const existingPool = _.find(pools, (pool)=>{
+      // Get current pools available
+      const pools = await mangataHelper.getPools();
+      console.log('Existing pools: ', pools);
+
+      const poolFound = _.find(pools, (pool)=>{
         return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
       });
 
-      if(_.isUndefined(existingPool))
+      if(_.isUndefined(poolFound))
       {
         console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
         await mangataHelper.createPool("MGR" ,"TUR",alice.keyring);
@@ -60,17 +64,23 @@ const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
         console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
       }
 
+      // TODO: how to check whether this MGR-TUR is already promoted by Alice?
       console.log(`Promote the pool to be eligible for trading ...`);
-      await mangataHelper.promotePool( 'MGR-TUR' ,alice.keyring);
+      await mangataHelper.promotePool( 'MGR-TUR', alice.keyring);
   }
 
-  const answerTestPool = await confirm({ message: 'Pool setup is completed. Press ENTRE to test Swap to Mangata.' , default: true});
+  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.' , default: true});
+
   if(answerTestPool){
     console.log('Swap MGX for TUR to test the pool ...');
-    await mangataHelper.swap(alice.keyring, "MGR", "TUR");
+    await mangataHelper.swap("MGR", "TUR", alice.keyring);
 
     // TODO: how do we prove that the liquidity owner earned fee?
     //       how to check the amount of fee to claim?
     //       test claim extrinsic
+
+    console.log('Teleporting TUR token from Mangata to Turing to pay fees ...');
+    
+    // TODO: teleport TUR to Turing Network to fund user’s account
   }
 })();

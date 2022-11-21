@@ -123,7 +123,7 @@ class MangataHelper {
     const tokenId = this.getTokenIdBySymbol('MGR-TUR');
     console.log("symbol", symbol, "tokenId", tokenId);
     const promotePoolExtrinsic = this.api.tx.xyk.promotePool(tokenId);
-    // await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
+    await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
   }
 
   /**

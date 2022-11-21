@@ -1,9 +1,6 @@
 {
   "scripts": {
-    "start": "babel-node src/index.js",
-    "mangata": "dotenv -e .env babel-node src/mangata.js",
-    "tur-mgx": "dotenv -e .env babel-node src/tur-mgx.js",
-    "xcm": "dotenv -e .env babel-node src/xcm.js",
+    "start": "dotenv -e .env babel-node src/index.js",
     "setup": "dotenv -e .env babel-node src/setup.js",
     "lint": "eslint --fix src/*"
   },

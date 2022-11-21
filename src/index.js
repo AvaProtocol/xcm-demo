@@ -1,158 +1,73 @@
 import "@imstar15/api-augment";
-import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
-import { u8aToHex } from "@polkadot/util";
-// import { XcmV1MultiLocation } from "@polkadot/types/lookup"
 import { cryptoWaitReady } from '@polkadot/util-crypto';
-import { rpc } from '@imstar15/types';
-import moment from 'moment-timezone';
+import turingHelper from "./common/turingHelper";
+import mangataHelper from "./common/mangataHelper";
+import {env} from "./common/constants";
+import Account from './common/account';
+const {TURING_ENDPOINT,TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID} = env;
 
-const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
-const TURING_PARA_ID = process.env.TURING_PARA_ID;
-const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
-const SUBSTRATE_NETWORK = 42;
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
-const LOCAL_TURING_ENDPOINT = "ws://localhost:8846";
-const LOCAL_MANGATA_ENDPOINT = "ws://localhost:6644";
-
+/**
+ * Make sure you run `npm run setup` before running this file.
+ * Pre-requisite from setup
+ * 1. MGR-TUR pool is created and promoted
+ * 2. Alice account has balances
+ *   a) MGR on Mangata
+ *   b) MGR-TUR liquidity token on Mangata
+ *   c) Reward claimable in MGR-TUR pool <-- TODO
+ *   d) TUR on Turing for transaction fees
+ *   
+ */
 async function main () {
   await cryptoWaitReady();
 
-  const keyring = new Keyring();
-  const alice_key = await keyring.addFromUri('//Alice', undefined, 'sr25519');
+  console.log("Initializing APIs of both chains ...");
+  await turingHelper.initialize(TURING_ENDPOINT);
+  await mangataHelper.initialize(MANGATA_ENDPOINT);
 
-  // Setup: API
-  const oakApi = await ApiPromise.create({
-    provider: new WsProvider(LOCAL_TURING_ENDPOINT),
-    rpc: rpc,
-  });
-  const temApi = await ApiPromise.create({
-    provider: new WsProvider(LOCAL_MANGATA_ENDPOINT)
-  });
+  console.log("Reading token and balance of Alice and Bob accounts ...");
+  const alice = new Account("Alice");
+  await alice.init();
+  alice.print();
 
-  // // Setup: Send TUR from Oak to Target Chain in order for Target Chain to pay fees.
-  // await oakApi.tx.xTokens.transfer(
-  //   1,
-  //   100000000000000,
-  //   {
-  //     V1: {
-  //       parents: 1,
-  //       interior: {
-  //         X2: [
-  //           { parachain: 1999 },
-  //           { 
-  //             AccountId32: {
-  //               network: "Any",
-  //               id: OAK_SOV_ACCOUNT,
-  //             }
-  //           }
-  //         ]
-  //       }
-  //     }
-  //   },
-  //   1000000000000,
-  // ).signAndSend(alice_key, { nonce: -1 });
+  const mangataAddress = alice.assets[1].address;
+  const turingAddress = alice.assets[2].address;
 
-  // Find derived proxy account for Oak + Alice.
-  // This will be the account Alice delegates as a proxy on the Target Chain.
-  const location = {
-    parents: 1,
-    interior: {
-      X2: [
-        { Parachain: TURING_PARA_ID },
-        {
-          AccountId32: {
-            network: "Any",
-            id: keyring.decodeAddress(ALICE),
-          }
-        }
-      ]
-    }
-  };
-  const multilocation = oakApi.createType(
-    "XcmV1MultiLocation",
-    location
-  );
-  const toHash = new Uint8Array([
-    ...new Uint8Array([32]),
-    ...new TextEncoder().encode("multiloc"),
-    ...multilocation.toU8a(),
-  ]);
-  const proxyAccount = u8aToHex(oakApi.registry.hash(toHash).slice(0, 32));
-  console.log(
-    "Proxy Account:", keyring.encodeAddress(proxyAccount, SUBSTRATE_NETWORK)
-  );
+  const proxyExtrinsic = mangataHelper.api.tx.system.remarkWithEvent("Hello, world!");
+  const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyExtrinsic);
+  const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
+  const mangataProxyCallFees = await mangataProxyCall.paymentInfo(mangataAddress);
 
-  // Delegate access to proxy account on Target Chain
-  // await temApi.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(alice_key);
+  console.log('encodedMangataProxyCall: ', encodedMangataProxyCall);
+  console.log('mangataProxyCallFees: ', mangataProxyCallFees.toHuman());
 
-  // Create encoded transaction to trigger on Target Chain
-  const proxyCall = temApi.tx.proxy.proxy(
-    ALICE,
-    "Any",
-    temApi.tx.system.remarkWithEvent("Hello, world!"),
-  );
-  const targetChainFees = await proxyCall.paymentInfo(ALICE);
-  console.log("Target Chain fees:", targetChainFees.toHuman());
-  const encodedProxyCall = proxyCall.method.toHex();
-
-  // Create encoded transaction to trigger on Mangta Chain
-  // const proxyCall = temApi.tx.proxy.proxy(
-  //   ALICE,
-  //   "Any",
-  //   temApi.tx.xyk.compoundRewards(4, 500),
-  // );
-  // const targetChainFees = await proxyCall.paymentInfo(ALICE);
-  // console.log("Target Chain fees:", targetChainFees.toHuman());
-  // const encodedProxyCall = proxyCall.method.toHex();
-
-  const currentHour = moment.tz(undefined, 'utc').add(1, 'hours').format('YYYY-MM-DD HH');
-  console.log('currentHour: ', currentHour);
-  const execTime = moment.tz(currentHour, 'YYYY-MM-DD HH', 'utc').valueOf() / 1000;
-  console.log('execTime: ', execTime);
-
-  // Schedule automated task on Oak
-  // 1. Create the call for scheduleXcmpTask 
-  // 2. Fake sign the call in order to get the combined fees from Turing.
-  //    Turing xcmpHandler_fees RPC requires the encoded call in this format.
-  //    Fees returned include inclusion, all executions, and XCMP fees to run on Target Chain.
-  // 3. Sign and send scheduleXcmpTask call.
+  console.log(`\n1. Create the call for scheduleXcmpTask `);
   const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
-  const xcmpCall =  oakApi.tx.automationTime
-    .scheduleXcmpTask(
-      providedId,
-      { Fixed: { executionTimes: [0] } },
-      MANGATA_PARA_ID,
-      0,
-      encodedProxyCall,
-      targetChainFees.weight,
-    );
-  const fakeSignedXcmpCall = xcmpCall.signFake(ALICE, {
-    blockHash: oakApi.genesisHash,
-    genesisHash: oakApi.genesisHash,
-    nonce: 100, // does not except negative?
-    runtimeVersion: oakApi.runtimeVersion,
-  });
-  const fees = await oakApi.rpc.xcmpHandler.fees(fakeSignedXcmpCall.toHex());
-  console.log("rpc.xcmpHandler.fees:", fees.toHuman());
+  const xcmpCall =  turingHelper.api.tx.automationTime.scheduleXcmpTask(
+    providedId,
+    { Fixed: { executionTimes: [0] } },
+    MANGATA_PARA_ID,
+    0,
+    encodedMangataProxyCall,
+    mangataProxyCallFees.weight,
+  );
+  
+  console.log('xcmpCall: ', xcmpCall);
 
-  // Get TaskId for Task.
-  const taskId = await oakApi.rpc.automationTime.generateTaskId(ALICE, providedId);
+  console.log(`\n2. Estimating XCM fees ...`);
+  const xcmFrees = await turingHelper.getXcmFees(turingAddress, xcmpCall);
+  console.log("xcmFrees:", xcmFrees.toHuman());
+
+  // Get a TaskId from Turing rpc
+  const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
   console.log("TaskId:", taskId.toHuman());
 
-  // await xcmpCall.signAndSend(alice_key, { nonce: -1 }, async ({ status }) => {
-  //     if (status.isInBlock) {
-  //       console.log('Successful with hash ' + status.asInBlock.toHex());
+  console.log(`\n3. Sign and send scheduleXcmpTask call ...`);
+  await turingHelper.sendXcmExtrinsic(xcmpCall, alice.keyring, taskId);
 
-  //       // Get Task
-  //       const task = await oakApi.query.automationTime.accountTasks(ALICE, taskId);
-  //       console.log("Task:", task.toHuman());
-
-  //       process.exit();
-  //     } else {
-  //       console.log('Status: ' + status.type);
-  //     }
-  //   });
+  // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
+  console.log(`\n4. waiting for XCM events on Mangata side ...`);
 }
 
 main().catch(console.error).finally(() => process.exit());

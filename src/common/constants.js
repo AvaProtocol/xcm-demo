@@ -1,7 +1,7 @@
 const env={
     MANGATA_PARA_ID: process.env.MANGATA_PARA_ID,
-    MANGATA_ENDPOINT: process.env.TARGET_ENDPOINT,
-    TURING_PARA_ID: process.env.MANGATA_PARA_ID,
+    MANGATA_ENDPOINT: process.env.MANGATA_ENDPOINT,
+    TURING_PARA_ID: process.env.TURING_PARA_ID,
     TURING_ENDPOINT: process.env.TURING_ENDPOINT,
 }
 

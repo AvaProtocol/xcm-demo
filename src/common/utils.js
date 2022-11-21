@@ -5,7 +5,7 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
 
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
 		newExtrinsic.signAndSend(keyPair, { nonce: -1 }, ({ status, dispatchError }) => {
-			console.log("status", status);
+			console.log("status.type", status.type);
 			if (status.type === 'Finalized') {
 				console.log('Finalize extrinsic in block: ', status.asFinalized.toString());
 
