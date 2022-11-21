@@ -1,5 +1,7 @@
 Mangata XCM Auto-compound E2E Demo
 ----------
+# Overview
+![Automation Integration Flow Chart](./assets/flow-technical.png)
 
 # Installation
 1. Install dependencies, `npm i`
