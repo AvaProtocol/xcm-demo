@@ -3,12 +3,14 @@ import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from '@polkadot/util-crypto';
 import BN from 'bn.js';
+import _ from "lodash";
+import { sendExtrinsic } from './utils';
 
-const OAK_PARA_ID = 2114;
+const TURING_PARA_ID = 2114;
 const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
 
 const DECIMAL = {
-  MGX: '1000000000000000000',
+  MGR: '1000000000000000000',
   KSM: '1000000000000',
   TUR: '10000000000',
 };
@@ -19,45 +21,38 @@ class MangataHelper {
 
     this.mangata = mangata;
     this.api = mangataApi;
+
+    const assetsResp = await this.mangata.getAssetsInfo();
+    this.assets=_.values(_.filter(assetsResp, asset=> !_.isEmpty(asset.symbol)));
+    console.log("Assets on Mangata chain: ", this.assets);
+    /**
+    [
+      {"id":"0","chainId":0,"decimals":18,"name":"Mangata","symbol":"MGR","address":""},
+      {"id":"4","chainId":0,"decimals":12,"name":"Rococo  Native","symbol":"ROC","address":""},
+      {"id":"7","chainId":0,"decimals":10,"name":"Turing native token","symbol":"TUR","address":""}
+    ]
+     */
   }
 
-  getApi = () => this.api;
-
-  checkFreeBalance = async (address) => {
-    const tokenBalance = await this.mangata.getTokenBalance('0', address);
-    return tokenBalance.free;
+  getBalance = async (symbol, address ) => {
+    const tokenId = (_.find(this.assets, {symbol})).id;
+    const balance = await this.mangata.getTokenBalance(tokenId, address);
+    return balance;
   }
 
-  getChainInfo = async (account) => {
-        // 2. Read chain asssets
-    const assets = await this.mangata.getAssetsInfo();
-    return assets;
+  getTokenIdBySymbol(symbol) {
+    const tokenId = (_.find(this.assets, {symbol})).id;
+    return tokenId;
   }
-
-  getAccountInfo = async (address) => {
-    const balances = {};
-    balances.MGX = await this.getAssetFreeAmount(0, address, DECIMAL.MGX);
-    balances.KSM = await this.getAssetFreeAmount(4, address, DECIMAL.KSM);
-    balances.TUR = await this.getAssetFreeAmount(7, address, DECIMAL.TUR);
-    // balances['KSM-MGX'] = await this.mangata.getTokenBalance('5', account.address);
-    return balances;
-  }
-
-  getAssetFreeAmount = async (assetId, address, digits )=>{
-    const asset = await this.mangata.getTokenBalance(assetId.toString(), address);
-    return asset.free.div(new BN(digits)).toNumber();
-  } 
 
   getProxyAccount = (address) => {
-    const decodedAddress = decodeAddress(address);
-    const decondedAddressHex = u8aToHex(decodedAddress); // a SS58 public key
-    console.log("decondedAddressHex", decondedAddressHex);
+    const decodedAddress = decodeAddress(address); // An Int array presentation of the address’ ss58 public key
     
     const location = {
       parents: 1, // From Turing to Mangata
       interior: {
         X2: [
-          { Parachain: OAK_PARA_ID },
+          { Parachain: TURING_PARA_ID },
           {
             AccountId32: {
               network: "Any",
@@ -87,18 +82,28 @@ class MangataHelper {
 
   createProxyCall = async (address, extrinsic) => this.api.tx.proxy.proxy(address, 'Any', extrinsic);
 
-  createPool = async (account) => {
-    return new Promise(async (resolve) => {
-      await this.mangata.createPool(
-        account,
-        '0',
-        new BN('1000000000000000000000'), // 1000 MGX (MGX is 18 decimals)
-        '4',
-        new BN('1000000000000'), // 1 TUR (TUR is 12 decimals)
+  mintToken = async(address, symbol, keyring, amount=5000000000000000)=>{
+    const tokenId = (_.find(this.assets, {symbol})).id;
+    const mintTokenExtrinsic = this.api.tx.tokens.mint(tokenId, address, amount);
+    await sendExtrinsic(this.api, mintTokenExtrinsic, keyring, { isSudo: true });
+  }
+
+  createPool = async (firstSymbol, secondSymbol, keyring) => {
+    const firstTokenId = (_.find(this.assets, {symbol: firstSymbol})).id;
+    const secondTokenId = (_.find(this.assets, {symbol: secondSymbol})).id;
+
+    return new Promise((resolve) => {
+      this.mangata.createPool(
+        keyring,
+        firstTokenId.toString(),
+        new BN('10000000000000000000000'), // 10000 MGR (MGR is 18 decimals)
+        secondTokenId.toString(),
+        new BN('100000000000000'), // 100 TUR (TUR is 12 decimals)
         {
           statusCallback: (result) => {
             // result is of the form ISubmittableResult
-            console.log(result);
+            console.log("call back result", result);
+            console.log("call back result type", result.status.type);
           },
           extrinsicStatus: (result) => {
             // result is of the form MangataGenericEvent[]
@@ -107,7 +112,7 @@ class MangataHelper {
                   console.log('Section', result[index].section)
                   console.log('Method', result[index].method)
                   console.log('Documentation', result[index].metaDocumentation)
-            }
+                }
           },
         }
       );

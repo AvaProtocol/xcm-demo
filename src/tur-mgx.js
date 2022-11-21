@@ -5,9 +5,9 @@ import oakHelper from "./common/oakHelper";
 import mangataHelper from "./common/mangataHelper";
 
 const SUBSTRATE_SS58 = 42;
-const TARGET_PARA_ID = process.env.TARGET_PARA_ID;
-const OAK_ENDPOINT = process.env.OAK_ENDPOINT;
-const TARGET_ENDPOINT = process.env.TARGET_ENDPOINT;
+const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
+const TURING_ENDPOINT = process.env.TURING_ENDPOINT;
+const MANGATA_ENDPOINT = process.env.MANGATA_ENDPOINT;
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
@@ -19,8 +19,8 @@ async function main () {
   console.log('Account address: ', keyPair.address);
 
   // Initialize
-  await oakHelper.initialize(OAK_ENDPOINT);
-  await mangataHelper.initialize(TARGET_ENDPOINT);
+  await oakHelper.initialize(TURING_ENDPOINT);
+  await mangataHelper.initialize(MANGATA_ENDPOINT);
   const oakApi = oakHelper.getApi();
 
   const freeBalance = await mangataHelper.checkFreeBalance(keyPair.address);
@@ -46,7 +46,7 @@ async function main () {
   const xcmpCall =  oakApi.tx.automationTime.scheduleXcmpTask(
     providedId,
     { Fixed: { executionTimes: [0] } },
-    TARGET_PARA_ID,
+    MANGATA_PARA_ID,
     0,
     encodedMangataProxyCall,
     mangataProxyCallFees.weight,

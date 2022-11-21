@@ -3,17 +3,17 @@ import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import BN from 'bn.js';
 
-const OAK_PARA_ID = 2114;
+const TURING_PARA_ID = 2114;
 const MANGATA_SS58 = 42;
 const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
 
 const DECIMAL = {
-  MGX: '1000000000000000000',
+  MGR: '1000000000000000000',
   KSM: '1000000000000',
   TUR: '10000000000',
 };
 
-class OakHelper {
+class TuringHelper {
   initialize = async (endpoint) => {
     const api = await ApiPromise.create({ provider: new WsProvider(endpoint), rpc });
 		this.api = api;
@@ -21,14 +21,11 @@ class OakHelper {
 
   getApi = () => this.api;
 
-  getAccountInfo = async(address)=>{
+  getBalance = async(address)=>{
     // Retrieve the account balance & nonce via the system module
     const { data: balance } = await this.api.query.system.account(address);
 
-    const turBalance = balance.free.div(new BN(DECIMAL.TUR)).toNumber()
-
-    // TODO: figure out how to retrieve balance of other tokens
-    return {TUR: turBalance};
+    return balance;
   }
 
   getProxyAddressMangata = (address) => {
@@ -120,4 +117,4 @@ class OakHelper {
   }
 }
 
-export default new OakHelper();
+export default new TuringHelper();

@@ -6,10 +6,10 @@ Schedule an automated XCMP task paying for fees in Oak's native token.
 	env - Environment file
 
 	```
-	OAK_ENDPOINT=ws://localhost:8846
-	TARGET_ENDPOINT=ws://localhost:6644
-	OAK_PARA_ID=2114
-	TARGET_PARA_ID=2110
+	TURING_ENDPOINT=ws://localhost:8846
+	MANGATA_ENDPOINT=ws://localhost:6644
+	TURING_PARA_ID=2114
+	MANGATA_PARA_ID=2110
 	```
 
 	Install

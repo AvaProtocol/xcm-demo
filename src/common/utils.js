@@ -1,12 +1,13 @@
 import _ from 'lodash';
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => {
-	return new Promise(async (resolve) => {
+	return new Promise((resolve) => {
 
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
-		const unsub = await newExtrinsic.signAndSend(keyPair, { nonce: -1 }, ({ status, dispatchError }) => {
+		newExtrinsic.signAndSend(keyPair, { nonce: -1 }, ({ status, dispatchError }) => {
+			console.log("status", status);
 			if (status.type === 'Finalized') {
-        console.log('Finalize extrinsic in block: ', status.asFinalized.toString());
+				console.log('Finalize extrinsic in block: ', status.asFinalized.toString());
 
 				if (!_.isNil(dispatchError)) {
 					if (dispatchError.isModule) {
@@ -21,7 +22,6 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
 					}
 				}
 
-				unsub();
 				resolve(status.asFinalized.toString());
 			}
 		});

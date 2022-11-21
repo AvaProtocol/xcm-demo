@@ -7,13 +7,13 @@ import { rpc } from '@imstar15/types';
 import moment from 'moment-timezone';
 
 const ALICE = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
-const OAK_PARA_ID = process.env.OAK_PARA_ID;
-const TARGET_PARA_ID = process.env.TARGET_PARA_ID;
+const TURING_PARA_ID = process.env.TURING_PARA_ID;
+const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
 const SUBSTRATE_NETWORK = 42;
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
-const LOCAL_OAK_ENDPOINT = "ws://localhost:8846";
-const LOCAL_TARGET_ENDPOINT = "ws://localhost:6644";
+const LOCAL_TURING_ENDPOINT = "ws://localhost:8846";
+const LOCAL_MANGATA_ENDPOINT = "ws://localhost:6644";
 
 async function main () {
   await cryptoWaitReady();
@@ -23,11 +23,11 @@ async function main () {
 
   // Setup: API
   const oakApi = await ApiPromise.create({
-    provider: new WsProvider(LOCAL_OAK_ENDPOINT),
+    provider: new WsProvider(LOCAL_TURING_ENDPOINT),
     rpc: rpc,
   });
   const temApi = await ApiPromise.create({
-    provider: new WsProvider(LOCAL_TARGET_ENDPOINT)
+    provider: new WsProvider(LOCAL_MANGATA_ENDPOINT)
   });
 
   // // Setup: Send TUR from Oak to Target Chain in order for Target Chain to pay fees.
@@ -59,7 +59,7 @@ async function main () {
     parents: 1,
     interior: {
       X2: [
-        { Parachain: OAK_PARA_ID },
+        { Parachain: TURING_PARA_ID },
         {
           AccountId32: {
             network: "Any",
@@ -122,7 +122,7 @@ async function main () {
     .scheduleXcmpTask(
       providedId,
       { Fixed: { executionTimes: [0] } },
-      TARGET_PARA_ID,
+      MANGATA_PARA_ID,
       0,
       encodedProxyCall,
       targetChainFees.weight,

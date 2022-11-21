@@ -10,10 +10,10 @@ import { sendExtrinsic } from "./common/utils";
 const SUBSTRATE_SS58 = 42;
 const TURING_SS58 = 51;
 const MANGATA_SS58 = 42;
-const OAK_PARA_ID = process.env.OAK_PARA_ID;
+const TURING_PARA_ID = process.env.TURING_PARA_ID;
 const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
-const OAK_ENDPOINT = process.env.OAK_ENDPOINT;
-const TARGET_ENDPOINT = process.env.TARGET_ENDPOINT;
+const TURING_ENDPOINT = process.env.TURING_ENDPOINT;
+const MANGATA_ENDPOINT = process.env.MANGATA_ENDPOINT;
 
 const mgxCurrencyId = 0;
 const turCurrencyId = 7;
@@ -25,8 +25,8 @@ async function main () {
   await cryptoWaitReady();
 
     // Initialize
-    await oakHelper.initialize(OAK_ENDPOINT);
-    await mangataHelper.initialize(TARGET_ENDPOINT);
+    await oakHelper.initialize(TURING_ENDPOINT);
+    await mangataHelper.initialize(MANGATA_ENDPOINT);
     const oakApi = oakHelper.getApi();
 
   const account = keyring.addFromUri('//Alice', undefined, 'sr25519');
@@ -59,10 +59,10 @@ async function main () {
     // const mintTokenExtrinsic = mangataHelper.getApi().tx.tokens.mint(4, address, 5000000000000000);
     // await sendExtrinsic(mangataHelper.getApi(), mintTokenExtrinsic, account, { isSudo: true });
 
-	// console.log('Creating a TUR-MGX pool with ${} ${} and ${} ${}...');
+	// console.log('Creating a TUR-MGR pool with ${} ${} and ${} ${}...');
     // await mangataHelper.createPool(account);
 
-    // console.log('Creating a KSM-MGX pool with ${} ${} and ${} ${}...');
+    // console.log('Creating a KSM-MGR pool with ${} ${} and ${} ${}...');
     // await mangataHelper.createPool(account);
    
 	const pools = await mangataHelper.getPools();
@@ -103,7 +103,7 @@ async function main () {
     )
 
 
-    console.log("Bob is trying to add liquidity to the MGX-TUR pool");
+    console.log("Bob is trying to add liquidity to the MGR-TUR pool");
     const bob = keyring.addFromUri('//Bob', undefined, 'sr25519');
     const {addressBob} = bob;
     await printAccountInfo(bob);

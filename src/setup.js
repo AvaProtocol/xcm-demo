@@ -1,135 +1,99 @@
 import "@imstar15/api-augment";
 import { Keyring } from "@polkadot/api";
 import { cryptoWaitReady } from '@polkadot/util-crypto';
-import oakHelper from "./common/oakHelper";
+import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
+import Account from './common/account';
+import _ from 'lodash';
 import BN from 'bn.js';
-import { Mangata } from "@mangata-finance/sdk";
-import { sendExtrinsic } from "./common/utils";
-import * from './common/constants';
+import confirm from '@inquirer/confirm';
 
-const SUBSTRATE_SS58 = 42;
-const TURING_SS58 = 51;
-const MANGATA_SS58 = 42;
-const OAK_PARA_ID = process.env.OAK_PARA_ID;
-const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
-const OAK_ENDPOINT = process.env.OAK_ENDPOINT;
-const TARGET_ENDPOINT = process.env.TARGET_ENDPOINT;
-
-const mgxCurrencyId = 0;
-const turCurrencyId = 7;
+import {env} from "./common/constants";
+const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
-const keyring = new Keyring();
 
-async function main () {
+/*** Main entrance of the program */
+(async function main () {
   await cryptoWaitReady();
 
-    // Initialize
-    await oakHelper.initialize(OAK_ENDPOINT);
-    await mangataHelper.initialize(TARGET_ENDPOINT);
-    const oakApi = oakHelper.getApi();
+    console.log("Initializing APIs of both chains ...");
+    await turingHelper.initialize(TURING_ENDPOINT);
+    await mangataHelper.initialize(MANGATA_ENDPOINT);
 
-  const account = keyring.addFromUri('//Alice', undefined, 'sr25519');
-  const {address} = account;
-  const rococoAddress = keyring.encodeAddress(address, SUBSTRATE_SS58);
-  const turingAddress = keyring.encodeAddress(address, TURING_SS58);
-  const mangataAddress = keyring.encodeAddress(address, MANGATA_SS58);
-  const mangataAccountInfo = await mangataHelper.getAccountInfo(mangataAddress);
-  const turingAccountInfo = await oakHelper.getAccountInfo(turingAddress);
-  console.log("Rococo address: ", rococoAddress);
-  console.log("Turing address: ", turingAddress, turingAccountInfo);
-  console.log("Mangata address: ", mangataAddress, mangataAccountInfo);
+  console.log("Reading token and balance of Alice and Bob accounts ...");
+  const alice = new Account("Alice");
+  await alice.init();
+  alice.print();
 
-  const DescendOriginAddress32 = mangataHelper.getProxyAccount(mangataAddress);
-  console.log('32 byte address is %s', DescendOriginAddress32);
+  console.log("Minting tokens for Alice on Maganta if balance is zero ...");
+  const mangataAddress = alice.assets[1].address;
+  const promises = _.map(alice.assets[1].tokens, (token)=>{
+    const {symbol, balance} = token;
 
-    // console.log("mangata account from turing:", keyring.encodeAddress(turingAddress MANGATA_SS58));
-  //   console.log("proxy account:", keyring.encodeAddress(proxyAccount, SUBSTRATE_SS58));
+    if(balance.isZero()){
+      console.log(`[Alice] ${symbol} balance on Mangata is zero; minting ${symbol} with sudo ...`);
+      return mangataHelper.mintToken(mangataAddress, symbol, alice.keyring);
+    }else{
+      return Promise.resolve();
+    }
+  });
+
+  await Promise.all(promises);
+
+  console.log(`Adding proxy ${alice.assets[1].proxyAddress} for Alice on mangata successfully!`);
+  await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
+
+  const answer = await confirm({ message: 'Should we proceed? Press ENTRE for confirmation.' , default: true});
+
 
   // Create pool
-
-    const mgxAddress = keyring.encodeAddress("0xec00ad0ec6eeb271a9689888f644d9262016a26a25314ff4ff5d756404c44112", MANGATA_SS58);
-    console.log("mgxAddress", mgxAddress);
-        
-    // console.log('Minting TUR tokens with sudo permission ...');
-    // const mintTokenExtrinsic = mangataHelper.getApi().tx.tokens.mint(turCurrencyId, address, 5000000000000000);
-    // await sendExtrinsic(mangataHelper.getApi(), mintTokenExtrinsic, account, { isSudo: true });
-
-    // console.log('Minting KSM tokens with sudo permission ...');
-    // const mintTokenExtrinsic = mangataHelper.getApi().tx.tokens.mint(4, address, 5000000000000000);
-    // await sendExtrinsic(mangataHelper.getApi(), mintTokenExtrinsic, account, { isSudo: true });
-
-	// console.log('Creating a TUR-MGX pool with ${} ${} and ${} ${}...');
-    // await mangataHelper.createPool(account);
-
-    // console.log('Creating a KSM-MGX pool with ${} ${} and ${} ${}...');
-    // await mangataHelper.createPool(account);
-   
-	const pools = await mangataHelper.getPools();
+  const pools = await mangataHelper.getPools();
 	console.log('Pools: ', pools);
 
-    // const chainInfo = await mangataHelper.getChainInfo();
-    // console.log("chainInfo",chainInfo);
+  const existingPool = _.find(pools, (pool)=>{
+    return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
+  });
 
-    // '8': {
-    //     id: '8',
-    //     chainId: 0,
-    //     decimals: 18,
-    //     name: 'Liquidity Pool Token',
-    //     symbol: 'MGR-TUR',
-    //     address: ''
-    //   }
+  if(_.isUndefined(existingPool))
+  {
+    console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
+    await mangataHelper.createPool("MGR" ,"TUR",alice.keyring);
+  }else{
+    console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
+  }
 
-    await mangataHelper.mangata.transferToken(
-        account, 
-        '4', // TokenID 4 is KSM
-        account.address, 
-        new BN(100000000000000), // 100 KSM (KSM is 12 decimals)
-        {
-            statusCallback: (result) => {
-              // result is of the form ISubmittableResult
-              console.log(result)
-            },
-            extrinsicStatus: (result) => {
-              // result is of the form MangataGenericEvent[]
-              for (let index = 0; index < result.length; index++) {
-                  console.log('Phase', result[index].phase.toString())
-                  console.log('Section', result[index].section)
-                  console.log('Method', result[index].method)
-                  console.log('Documentation', result[index].metaDocumentation)
-                }
-            },
-          }
-    )
+  // Add liquidity to 
+	
+
+	// Buy asset
+	console.log('Buy asset...');
+	await mangataHelper.mangata.buyAsset(alice.keyring, '0', '7', new BN('1000000000000'), new BN('100000000000000000000000000'));
 
 
-    console.log("Bob is trying to add liquidity to the MGX-TUR pool");
-    const bob = keyring.addFromUri('//Bob', undefined, 'sr25519');
-    const {addressBob} = bob;
-    await printAccountInfo(bob);
+    // await mangataHelper.mangata.transferToken(
+    //     account, 
+    //     '4', // TokenID 4 is KSM
+    //     account.address, 
+    //     new BN(100000000000000), // 100 KSM (KSM is 12 decimals)
+    //     {
+    //         statusCallback: (result) => {
+    //           // result is of the form ISubmittableResult
+    //           console.log(result)
+    //         },
+    //         extrinsicStatus: (result) => {
+    //           // result is of the form MangataGenericEvent[]
+    //           for (let index = 0; index < result.length; index++) {
+    //               console.log('Phase', result[index].phase.toString())
+    //               console.log('Section', result[index].section)
+    //               console.log('Method', result[index].method)
+    //               console.log('Documentation', result[index].metaDocumentation)
+    //             }
+    //         },
+    //       }
+    // )
 
-//   const proxyAccount = mangataHelper.getProxyAddressMangata(keyPair.address);
-//   console.log("proxy account:", keyring.encodeAddress(proxyAccount, SUBSTRATE_SS58));
-
-//   mangataHelper.addProxy(proxyAccount, keyPair);
-//   console.log('Add proxy on mangata successfully!');
 
   const message = "empty";
-//   await oakHelper.xcmSend(dest, message);
-}
-
-async function printAccountInfo  (account) {
-    const {address} = account;
-    const rococoAddress = keyring.encodeAddress(address, SUBSTRATE_SS58);
-    const turingAddress = keyring.encodeAddress(address, TURING_SS58);
-    const mangataAddress = keyring.encodeAddress(address, MANGATA_SS58);
-    const mangataAccountInfo = await mangataHelper.getAccountInfo(mangataAddress);
-    const turingAccountInfo = await oakHelper.getAccountInfo(turingAddress);
-
-    console.log("Rococo address: ", rococoAddress);
-    console.log("Turing address: ", turingAddress, turingAccountInfo);
-    console.log("Mangata address: ", mangataAddress, mangataAccountInfo);
-}
-
-main().catch(console.error).finally(() => process.exit());
+//   await turingHelper.xcmSend(dest, message);
+})();
