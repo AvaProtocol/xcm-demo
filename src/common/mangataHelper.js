@@ -140,6 +140,33 @@ class MangataHelper {
   getPools = async() =>{
     return this.mangata.getPools();
   }
+
+  transferTur = async (amount, address, keyring) => {
+    const publicKey = new Keyring().decodeAddress(address);
+    const publicKeyHex = `0x${Buffer.from(publicKey).toString('hex')}`
+    
+    const currencyId = this.getTokenIdBySymbol('TUR');
+    
+    const dest = {
+      V1: {
+        parents: 1,
+        interior: {
+          X2: [
+            { Parachain: TURING_PARA_ID },
+            {
+              AccountId32: {
+                network: 'Any',
+                id: publicKeyHex,
+              }
+            }
+          ]
+        }
+      }
+    }
+
+    const extrinsic = this.api.tx.xTokens.transfer(currencyId, amount, dest, 6000000000);
+    await sendExtrinsic(this.api, extrinsic, keyring);
+  }
 }
 
 export default new MangataHelper();

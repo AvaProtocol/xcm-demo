@@ -79,8 +79,11 @@ async function main () {
       await mangataHelper.promotePool( 'MGR-TUR', alice.keyring);
   }
 
-  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.' , default: true});
+  console.log('Teleporting TUR token from Mangata to Turing to pay fees ...');
+  // TODO: teleport TUR to Turing Network to fund user’s account
+  await mangataHelper.transferTur(new BN('100000000000000'), alice.keyring.address, alice.keyring);
 
+  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.' , default: true});
   if(answerTestPool){
     console.log('Swap MGX for TUR to test the pool ...');
     await mangataHelper.swap("MGR", "TUR", alice.keyring);
@@ -89,9 +92,6 @@ async function main () {
     //       how to check the amount of fee to claim?
     //       test claim extrinsic
 
-    console.log('Teleporting TUR token from Mangata to Turing to pay fees ...');
-    
-    // TODO: teleport TUR to Turing Network to fund user’s account
   }
 }
 

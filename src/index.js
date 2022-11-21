@@ -34,7 +34,9 @@ async function main () {
   const mangataAddress = alice.assets[1].address;
   const turingAddress = alice.assets[2].address;
 
-  const proxyExtrinsic = mangataHelper.api.tx.system.remarkWithEvent("Hello, world!");
+  const currencyId = mangataHelper.getTokenIdBySymbol('TUR');
+
+  const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(currencyId, 1000);
   const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyExtrinsic);
   const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
   const mangataProxyCallFees = await mangataProxyCall.paymentInfo(mangataAddress);
