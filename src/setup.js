@@ -75,7 +75,7 @@ async function main () {
       }
 
       // TODO: how to check whether this MGR-TUR is already promoted by Alice?
-      console.log(`Promote the pool to be eligible for trading ...`);
+      console.log(`Promote the pool to activate liquidity rewarding ...`);
       await mangataHelper.promotePool( 'MGR-TUR', alice.keyring);
   }
 
@@ -88,7 +88,7 @@ async function main () {
     console.log('Swap MGX for TUR to test the pool ...');
     await mangataHelper.swap("MGR", "TUR", alice.keyring);
 
-    // TODO: how do we prove that the liquidity owner earned fee?
+    // TODO: how do we prove that the liquidity owner earned fee? According to Marian, "the user that provided the liquidity should be eligible for some rewards after some time"
     //       how to check the amount of fee to claim?
     //       test claim extrinsic
 
