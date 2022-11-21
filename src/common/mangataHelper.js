@@ -22,9 +22,7 @@ class MangataHelper {
     this.mangata = mangata;
     this.api = mangataApi;
 
-    const assetsResp = await this.mangata.getAssetsInfo();
-    this.assets=_.values(_.filter(assetsResp, asset=> !_.isEmpty(asset.symbol)));
-    console.log("Assets on Mangata chain: ", this.assets);
+    await this.updateAssets();
     /**
     [
       {"id":"0","chainId":0,"decimals":18,"name":"Mangata","symbol":"MGR","address":""},
@@ -32,6 +30,12 @@ class MangataHelper {
       {"id":"7","chainId":0,"decimals":10,"name":"Turing native token","symbol":"TUR","address":""}
     ]
      */
+  }
+
+  updateAssets = async () => {
+    const assetsResp = await this.mangata.getAssetsInfo();
+    this.assets=_.values(_.filter(assetsResp, asset=> !_.isEmpty(asset.symbol)));
+    console.log("Assets on Mangata chain: ", this.assets);
   }
 
   getBalance = async (symbol, address ) => {
@@ -88,39 +92,32 @@ class MangataHelper {
     await sendExtrinsic(this.api, mintTokenExtrinsic, keyring, { isSudo: true });
   }
 
-  createPool = async (firstSymbol, secondSymbol, keyring) => {
+  createPool = async (firstSymbol, secondSymbol, firstAmount, secondAmount, keyring) => {
     const firstTokenId = (_.find(this.assets, {symbol: firstSymbol})).id;
     const secondTokenId = (_.find(this.assets, {symbol: secondSymbol})).id;
 
-    return new Promise((resolve) => {
-      this.mangata.createPool(
-        keyring,
-        firstTokenId.toString(),
-        new BN('10000000000000000000000'), // 10000 MGR (MGR is 18 decimals)
-        secondTokenId.toString(),
-        new BN('100000000000000'), // 100 TUR (TUR is 12 decimals)
-        {
-          statusCallback: (result) => {
-            // result is of the form ISubmittableResult
-            console.log("call back result", result);
-            console.log("call back result type", result.status.type);
-          },
-          extrinsicStatus: (result) => {
-            // result is of the form MangataGenericEvent[]
-            for (let index = 0; index < result.length; index++) {
-                  console.log('Phase', result[index].phase.toString())
-                  console.log('Section', result[index].section)
-                  console.log('Method', result[index].method)
-                  console.log('Documentation', result[index].metaDocumentation)
-                }
-          },
-        }
-      );
-    });
+    await this.mangata.createPool(keyring, firstTokenId.toString(), firstAmount, secondTokenId.toString(), secondAmount,
+      {
+        statusCallback: (result) => {
+          // result is of the form ISubmittableResult
+          console.log("call back result", result);
+          console.log("call back result type", result.status.type);
+        },
+        extrinsicStatus: (result) => {
+          // result is of the form MangataGenericEvent[]
+          for (let index = 0; index < result.length; index++) {
+                console.log('Phase', result[index].phase.toString())
+                console.log('Section', result[index].section)
+                console.log('Method', result[index].method)
+                console.log('Documentation', result[index].metaDocumentation)
+              }
+        },
+      }
+    );
   }
 
   async promotePool(symbol, keyring) {
-    const tokenId = this.getTokenIdBySymbol('MGR-TUR');
+    const tokenId = this.getTokenIdBySymbol(symbol);
     console.log("symbol", symbol, "tokenId", tokenId);
     const promotePoolExtrinsic = this.api.tx.xyk.promotePool(tokenId);
     await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
