@@ -1,19 +1,15 @@
+import BN from 'bn.js';
+import _ from "lodash";
 import { Mangata } from '@mangata-finance/sdk';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from '@polkadot/util-crypto';
-import BN from 'bn.js';
-import _ from "lodash";
+
 import { sendExtrinsic } from './utils';
+import { env, tokenConfig } from './constants';
 
-const TURING_PARA_ID = 2114;
-const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
+const { TURING_PARA_ID} = env;
 
-const DECIMAL = {
-  MGR: '1000000000000000000',
-  KSM: '1000000000000',
-  TUR: '10000000000',
-};
 class MangataHelper {
   initialize = async (mangataEndpoint) => {
     const mangata = Mangata.getInstance([mangataEndpoint]);
@@ -179,8 +175,13 @@ class MangataHelper {
   calculateRewardsAmount = async (address, symbol) => {
     const liquidityTokenId = this.getTokenIdBySymbol(symbol);
     console.log("address", address, "liquidityTokenId", liquidityTokenId);
-    const response = await this.mangata.calculateRewardsAmount(address, liquidityTokenId);
-    return response.toString();
+    const bnNumber = await this.mangata.calculateRewardsAmount(address, liquidityTokenId);
+    
+    // We assume the reward is in MGR which should always be the case
+    const decimal = tokenConfig.MGR.decimal;
+    const result = bnNumber.div(new BN(decimal));
+    
+    return result.toNumber();
   }
 }
 
