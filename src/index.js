@@ -2,9 +2,9 @@ import "@imstar15/api-augment";
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
-import {env} from "./common/constants";
+import { env } from "./common/constants";
 import Account from './common/account';
-const {TURING_ENDPOINT,TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID} = env;
+const { TURING_ENDPOINT, TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID } = env;
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
@@ -17,7 +17,7 @@ const {TURING_ENDPOINT,TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID} = env;
  *   b) MGR-TUR liquidity token on Mangata
  *   c) Reward claimable in MGR-TUR pool <-- TODO
  *   d) TUR on Turing for transaction fees
- *   
+ *
  */
 
 const listenEvents = async (api) => {
@@ -30,21 +30,21 @@ const listenEvents = async (api) => {
           // Extract the phase, event and the event types
           const { event, phase } = record;
           const { section, method, typeDef: types } = event;
-          
+
           // console.log('section.method: ', `${section}.${method}`);
           if (section === 'proxy' && method === 'ProxyExecuted') {
             foundEvent = true;
             // Show what we are busy with
             console.log(`\t${section}:${method}:: (phase=${phase.toString()})`);
             // console.log(`\t\t${event.meta.documentation.toString()}`);
-  
+
             // Loop through each of the parameters, displaying the type and data
             event.data.forEach((data, index) => {
               console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
             });
           }
         });
-        
+
         if (foundEvent) {
           unsub();
           resolve();
@@ -56,7 +56,7 @@ const listenEvents = async (api) => {
   });
 }
 
-async function main () {
+async function main() {
   await cryptoWaitReady();
 
   console.log("Initializing APIs of both chains ...");
@@ -72,7 +72,7 @@ async function main () {
   const turingAddress = alice.assets[2].address;
 
   const liquidityTokenId = mangataHelper.getTokenIdBySymbol('MGR-TUR');
-  const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 1000);
+  const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
   const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyExtrinsic);
   const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
   const mangataProxyCallFees = await mangataProxyCall.paymentInfo(mangataAddress);
@@ -82,7 +82,7 @@ async function main () {
 
   console.log(`\n1. Create the call for scheduleXcmpTask `);
   const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
-  const xcmpCall =  turingHelper.api.tx.automationTime.scheduleXcmpTask(
+  const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
     providedId,
     { Fixed: { executionTimes: [0] } },
     MANGATA_PARA_ID,
@@ -90,7 +90,7 @@ async function main () {
     encodedMangataProxyCall,
     mangataProxyCallFees.weight,
   );
-  
+
   console.log('xcmpCall: ', xcmpCall);
 
   console.log(`\n2. Estimating XCM fees ...`);
