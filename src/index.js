@@ -19,6 +19,43 @@ const {TURING_ENDPOINT,TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID} = env;
  *   d) TUR on Turing for transaction fees
  *   
  */
+
+const listenEvents = async (api) => {
+  return new Promise((resolve) => {
+    const listenSystemEvents = async () => {
+      const unsub = await api.query.system.events((events) => {
+        let foundEvent = false;
+        // Loop through the Vec<EventRecord>
+        events.forEach((record) => {
+          // Extract the phase, event and the event types
+          const { event, phase } = record;
+          const { section, method, typeDef: types } = event;
+          
+          // console.log('section.method: ', `${section}.${method}`);
+          if (section === 'proxy' && method === 'ProxyExecuted') {
+            foundEvent = true;
+            // Show what we are busy with
+            console.log(`\t${section}:${method}:: (phase=${phase.toString()})`);
+            // console.log(`\t\t${event.meta.documentation.toString()}`);
+  
+            // Loop through each of the parameters, displaying the type and data
+            event.data.forEach((data, index) => {
+              console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+            });
+          }
+        });
+        
+        if (foundEvent) {
+          unsub();
+          resolve();
+        }
+      });
+    };
+
+    listenSystemEvents().catch(console.error);
+  });
+}
+
 async function main () {
   await cryptoWaitReady();
 
@@ -34,9 +71,8 @@ async function main () {
   const mangataAddress = alice.assets[1].address;
   const turingAddress = alice.assets[2].address;
 
-  const currencyId = mangataHelper.getTokenIdBySymbol('TUR');
-
-  const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(currencyId, 1000);
+  const liquidityTokenId = mangataHelper.getTokenIdBySymbol('MGR-TUR');
+  const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 1000);
   const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyExtrinsic);
   const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
   const mangataProxyCallFees = await mangataProxyCall.paymentInfo(mangataAddress);
@@ -70,6 +106,8 @@ async function main () {
 
   // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
   console.log(`\n4. waiting for XCM events on Mangata side ...`);
+
+  await listenEvents(mangataHelper.api);
 }
 
 main().catch(console.error).finally(() => process.exit());

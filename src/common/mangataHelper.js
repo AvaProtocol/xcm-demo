@@ -167,6 +167,12 @@ class MangataHelper {
     const extrinsic = this.api.tx.xTokens.transfer(currencyId, amount, dest, 6000000000);
     await sendExtrinsic(this.api, extrinsic, keyring);
   }
+
+  calculateRewardsAmount = async (address, symbol) => {
+    const liquidityTokenId = this.getTokenIdBySymbol(symbol);
+    const response = await this.mangata.calculateRewardsAmount(address, liquidityTokenId);
+    return response.toNumber();
+  }
 }
 
 export default new MangataHelper();

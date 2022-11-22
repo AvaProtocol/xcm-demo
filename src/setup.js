@@ -7,9 +7,9 @@ import BN from 'bn.js';
 import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
-import {env} from "./common/constants";
+import { env, tokenConfig } from "./common/constants";
 
-const {TURING_ENDPOINT , MANGATA_ENDPOINT} = env;
+const { TURING_ENDPOINT , MANGATA_ENDPOINT } = env;
 
 console.log(env);
 
@@ -28,8 +28,9 @@ async function main () {
   await alice.init();
   alice.print();
 
-  console.log("Minting tokens for Alice on Maganta if balance is zero ...");
   const mangataAddress = alice.assets[1].address;
+
+  console.log("Minting tokens for Alice on Maganta if balance is zero ...");
   for (let i = 0; i < alice.assets[1].tokens.length; i += 1) {
     const { symbol, balance } = alice.assets[1].tokens[i];
 
@@ -41,47 +42,50 @@ async function main () {
     }
   }
 
-  // TODO: how do we check whether the proxy is already added for Alice?
-  console.log(`Adding proxy ${alice.assets[1].proxyAddress} for Alice on mangata successfully!`);
-  await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
+  // If there is no proxy, add proxy.
+  const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
+  const [proxies] = proxiesResponse.toJSON()[0];
+  console.log('proxies: ', proxies);
+
+  if (_.isEmpty(proxies)) {
+    await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
+  }
 
   const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.' , default: true});
 
-  if(answerPool){
+  if (answerPool) {
+    // Get current pools available
+    const pools = await mangataHelper.getPools();
+    console.log('Existing pools: ', pools);
 
-      // Get current pools available
-      const pools = await mangataHelper.getPools();
-      console.log('Existing pools: ', pools);
+    const poolFound = _.find(pools, (pool)=>{
+      return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
+    });
 
-      const poolFound = _.find(pools, (pool)=>{
-        return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
-      });
+    if (_.isUndefined(poolFound)) {
+      console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
+      await mangataHelper.createPool(
+        "MGR",
+        "TUR",
+        new BN('10000').mul(new BN(tokenConfig.MGR.decimal)),  // 10000 MGR (MGR is 18 decimals)
+        new BN('100').mul(new BN(tokenConfig.TUR.decimal)),    // 100 TUR (TUR is 12 decimals)
+        alice.keyring,
+      );
 
-      if(_.isUndefined(poolFound))
-      {
-        console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
-        await mangataHelper.createPool(
-          "MGR",
-          "TUR",
-          new BN('10000000000000000000000'), // 10000 MGR (MGR is 18 decimals)
-          new BN('100000000000000'), // 100 TUR (TUR is 12 decimals)
-          alice.keyring
-        );
+      // Update assets
+      await mangataHelper.updateAssets();
 
-        // Update assets
-        await mangataHelper.updateAssets();
-      }else{
-        console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
-      }
-
-      // TODO: how to check whether this MGR-TUR is already promoted by Alice?
+      // Promote pool
       console.log(`Promote the pool to activate liquidity rewarding ...`);
       await mangataHelper.promotePool( 'MGR-TUR', alice.keyring);
+    } else {
+      console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
+    }
   }
 
-  console.log('Teleporting TUR token from Mangata to Turing to pay fees ...');
-  // TODO: teleport TUR to Turing Network to fund user’s account
-  await mangataHelper.transferTur(new BN('100000000000000'), alice.keyring.address, alice.keyring);
+  console.log('Transfering TUR token from Mangata to Turing to pay fees ...');
+  // Tranfer TUR to Turing Network to fund user’s account
+  await mangataHelper.transferTur(new BN('10').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring.address, alice.keyring);
 
   const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.' , default: true});
   if(answerTestPool){
@@ -92,6 +96,9 @@ async function main () {
     //       how to check the amount of fee to claim?
     //       test claim extrinsic
 
+    // Check reward amont
+    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, 'MGR-TUR');
+    console.log('rewardAmount: ', rewardAmount);
   }
 }
 
