@@ -1,26 +1,19 @@
-Examples
+Mangata XCM Auto-compound E2E Demo
 ----------
-* [XCMP Automation - Native](https://github.com/OAK-Foundation/javascript-examples/tree/master/xcmp_automation)
-Schedule an automated XCMP task paying for fees in Oak's native token.
+# Overview
+![Automation Integration Flow Chart](./assets/flow-technical.png)
 
-Create Local Testnet with Zombienet
-----------
-* Download and install [Zombienet](https://github.com/paritytech/zombienet).  A testing framework for Substrate based blockchains.  
-* Build Oak blockchain from source following the directions [here](https://github.com/OAK-Foundation/OAK-blockchain#building-from-source).  When building the executable use the command:
-```bash
-cargo build --release --features neumann-node --features dev-queue
-```
-* Compile the example target parachain from source:
-```bash
-gh repo clone OAK-Foundation/substrate-parachain-template
-cargo build --release
-```
-* Compile Polkadot from source:
-```bash
-git clone https://github.com/paritytech/polkadot
-cargo build --release
-```
-* Run the local network using Zombienet
-```bash
-zombienet spawn zombienets/neumann/xcmp.toml
-```
+# Installation
+1. Install dependencies, `npm i`
+2. Set up environment variables for local network in `.env`.
+3. Run a local Rococo-Mangata-Turing network with instructions in [Run local network with Zombienet](https://github.com/OAK-Foundation/OAK-blockchain#quickstart-run-local-network-with-zombienet)
+
+# Run
+1. Set up accounts and pools
+	```
+	npm run setup
+	```
+2. Run the program to schedule automation and wait for cross-chain execution
+   ```
+   npm start
+   ```
