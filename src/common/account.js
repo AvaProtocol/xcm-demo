@@ -5,6 +5,7 @@ import util from "util";
 import turingHelper from "./turingHelper";
 import mangataHelper from "./mangataHelper";
 import { chainConfig, tokenConfig } from './constants';
+
 class Account {
     constructor(name) {
         this.name = name;
@@ -40,11 +41,20 @@ class Account {
             const { symbol } = asset;
             const mangataBalance = await mangataHelper.getBalance(symbol, mangataAssets.address);
             const decimal = tokenConfig[symbol].decimal;
-            mangataAssets.tokens.push(
+
+            if(_.find(mangataAssets.tokens, {"symbol":symbol})){
+                _.merge(mangataAssets.tokens,{ "symbol":symbol,
+                balance: mangataBalance.free,
+                balanceFloat: mangataBalance.free.div(new BN(decimal)).toNumber()
+                });
+            }
+            else{
+              mangataAssets.tokens.push(
                 { "symbol":symbol,
                 balance: mangataBalance.free,
                 balanceFloat: mangataBalance.free.div(new BN(decimal)).toNumber()
-            });
+                });   
+            }
         });
 
         await Promise.all(balancePromises);
