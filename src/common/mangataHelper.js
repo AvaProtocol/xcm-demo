@@ -51,7 +51,7 @@ class MangataHelper {
 
   getProxyAccount = (address) => {
     const decodedAddress = decodeAddress(address); // An Int array presentation of the address’ ss58 public key
-    
+
     const location = {
       parents: 1, // From Turing to Mangata
       interior: {
@@ -123,6 +123,14 @@ class MangataHelper {
     await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
   }
 
+  async provideLiquidity(keyring, liquidityAsset, providedAsset, providedAssetAmount) {
+    const liquidityAssetId = this.getTokenIdBySymbol(liquidityAsset);
+    const providedAssetId = this.getTokenIdBySymbol(providedAsset);
+    const tx = this.api.tx.xyk.provideLiquidityWithConversion(liquidityAssetId, providedAssetId, providedAssetAmount);
+
+    await sendExtrinsic(this.api, tx, keyring, { isSudo: false });
+  }
+
   /**
    * Swap sellSymol for buySymbol
    */
@@ -132,7 +140,7 @@ class MangataHelper {
 
     console.log("selltokenId", sellTokenId);
     console.log("buytokenId", buyTokenId);
-    
+
     // The last param is the max amount; setting it a very large number for now
     await this.mangata.buyAsset(keyring, sellTokenId, buyTokenId, new BN(amount), new BN('100000000000000000000000000'));
   }
@@ -144,9 +152,9 @@ class MangataHelper {
   transferTur = async (amount, address, keyring) => {
     const publicKey = new Keyring().decodeAddress(address);
     const publicKeyHex = `0x${Buffer.from(publicKey).toString('hex')}`
-    
+
     const currencyId = this.getTokenIdBySymbol('TUR');
-    
+
     const dest = {
       V1: {
         parents: 1,

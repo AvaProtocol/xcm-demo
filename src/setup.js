@@ -9,14 +9,15 @@ import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
 import { env, tokenConfig } from "./common/constants";
 
-const { TURING_ENDPOINT , MANGATA_ENDPOINT } = env;
+const { TURING_ENDPOINT, MANGATA_ENDPOINT } = env;
 
 console.log(env);
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
+const MGR_LIQUIDITY_VAULT = "5EYCAe5ijiYetuT4xrRZx2vbVopfJjhvfsZ4546K1Mmdexb1";
 
 /*** Main entrance of the program */
-async function main () {
+async function main() {
   await cryptoWaitReady();
 
   console.log("Initializing APIs of both chains ...");
@@ -51,14 +52,14 @@ async function main () {
     await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
   }
 
-  const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.' , default: true});
+  const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.', default: true });
 
   if (answerPool) {
     // Get current pools available
     const pools = await mangataHelper.getPools();
     console.log('Existing pools: ', pools);
 
-    const poolFound = _.find(pools, (pool)=>{
+    const poolFound = _.find(pools, (pool) => {
       return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
     });
 
@@ -77,7 +78,14 @@ async function main () {
 
       // Promote pool
       console.log(`Promote the pool to activate liquidity rewarding ...`);
-      await mangataHelper.promotePool( 'MGR-TUR', alice.keyring);
+      await mangataHelper.promotePool('MGR-TUR', alice.keyring);
+
+      console.log("Providing liquidity to generate rewards...");
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000000000000000000000'));
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('100000000000000'));
+
+      console.log("Seeding liquidity vault with funds...");
+      await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000000000000000000000'));
     } else {
       console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
     }
@@ -87,8 +95,8 @@ async function main () {
   // Tranfer TUR to Turing Network to fund user’s account
   await mangataHelper.transferTur(new BN('10').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring.address, alice.keyring);
 
-  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.' , default: true});
-  if(answerTestPool){
+  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.', default: true });
+  if (answerTestPool) {
     console.log('Swap MGX for TUR to test the pool ...');
     await mangataHelper.swap("MGR", "TUR", alice.keyring);
 
