@@ -95,3 +95,23 @@ export const waitForEvent = async (api,method,blocks = 3) => {
 	});
 	});
   };
+
+  /**
+ * Formatting number with thousand separator.
+ * @param  {number} num e.g. 1000000.65
+ * @return {string}   "1,000,000.65"
+ */
+export function formatNumberThousands(num) {
+	if (_.isUndefined(num)) {
+		return num;
+	}
+  
+	const numStr = num.toString();
+	const parts = numStr.split('.');
+  
+	const decimalStr = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const period = _.isUndefined(parts[1]) ? '' : '.';
+	const floatStr = _.isUndefined(parts[1]) ? '' : parts[1];
+  
+	return `${decimalStr}${period}${floatStr}`;
+  }
