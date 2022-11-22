@@ -8,7 +8,7 @@ import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
 import { env, tokenConfig } from "./common/constants";
-import {delay} from './common/utils';
+import {delay, waitForEvent} from './common/utils';
 
 const { TURING_ENDPOINT, MANGATA_ENDPOINT } = env;
 
@@ -44,16 +44,14 @@ async function main() {
     }
   }
 
-  // Sometimes a query doesn’t show the proxy response immediately, so adding 5 sec delay here
-  console.log(`Waiting for 5 sec to query the proxy result ...`);
-  await delay(5000);
-
   // If there is no proxy, add proxy.
+  console.log(`Checking if there’s a proxy set for Alice ...`);
   const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
   const [proxies] = proxiesResponse.toJSON()[0];
   console.log('proxies: ', proxies);
 
   if (_.isEmpty(proxies)) {
+    console.log(`Proxy array of Alice is empty; adding a proxy, ${alice.assets[1].proxyAddress} ..`);
     await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
   }
 
@@ -101,7 +99,7 @@ async function main() {
   // console.log('Transfering TUR token from Mangata to Turing to pay fees ...');
   // await mangataHelper.transferTur(new BN('10').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring.address, alice.keyring);
 
-  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.', default: true });
+  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test swap() against the pool.', default: true });
   if (answerTestPool) {
     console.log('Swap MGX for TUR to test the pool ...');
     await mangataHelper.swap("MGR", "TUR", alice.keyring);
@@ -111,6 +109,7 @@ async function main() {
     //       test claim extrinsic
 
     // Check reward amont
+    console.log('Calling calculateRewardsAmount ...');
     const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, 'MGR-TUR');
     console.log('rewardAmount: ', rewardAmount);
   }
