@@ -104,7 +104,6 @@ class MangataHelper {
         },
         extrinsicStatus: (result) => {
           // result is of the form MangataGenericEvent[]
-          console.log("extrinsicStatus.type: ", result.status.type);
 
           // for (let index = 0; index < result.length; index++) {
           //       console.log('Phase', result[index].phase.toString())
@@ -179,8 +178,9 @@ class MangataHelper {
 
   calculateRewardsAmount = async (address, symbol) => {
     const liquidityTokenId = this.getTokenIdBySymbol(symbol);
+    console.log("address", address, "liquidityTokenId", liquidityTokenId);
     const response = await this.mangata.calculateRewardsAmount(address, liquidityTokenId);
-    return response.toNumber();
+    return response.toString();
   }
 }
 
