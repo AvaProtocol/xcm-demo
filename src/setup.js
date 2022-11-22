@@ -101,7 +101,7 @@ async function main() {
 
   const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test swap() against the pool.', default: true });
   if (answerTestPool) {
-    console.log('Swap MGX for TUR to test the pool ...');
+    console.log('Swap MGR for TUR to test the pool ...');
     await mangataHelper.swap("MGR", "TUR", alice.keyring);
 
     // TODO: how do we prove that the liquidity owner earned fee? According to Marian, "the user that provided the liquidity should be eligible for some rewards after some time"
