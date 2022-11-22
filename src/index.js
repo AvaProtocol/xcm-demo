@@ -4,7 +4,10 @@ import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import { env } from "./common/constants";
 import Account from './common/account';
+import {delay, formatNumberThousands} from './common/utils.js';
+import { BN } from "bn.js";
 const { TURING_ENDPOINT, TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID } = env;
+
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
 
@@ -71,6 +74,18 @@ async function main() {
   const mangataAddress = alice.assets[1].address;
   const turingAddress = alice.assets[2].address;
 
+  const lquidityToken = 'MGR-TUR';
+  console.log(`Checking how much reward available in ${lquidityToken} pool ...`);
+  const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, lquidityToken);
+  console.log(`Claimable reward in ${lquidityToken}: `, rewardAmount);
+
+  const liquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
+  // const free = liquidityBalance.free.div(new BN('1000000000000000000'));
+  const reserved = liquidityBalance.reserved.div(new BN('1000000000000000000'));
+
+  console.log(`Before auto-compound, Alice’s reserved "MGR-TUR": ${formatNumberThousands(reserved.toNumber())} ...`);
+
+  console.log(`\nStart to schedule an auto-compound call via XCM ...`);
   const liquidityTokenId = mangataHelper.getTokenIdBySymbol('MGR-TUR');
   const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
   const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyExtrinsic);
@@ -106,8 +121,18 @@ async function main() {
 
   // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
   console.log(`\n4. waiting for XCM events on Mangata side ...`);
-
   await listenEvents(mangataHelper.api);
+
+  console.log(`\nWaiting 20 seconds before reading new chain states ...`);
+  await delay(20000);
+
+  // Examining the end result, balance change in Alice’s account
+  const newLiquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
+  // const newFree = newLiquidityBalance.free.div(new BN('1000000000000000000'));
+  const newReserved = newLiquidityBalance.reserved.div(new BN('1000000000000000000'));
+
+  console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${formatNumberThousands(newReserved.toNumber())} ...`);
+  console.log(`Alice has compounded ${formatNumberThousands((newReserved.sub(reserved)).toNumber())} more MGR-TUR ...`);
 }
 
 main().catch(console.error).finally(() => process.exit());
