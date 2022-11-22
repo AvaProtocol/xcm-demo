@@ -100,17 +100,18 @@ class MangataHelper {
       {
         statusCallback: (result) => {
           // result is of the form ISubmittableResult
-          console.log("call back result", result);
-          console.log("call back result type", result.status.type);
+          // console.log("Status.type: ", result.status.type);
         },
         extrinsicStatus: (result) => {
           // result is of the form MangataGenericEvent[]
-          for (let index = 0; index < result.length; index++) {
-                console.log('Phase', result[index].phase.toString())
-                console.log('Section', result[index].section)
-                console.log('Method', result[index].method)
-                console.log('Documentation', result[index].metaDocumentation)
-              }
+          console.log("extrinsicStatus.type: ", result.status.type);
+
+          // for (let index = 0; index < result.length; index++) {
+          //       console.log('Phase', result[index].phase.toString())
+          //       console.log('Section', result[index].section)
+          //       console.log('Method', result[index].method)
+          //       console.log('Documentation', result[index].metaDocumentation)
+          //     }
         },
       }
     );
