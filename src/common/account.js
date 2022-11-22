@@ -34,6 +34,10 @@ class Account {
         ]
     }
     
+    /**
+     * Read token balances of Alice’s wallet address from both Mangata and Turing
+     * This call can be called repeatedly after any chain state update
+     */
     async init(){
         const mangataAssets = _.find(this.assets, {chain: "mangata"});
 
@@ -42,6 +46,7 @@ class Account {
             const mangataBalance = await mangataHelper.getBalance(symbol, mangataAssets.address);
             const decimal = tokenConfig[symbol].decimal;
 
+            // Update value of existing symbol or add a new symbol if not exists
             if(_.find(mangataAssets.tokens, {"symbol":symbol})){
                 _.merge(mangataAssets.tokens,{ "symbol":symbol,
                 balance: mangataBalance.free,
