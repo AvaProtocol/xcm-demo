@@ -27,3 +27,48 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
 		});
 	});
 }
+
+/**
+* Usage: await delay(1000)
+* @param  {[type]} ms) [description]
+* @return {[type]}     [description]
+*/
+export const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+// @usage: await waitForEvent(mangataHelper.api, "xyk.LiquidityMinted");
+// This is a utility function copied from https://github.com/mangata-finance/mangata-e2e/pull/166/files
+// works most of the time, avoid using in the CI, used only in manual tests for now; or FIX please :)
+
+/**
+ * @usage await waitForEvent(mangataHelper.api, "xyk.LiquidityMinted");
+ * This is a utility function copied from https://github.com/mangata-finance/mangata-e2e/pull/166/files
+ * It works most of the time, avoid using in the CI, used only in manual tests for now; or FIX please :)
+ * @param {ApiPromise} api 
+ * @param {string} method 
+ * @param {number} blocks starting block number; no idea why it is 3
+ * @returns 
+ */
+export const waitForEvent = async (api,method,blocks = 3) => {
+	return new Promise((resolve, reject) => {
+		let counter = 0;
+		const unsub = api.rpc.chain.getFinalizedHead(async (head) => {
+		await api.query.system.events((events) => {
+			counter++;
+			console.log(`await event check for '${method}', attempt ${counter}, head ${head}`);
+			events.forEach(({ phase, event: { data, method, section } }) => {
+				console.log(phase, data, method, section);
+			});
+			const event = _.find(events,({ event }) => `${event.section}.${event.method}` === method);
+			if (event) {
+				resolve();
+				unsub();
+				// } else {
+				//   reject(new Error("event not found"));
+			}
+			if (counter === blocks) {
+				reject(`method ${method} not found within blocks limit`);
+			}
+		});
+	});
+	});
+  };
