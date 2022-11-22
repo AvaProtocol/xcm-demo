@@ -92,24 +92,7 @@ class MangataHelper {
     const firstTokenId = (_.find(this.assets, {symbol: firstSymbol})).id;
     const secondTokenId = (_.find(this.assets, {symbol: secondSymbol})).id;
 
-    await this.mangata.createPool(keyring, firstTokenId.toString(), firstAmount, secondTokenId.toString(), secondAmount,
-      {
-        statusCallback: (result) => {
-          // result is of the form ISubmittableResult
-          // console.log("Status.type: ", result.status.type);
-        },
-        extrinsicStatus: (result) => {
-          // result is of the form MangataGenericEvent[]
-
-          // for (let index = 0; index < result.length; index++) {
-          //       console.log('Phase', result[index].phase.toString())
-          //       console.log('Section', result[index].section)
-          //       console.log('Method', result[index].method)
-          //       console.log('Documentation', result[index].metaDocumentation)
-          //     }
-        },
-      }
-    );
+    await this.mangata.createPool(keyring, firstTokenId.toString(), firstAmount, secondTokenId.toString(), secondAmount);
   }
 
   async promotePool(symbol, keyring) {
