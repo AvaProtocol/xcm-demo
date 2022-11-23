@@ -1,17 +1,10 @@
+import BN from 'bn.js';
 import { rpc } from '@imstar15/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
-import BN from 'bn.js';
+import { env, chainConfig } from './constants';
 
-const TURING_PARA_ID = 2114;
-const MANGATA_SS58 = 42;
-const MANGATA_PARA_ID = process.env.MANGATA_PARA_ID;
-
-const DECIMAL = {
-  MGR: '1000000000000000000',
-  KSM: '1000000000000',
-  TUR: '10000000000',
-};
+const { MANGATA_PARA_ID} = env;
 
 class TuringHelper {
   initialize = async (endpoint) => {
@@ -30,7 +23,7 @@ class TuringHelper {
 
   getProxyAddressMangata = (address) => {
     const keyring = new Keyring();
-    const mangataAddress = keyring.encodeAddress(address, MANGATA_SS58);
+    const mangataAddress = keyring.encodeAddress(address, chainConfig.mangata.ss58);
 
     const location = {
       parents: 1,

@@ -8,6 +8,7 @@ import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
 import { env, tokenConfig } from "./common/constants";
+// import {delay, waitForEvent} from './common/utils';
 
 const { TURING_ENDPOINT, MANGATA_ENDPOINT } = env;
 
@@ -44,11 +45,13 @@ async function main() {
   }
 
   // If there is no proxy, add proxy.
+  console.log(`Checking if there’s a proxy set for Alice ...`);
   const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
   const [proxies] = proxiesResponse.toJSON()[0];
   console.log('proxies: ', proxies);
 
   if (_.isEmpty(proxies)) {
+    console.log(`Proxy array of Alice is empty; adding a proxy, ${alice.assets[1].proxyAddress} ..`);
     await mangataHelper.addProxy(alice.assets[1].proxyAddress, alice.keyring);
   }
 
@@ -74,6 +77,7 @@ async function main() {
       );
 
       // Update assets
+      console.log(`Checking out assets after pool creation; there should be a new MGR-TUR token ...`);
       await mangataHelper.updateAssets();
 
       // Promote pool
@@ -81,23 +85,23 @@ async function main() {
       await mangataHelper.promotePool('MGR-TUR', alice.keyring);
 
       console.log("Providing liquidity to generate rewards...");
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000000000000000000000'));
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('100000000000000'));
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000').mul(new BN(tokenConfig.MGR.decimal)));
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('10').mul(new BN(tokenConfig.TUR.decimal)));
 
       console.log("Seeding liquidity vault with funds...");
-      await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000000000000000000000'));
+      await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000').mul(new BN(tokenConfig.MGR.decimal)));
     } else {
       console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
     }
   }
 
-  console.log('Transfering TUR token from Mangata to Turing to pay fees ...');
   // Tranfer TUR to Turing Network to fund user’s account
-  await mangataHelper.transferTur(new BN('10').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring.address, alice.keyring);
+  // console.log('Transfering TUR token from Mangata to Turing to pay fees ...');
+  // await mangataHelper.transferTur(new BN('10').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring.address, alice.keyring);
 
-  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test the pool and teleport asset.', default: true });
+  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test swap() against the pool.', default: true });
   if (answerTestPool) {
-    console.log('Swap MGX for TUR to test the pool ...');
+    console.log('Swap MGR for TUR to test the pool ...');
     await mangataHelper.swap("MGR", "TUR", alice.keyring);
 
     // TODO: how do we prove that the liquidity owner earned fee? According to Marian, "the user that provided the liquidity should be eligible for some rewards after some time"
@@ -105,6 +109,7 @@ async function main() {
     //       test claim extrinsic
 
     // Check reward amont
+    console.log('Calling calculateRewardsAmount ...');
     const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, 'MGR-TUR');
     console.log('rewardAmount: ', rewardAmount);
   }
