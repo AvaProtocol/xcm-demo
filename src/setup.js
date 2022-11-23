@@ -86,7 +86,7 @@ async function main() {
 
       console.log("Providing liquidity to generate rewards...");
       await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000').mul(new BN(tokenConfig.MGR.decimal)));
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('10').mul(new BN(tokenConfig.TUR.decimal)));
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('100').mul(new BN(tokenConfig.MGR.decimal)));
 
       console.log("Seeding liquidity vault with funds...");
       await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000').mul(new BN(tokenConfig.MGR.decimal)));
