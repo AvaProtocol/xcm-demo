@@ -8,7 +8,7 @@ import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
 import { env, tokenConfig } from "./common/constants";
-import {delay, waitForEvent} from './common/utils';
+// import {delay, waitForEvent} from './common/utils';
 
 const { TURING_ENDPOINT, MANGATA_ENDPOINT } = env;
 
@@ -85,11 +85,11 @@ async function main() {
       await mangataHelper.promotePool('MGR-TUR', alice.keyring);
 
       console.log("Providing liquidity to generate rewards...");
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000000000000000000000'));
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('100000000000000'));
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000').mul(new BN(tokenConfig.MGR.decimal)));
+      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('10').mul(new BN(tokenConfig.TUR.decimal)));
 
       console.log("Seeding liquidity vault with funds...");
-      await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000000000000000000000'));
+      await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000').mul(new BN(tokenConfig.MGR.decimal)));
     } else {
       console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
     }

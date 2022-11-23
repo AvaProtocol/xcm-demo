@@ -53,10 +53,10 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
 
 /**
 * Usage: await delay(1000)
-* @param  {[type]} ms) [description]
-* @return {[type]}     [description]
+* @param  {number} ms) [description]
+* @return {Promise}    [description]
 */
-export const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+export const delay = async (ms) => new Promise((res) => setTimeout(res, ms));
 
 // @usage: await waitForEvent(mangataHelper.api, "xyk.LiquidityMinted");
 // This is a utility function copied from https://github.com/mangata-finance/mangata-e2e/pull/166/files
