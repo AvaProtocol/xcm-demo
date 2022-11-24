@@ -8,7 +8,7 @@ import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import Account from './common/account';
 import { env, tokenConfig } from "./common/constants";
-// import {delay, waitForEvent} from './common/utils';
+import {delay} from './common/utils';
 
 const { TURING_ENDPOINT, MANGATA_ENDPOINT } = env;
 
@@ -45,7 +45,8 @@ async function main() {
   }
 
   // If there is no proxy, add proxy.
-  console.log(`Checking if there’s a proxy set for Alice ...`);
+  console.log(`\nWaiting 20 seconds to check if there’s a proxy set for Alice ...`);
+  await delay(20000);
   const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
   const [proxies] = proxiesResponse.toJSON()[0];
   console.log('proxies: ', proxies);
