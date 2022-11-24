@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import _ from "lodash";
 import { Mangata } from '@mangata-finance/sdk';
-import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
+import { Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from '@polkadot/util-crypto';
 
@@ -78,7 +78,7 @@ class MangataHelper {
     return DescendOriginAddress32;
   }
 
-  addProxy = async (proxyAccount, keyPair) => this.api.tx.proxy.addProxy(proxyAccount, "Any", 0).signAndSend(keyPair);
+  addProxy = async (proxyAccount, keyPair) => sendExtrinsic(this.api, this.api.tx.proxy.addProxy(proxyAccount, "Any", 0), keyPair);
 
   createProxyCall = async (address, extrinsic) => this.api.tx.proxy.proxy(address, 'Any', extrinsic);
 
