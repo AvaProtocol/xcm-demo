@@ -1,5 +1,5 @@
 import BN from 'bn.js';
-import { rpc } from '@imstar15/types';
+import { rpc, types } from '@imstar15/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { env, chainConfig } from './constants';
@@ -8,8 +8,8 @@ const { MANGATA_PARA_ID} = env;
 
 class TuringHelper {
   initialize = async (endpoint) => {
-    const api = await ApiPromise.create({ provider: new WsProvider(endpoint), rpc });
-		this.api = api;
+    const api = await ApiPromise.create({ provider: new WsProvider(endpoint), rpc, types });
+    this.api = api;
   }
 
   getApi = () => this.api;

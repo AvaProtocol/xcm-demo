@@ -5,8 +5,8 @@
     "lint": "eslint --fix src/*"
   },
   "dependencies": {
-    "@imstar15/api-augment": "^0.0.12",
-    "@imstar15/types": "^0.0.12",
+    "@imstar15/api-augment": "^0.0.14",
+    "@imstar15/types": "^0.0.14",
     "@inquirer/confirm": "^0.0.19-alpha.0",
     "@mangata-finance/sdk": "^1.9.0",
     "@polkadot/api": "^9.3.3",
