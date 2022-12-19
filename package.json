@@ -2,6 +2,7 @@
   "scripts": {
     "start": "dotenv -e .env babel-node src/index.js",
     "setup": "dotenv -e .env babel-node src/setup.js",
+    "shibuya": "dotenv -e .env babel-node src/shibuya.js",
     "lint": "eslint --fix src/*"
   },
   "dependencies": {

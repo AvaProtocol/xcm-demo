@@ -3,6 +3,8 @@ const env={
     MANGATA_ENDPOINT: process.env.MANGATA_ENDPOINT,
     TURING_PARA_ID: process.env.TURING_PARA_ID,
     TURING_ENDPOINT: process.env.TURING_ENDPOINT,
+    SHIBUYA_PARA_ID: process.env.SHIBUYA_PARA_ID,
+    SHIBUYA_ENDPOINT: process.env.SHIBUYA_ENDPOINT,
 }
 
 const chainConfig={
@@ -14,6 +16,9 @@ const chainConfig={
     },
     "mangata":{
         ss58: 42
+    },
+    shibuya: {
+        ss58: 5
     }
 }
 
