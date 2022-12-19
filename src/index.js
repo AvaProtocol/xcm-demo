@@ -112,19 +112,15 @@ async function main() {
   const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
   console.log(`automationFeeDetails: `, { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
 
-  console.log(`\n3. Estimating XCM fees ...`);
-  const xcmFrees = await turingHelper.getXcmFees(turingAddress, xcmpCall);
-  console.log("xcmFrees:", xcmFrees.toHuman());
-
   // Get a TaskId from Turing rpc
   const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
   console.log("TaskId:", taskId.toHuman());
 
-  console.log(`\n4. Sign and send scheduleXcmpTask call ...`);
+  console.log(`\n3. Sign and send scheduleXcmpTask call ...`);
   await turingHelper.sendXcmExtrinsic(xcmpCall, alice.keyring, taskId);
 
   // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
-  console.log(`\n5. waiting for XCM events on Mangata side ...`);
+  console.log(`\n4. waiting for XCM events on Mangata side ...`);
   await listenEvents(mangataHelper.api);
 
   console.log(`\nWaiting 20 seconds before reading new chain states ...`);
