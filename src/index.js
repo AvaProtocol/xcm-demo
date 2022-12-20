@@ -95,44 +95,44 @@ async function main() {
   console.log('encodedMangataProxyCall: ', encodedMangataProxyCall);
   console.log('mangataProxyCallFees: ', mangataProxyCallFees.toHuman());
 
-  // console.log(`\n1. Create the call for scheduleXcmpTask `);
-  // const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
-  // const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
-  //   providedId,
-  //   { Fixed: { executionTimes: [0] } },
-  //   MANGATA_PARA_ID,
-  //   0,
-  //   encodedMangataProxyCall,
-  //   mangataProxyCallFees.weight,
-  // );
+  console.log(`\n1. Create the call for scheduleXcmpTask `);
+  const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
+  const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
+    providedId,
+    { Fixed: { executionTimes: [0] } },
+    MANGATA_PARA_ID,
+    0,
+    encodedMangataProxyCall,
+    mangataProxyCallFees.weight,
+  );
 
-  // console.log('xcmpCall: ', xcmpCall);
+  console.log('xcmpCall: ', xcmpCall);
 
-  // console.log(`\n2. Query automationTime fee details `);
-  // const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-  // console.log(`automationFeeDetails: `, { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
+  console.log(`\n2. Query automationTime fee details `);
+  const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
+  console.log(`automationFeeDetails: `, { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
 
-  // // Get a TaskId from Turing rpc
-  // const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
-  // console.log("TaskId:", taskId.toHuman());
+  // Get a TaskId from Turing rpc
+  const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
+  console.log("TaskId:", taskId.toHuman());
 
-  // console.log(`\n3. Sign and send scheduleXcmpTask call ...`);
-  // await turingHelper.sendXcmExtrinsic(xcmpCall, alice.keyring, taskId);
+  console.log(`\n3. Sign and send scheduleXcmpTask call ...`);
+  await turingHelper.sendXcmExtrinsic(xcmpCall, alice.keyring, taskId);
 
-  // // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
-  // console.log(`\n4. waiting for XCM events on Mangata side ...`);
-  // await listenEvents(mangataHelper.api);
+  // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
+  console.log(`\n4. waiting for XCM events on Mangata side ...`);
+  await listenEvents(mangataHelper.api);
 
-  // console.log(`\nWaiting 20 seconds before reading new chain states ...`);
-  // await delay(20000);
+  console.log(`\nWaiting 20 seconds before reading new chain states ...`);
+  await delay(20000);
 
-  // // Examining the end result, balance change in Alice’s account
-  // const newLiquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
-  // // const newFree = newLiquidityBalance.free.div(new BN('1000000000000000000'));
-  // const newReserved = newLiquidityBalance.reserved.div(new BN('1000000000000000000'));
+  // Examining the end result, balance change in Alice’s account
+  const newLiquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
+  // const newFree = newLiquidityBalance.free.div(new BN('1000000000000000000'));
+  const newReserved = newLiquidityBalance.reserved.div(new BN('1000000000000000000'));
 
-  // console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${formatNumberThousands(newReserved.toNumber())} ...`);
-  // console.log(`Alice has compounded ${formatNumberThousands((newReserved.sub(reserved)).toNumber())} more MGR-TUR ...`);
+  console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${formatNumberThousands(newReserved.toNumber())} ...`);
+  console.log(`Alice has compounded ${formatNumberThousands((newReserved.sub(reserved)).toNumber())} more MGR-TUR ...`);
 }
 
 main().catch(console.error).finally(() => process.exit());

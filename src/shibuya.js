@@ -51,11 +51,11 @@ const main = async () => {
 	const alicePublicKey = aliceKeyring.address;
 
 	const shibuyaAddress = keyring.encodeAddress(alicePublicKey, chainConfig.shibuya.ss58);
-  const turingAddress = keyring.encodeAddress(alicePublicKey, chainConfig.turing.ss58);
-  // const proxyAccount = getProxyAccount(shibuyaHelper.api, shibuyaAddress);
+  // const turingAddress = keyring.encodeAddress(alicePublicKey, chainConfig.turing.ss58);
+  const proxyAccount = getProxyAccount(shibuyaHelper.api, shibuyaAddress);
   
-  // // Add proxy
-  // await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyAccount, "Any", 0), aliceKeyring);
+  // Add proxy
+  await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyAccount, "Any", 0), aliceKeyring);
 
 	const proxyExtrinsic = shibuyaHelper.api.tx.system.remarkWithEvent('Hello!!!');
 	const shibuyaProxyCall = shibuyaHelper.api.tx.proxy.proxy(shibuyaAddress, 'Any', proxyExtrinsic);
@@ -79,16 +79,8 @@ const main = async () => {
 
   console.log('xcmpCall: ', xcmpCall);
 
-  // console.log(`\n2. Query automationTime fee details `);
-  // const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-  // console.log(`automationFeeDetails: `, { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
-
-  // Get a TaskId from Turing rpc
-  const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
-  console.log("TaskId:", taskId.toHuman());
-
   console.log(`\n3. Sign and send scheduleXcmpTask call ...`);
-  await turingHelper.sendXcmExtrinsic(xcmpCall, aliceKeyring, taskId);
+  await sendExtrinsic(turingHelper.api, xcmpCall, aliceKeyring);
 };
 
 main().catch(console.error).finally(() => process.exit());
