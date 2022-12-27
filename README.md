@@ -21,9 +21,11 @@ Mangata XCM Auto-compound E2E Demo
 # Run Shiubya demo
 1. Launch OAK-blockchain, Rococo and Shibuya.
 
-	Launch zombie in OAK-blockchain project root with Modified Astar.
+	Launch zombie in OAK-blockchain project root with modified Astar and modified OAK.
 
 	https://github.com/imstar15/Astar/tree/debug-933
+	
+	https://github.com/OAK-Foundation/OAK-blockchain/tree/debug-shibuya
 
 	```
 	zombie spawn zombienets/turing/shibuya.toml
