@@ -1,4 +1,4 @@
-import "@imstar15/api-augment";
+import "@oak-network/api-augment";
 import _ from 'lodash';
 import confirm from '@inquirer/confirm';
 import { cryptoWaitReady } from '@polkadot/util-crypto';

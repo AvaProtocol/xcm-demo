@@ -1,5 +1,5 @@
 import BN from 'bn.js';
-import { rpc, types } from '@imstar15/types';
+import { rpc, types } from '@oak-network/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { env, chainConfig } from './constants';

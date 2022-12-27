@@ -1,4 +1,4 @@
-import "@imstar15/api-augment";
+import "@oak-network/api-augment";
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
