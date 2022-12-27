@@ -36,5 +36,5 @@ Mangata XCM Auto-compound E2E Demo
 
 3. Run the program to schedule automation and wait for cross-chain execution
    ```
-   npm shibuya
+   npm run shibuya
    ```
