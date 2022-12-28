@@ -1,4 +1,4 @@
-import "@imstar15/api-augment";
+import "@oak-network/api-augment";
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
@@ -108,9 +108,9 @@ async function main() {
 
   console.log('xcmpCall: ', xcmpCall);
 
-  console.log(`\n2. Estimating XCM fees ...`);
-  const xcmFrees = await turingHelper.getXcmFees(turingAddress, xcmpCall);
-  console.log("xcmFrees:", xcmFrees.toHuman());
+  console.log(`\n2. Query automationTime fee details `);
+  const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
+  console.log(`automationFeeDetails: `, { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
 
   // Get a TaskId from Turing rpc
   const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
