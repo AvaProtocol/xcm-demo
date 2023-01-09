@@ -11,11 +11,11 @@ Mangata XCM Auto-compound E2E Demo
 # Run Mangata demo
 1. Set up accounts and pools
 	```
-	npm run setup
+	npm run setup-mangata
 	```
 2. Run the program to schedule automation and wait for cross-chain execution
    ```
-   npm start
+   npm mangata
    ```
 
 # Run Shiubya demo

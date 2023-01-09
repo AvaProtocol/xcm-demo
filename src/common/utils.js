@@ -1,4 +1,6 @@
 import _ from 'lodash';
+import { decodeAddress } from '@polkadot/util-crypto';
+import { u8aToHex } from "@polkadot/util";
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => {
 	return new Promise((resolve) => {
@@ -114,4 +116,35 @@ export function formatNumberThousands(num) {
 	const floatStr = _.isUndefined(parts[1]) ? '' : parts[1];
   
 	return `${decimalStr}${period}${floatStr}`;
-  }
+}
+
+export const getProxyAccount = (api, sourceParaId, address) => {
+  const decodedAddress = decodeAddress(address); // An Int array presentation of the address’ ss58 public key
+
+  const location = {
+    parents: 1, // from source parachain to target parachain
+    interior: {
+      X2: [
+        { Parachain: sourceParaId },
+        {
+          AccountId32: {
+            network: 'Any',
+            id: u8aToHex(decodedAddress),
+          }
+        }
+      ]
+    }
+  };
+
+  const multilocation = api.createType("XcmV1MultiLocation", location);
+
+  const toHash = new Uint8Array([
+    ...new Uint8Array([32]),
+    ...new TextEncoder().encode("multiloc"),
+    ...multilocation.toU8a(),
+  ]);
+
+  const DescendOriginAddress32 = u8aToHex(api.registry.hash(toHash).slice(0, 32));
+
+  return DescendOriginAddress32;
+}

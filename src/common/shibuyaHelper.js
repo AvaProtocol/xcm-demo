@@ -1,4 +1,8 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { getProxyAccount } from "./utils";
+import { env } from './constants';
+
+const { TURING_PARA_ID} = env;
 
 class ShibuyaHelper {
   initialize = async (endpoint) => {
@@ -7,6 +11,8 @@ class ShibuyaHelper {
   }
 
   getApi = () => this.api;
+
+  getProxyAccount = (address) => getProxyAccount(this.api, TURING_PARA_ID, address)
 }
 
 export default new ShibuyaHelper();
