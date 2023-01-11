@@ -1,5 +1,4 @@
-import BN from 'bn.js';
-import { rpc, types } from '@oak-network/types';
+import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { env, chainConfig } from './constants';
@@ -8,7 +7,7 @@ const { MANGATA_PARA_ID} = env;
 
 class TuringHelper {
   initialize = async (endpoint) => {
-    const api = await ApiPromise.create({ provider: new WsProvider(endpoint), rpc, types });
+    const api = await ApiPromise.create({ provider: new WsProvider(endpoint), rpc, types, runtime });
     this.api = api;
   }
 
@@ -73,39 +72,25 @@ class TuringHelper {
     return fees;
   }
 
-  xcmSend = async (dest, message) => {
-    console.log("xcmSend,",dest,message);
-
-    return new Promise(async (resolve) => {
-      const unsub = await this.api.tx.polkadotXcm.send(dest, message).signAndSend(keyPair, { nonce: -1 }, async ({ status }) => {
-        if (status.isInBlock) {
-          console.log('Successful with hash ' + status.asInBlock.toHex());
-  
-          unsub();
-          resolve();
-        } else {
-          console.log('Status: ' + status.type);
-        }
-      });
-    });
-}
-
   sendXcmExtrinsic = async (xcmpCall, keyPair, taskId) => {
-    return new Promise(async (resolve) => {
-      const unsub = await xcmpCall.signAndSend(keyPair, { nonce: -1 }, async ({ status }) => {
-        if (status.isInBlock) {
-          console.log('Successful with hash ' + status.asInBlock.toHex());
-  
-          // Get Task
-          const task = await this.api.query.automationTime.accountTasks(keyPair.address, taskId);
-          console.log("Task:", task.toHuman());
-  
-          unsub();
-          resolve();
-        } else {
-          console.log('Status: ' + status.type);
-        }
-      });
+    return new Promise((resolve) => {
+      const send = async () => {
+        const unsub = await xcmpCall.signAndSend(keyPair, { nonce: -1 }, async ({ status }) => {
+          if (status.isInBlock) {
+            console.log('Successful with hash ' + status.asInBlock.toHex());
+    
+            // Get Task
+            const task = await this.api.query.automationTime.accountTasks(keyPair.address, taskId);
+            console.log("Task:", task.toHuman());
+    
+            unsub();
+            resolve();
+          } else {
+            console.log('Status: ' + status.type);
+          }
+        });
+      };
+      send();
     });
   }
 }

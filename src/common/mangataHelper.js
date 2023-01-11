@@ -2,10 +2,7 @@ import BN from 'bn.js';
 import _ from "lodash";
 import { Mangata } from '@mangata-finance/sdk';
 import { Keyring } from "@polkadot/api";
-import { u8aToHex } from "@polkadot/util";
-import { decodeAddress } from '@polkadot/util-crypto';
-
-import { sendExtrinsic } from './utils';
+import { sendExtrinsic, getProxyAccount } from './utils';
 import { env, tokenConfig } from './constants';
 
 const { TURING_PARA_ID} = env;
@@ -45,38 +42,7 @@ class MangataHelper {
     return tokenId;
   }
 
-  getProxyAccount = (address) => {
-    const decodedAddress = decodeAddress(address); // An Int array presentation of the address’ ss58 public key
-
-    const location = {
-      parents: 1, // From Turing to Mangata
-      interior: {
-        X2: [
-          { Parachain: TURING_PARA_ID },
-          {
-            AccountId32: {
-              network: "Any",
-              id: u8aToHex(decodedAddress),
-            }
-          }
-        ]
-      }
-    };
-
-    const multilocation = this.api.createType("XcmV1MultiLocation", location);
-
-    console.log("multilocation", multilocation.toString());
-
-    const toHash = new Uint8Array([
-      ...new Uint8Array([32]),
-      ...new TextEncoder().encode("multiloc"),
-      ...multilocation.toU8a(),
-    ]);
-
-    const DescendOriginAddress32 = u8aToHex(this.api.registry.hash(toHash).slice(0, 32));
-
-    return DescendOriginAddress32;
-  }
+  getProxyAccount = (address) => getProxyAccount(this.api, TURING_PARA_ID, address)
 
   addProxy = async (proxyAccount, keyPair) => sendExtrinsic(this.api, this.api.tx.proxy.addProxy(proxyAccount, "Any", 0), keyPair);
 
