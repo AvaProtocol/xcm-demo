@@ -61,18 +61,31 @@ class MangataHelper {
     await this.mangata.createPool(keyring, firstTokenId.toString(), firstAmount, secondTokenId.toString(), secondAmount);
   }
 
-  async promotePool(symbol, keyring) {
+  async updatePoolPromotion(symbol, liquidityMiningIssuanceWeight, keyring) {
     const tokenId = this.getTokenIdBySymbol(symbol);
     console.log("symbol", symbol, "tokenId", tokenId);
-    const promotePoolExtrinsic = this.api.tx.xyk.promotePool(tokenId);
+    const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
     await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
+  }
+
+  async activateLiquidityV2(symbol, amount, keyring) {
+    const tokenId = this.getTokenIdBySymbol(symbol);
+    const extrinsic = this.api.tx.xyk.activateLiquidityV2(tokenId, amount, undefined);
+    await sendExtrinsic(this.api, extrinsic, keyring, { isSudo: true });
+  }
+
+  async mintLiquidity(firstSymbol, firstAssetAmount, secondSymbol, expectedSecondAssetAmount, keyring) {
+    const firstTokenId = (_.find(this.assets, {symbol: firstSymbol})).id;
+    const secondTokenId = (_.find(this.assets, {symbol: secondSymbol})).id;
+    console.log('secondTokenId: ', secondTokenId);
+    const extrinsic = this.api.tx.xyk.mintLiquidity(firstTokenId, secondTokenId, firstAssetAmount, expectedSecondAssetAmount);
+    await sendExtrinsic(this.api, extrinsic, keyring);
   }
 
   async provideLiquidity(keyring, liquidityAsset, providedAsset, providedAssetAmount) {
     const liquidityAssetId = this.getTokenIdBySymbol(liquidityAsset);
     const providedAssetId = this.getTokenIdBySymbol(providedAsset);
     const tx = this.api.tx.xyk.provideLiquidityWithConversion(liquidityAssetId, providedAssetId, providedAssetAmount);
-
     await sendExtrinsic(this.api, tx, keyring, { isSudo: false });
   }
 

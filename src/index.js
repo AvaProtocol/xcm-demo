@@ -103,7 +103,7 @@ async function main() {
     MANGATA_PARA_ID,
     0,
     encodedMangataProxyCall,
-    mangataProxyCallFees.weight,
+    parseInt(mangataProxyCallFees.weight.refTime),
   );
 
   console.log('xcmpCall: ', xcmpCall);

@@ -83,7 +83,11 @@ async function main() {
 
       // Promote pool
       console.log(`Promote the pool to activate liquidity rewarding ...`);
-      await mangataHelper.promotePool('MGR-TUR', alice.keyring);
+      await mangataHelper.updatePoolPromotion('MGR-TUR', 1, alice.keyring);
+
+      console.log("Mint liquidity to generate rewards...");
+      await mangataHelper.activateLiquidityV2('MGR-TUR', new BN('10000').mul(new BN(tokenConfig.MGR.decimal)), alice.keyring);
+      await mangataHelper.mintLiquidity('MGR', new BN('10000').mul(new BN(tokenConfig.MGR.decimal)), 'TUR', new BN('10000').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring);
 
       console.log("Providing liquidity to generate rewards...");
       await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000').mul(new BN(tokenConfig.MGR.decimal)));
