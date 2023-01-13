@@ -29,9 +29,8 @@ async function main() {
   const alice = new Account("Alice");
   await alice.init();
   alice.print();
-
   const mangataAddress = alice.assets[1].address;
-
+  await mangataHelper.initIssuance(alice.keyring);
   console.log("Minting tokens for Alice on Maganta if balance is zero ...");
   for (let i = 0; i < alice.assets[1].tokens.length; i += 1) {
     const { symbol, balance } = alice.assets[1].tokens[i];

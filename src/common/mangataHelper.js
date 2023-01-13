@@ -48,6 +48,11 @@ class MangataHelper {
 
   createProxyCall = async (address, extrinsic) => this.api.tx.proxy.proxy(address, 'Any', extrinsic);
 
+  initIssuance = async(keyring)=>{
+    await sendExtrinsic(this.api, this.api.tx.issuance.finalizeTge(), keyring, { isSudo: true });
+    await sendExtrinsic(this.api, this.api.tx.issuance.initIssuanceConfig(), keyring, { isSudo: true });
+  }
+
   mintToken = async(address, symbol, keyring, amount=5000000000000000)=>{
     const tokenId = (_.find(this.assets, {symbol})).id;
     const mintTokenExtrinsic = this.api.tx.tokens.mint(tokenId, address, amount);
@@ -64,7 +69,7 @@ class MangataHelper {
   async updatePoolPromotion(symbol, liquidityMiningIssuanceWeight, keyring) {
     const tokenId = this.getTokenIdBySymbol(symbol);
     console.log("symbol", symbol, "tokenId", tokenId);
-    const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
+    const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, 100);
     await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
   }
 
