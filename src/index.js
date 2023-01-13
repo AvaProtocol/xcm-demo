@@ -80,10 +80,8 @@ async function main() {
   console.log(`Claimable reward in ${lquidityToken}: `, rewardAmount);
 
   const liquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
-  // const free = liquidityBalance.free.div(new BN('1000000000000000000'));
-  const reserved = liquidityBalance.reserved.div(new BN('1000000000000000000'));
 
-  console.log(`Before auto-compound, Alice’s reserved "MGR-TUR": ${formatNumberThousands(reserved.toNumber())} ...`);
+  console.log(`Before auto-compound, Alice’s reserved "MGR-TUR": ${liquidityBalance.reserved.toString()} Planck ...`);
 
   console.log(`\nStart to schedule an auto-compound call via XCM ...`);
   const liquidityTokenId = mangataHelper.getTokenIdBySymbol('MGR-TUR');
@@ -129,10 +127,9 @@ async function main() {
   // Examining the end result, balance change in Alice’s account
   const newLiquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
   // const newFree = newLiquidityBalance.free.div(new BN('1000000000000000000'));
-  const newReserved = newLiquidityBalance.reserved.div(new BN('1000000000000000000'));
 
-  console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${formatNumberThousands(newReserved.toNumber())} ...`);
-  console.log(`Alice has compounded ${formatNumberThousands((newReserved.sub(reserved)).toNumber())} more MGR-TUR ...`);
+  console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${newLiquidityBalance.reserved.toString()} planck ...`);
+  console.log(`Alice has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more MGR-TUR ...`);
 }
 
 main().catch(console.error).finally(() => process.exit());
