@@ -15,7 +15,9 @@ Mangata XCM Auto-compound E2E Demo
 
 		https://github.com/OAK-Foundation/OAK-blockchain/
 
+		```
 		cargo build --release --features turing-node --features dev-queue
+		```
 
 
 	- Compile modified Mangata
@@ -38,9 +40,6 @@ Mangata XCM Auto-compound E2E Demo
 		```
 		zombie spawn zombienets/turing/mangata.toml
 		```
-
-
-		*Tip: If you switch the branch of mangata and recompile and run.Please use the command to clear the mangata-rococo chain data.*
 
 2. Set up accounts and pools
 	```
