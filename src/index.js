@@ -4,9 +4,8 @@ import turingHelper from "./common/turingHelper";
 import mangataHelper from "./common/mangataHelper";
 import { env } from "./common/constants";
 import Account from './common/account';
-import {delay, formatNumberThousands} from './common/utils.js';
-import { BN } from "bn.js";
-const { TURING_ENDPOINT, TURING_PARA_ID, MANGATA_ENDPOINT, MANGATA_PARA_ID } = env;
+import {delay} from './common/utils.js';
+const { TURING_ENDPOINT, MANGATA_ENDPOINT, MANGATA_PARA_ID } = env;
 
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
@@ -74,15 +73,17 @@ async function main() {
   const mangataAddress = alice.assets[1].address;
   const turingAddress = alice.assets[2].address;
 
+  // Calculate rwards amount in pool
   const lquidityToken = 'MGR-TUR';
   console.log(`Checking how much reward available in ${lquidityToken} pool ...`);
   const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, lquidityToken);
   console.log(`Claimable reward in ${lquidityToken}: `, rewardAmount);
 
+  // Alice’s reserved MGR-TUR before auto-compound
   const liquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
-
   console.log(`Before auto-compound, Alice’s reserved "MGR-TUR": ${liquidityBalance.reserved.toString()} Planck ...`);
 
+  // Create Mangata proxy call
   console.log(`\nStart to schedule an auto-compound call via XCM ...`);
   const liquidityTokenId = mangataHelper.getTokenIdBySymbol('MGR-TUR');
   const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
@@ -93,6 +94,7 @@ async function main() {
   console.log('encodedMangataProxyCall: ', encodedMangataProxyCall);
   console.log('mangataProxyCallFees: ', mangataProxyCallFees.toHuman());
 
+  // Create Turing scheduleXcmpTask extrinsic
   console.log(`\n1. Create the call for scheduleXcmpTask `);
   const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
   const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
@@ -106,6 +108,7 @@ async function main() {
 
   console.log('xcmpCall: ', xcmpCall);
 
+  // Query automationTime fee
   console.log(`\n2. Query automationTime fee details `);
   const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
   console.log(`automationFeeDetails: `, { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
@@ -114,21 +117,21 @@ async function main() {
   const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
   console.log("TaskId:", taskId.toHuman());
 
+  // Send extrinsic
   console.log(`\n3. Sign and send scheduleXcmpTask call ...`);
   await turingHelper.sendXcmExtrinsic(xcmpCall, alice.keyring, taskId);
 
-  // TODO: how do we know the task happens? Could we stream reading events on Mangata side?
+  // Listen XCM events on Mangata side
   console.log(`\n4. waiting for XCM events on Mangata side ...`);
   await listenEvents(mangataHelper.api);
 
   console.log(`\nWaiting 20 seconds before reading new chain states ...`);
   await delay(20000);
 
-  // Examining the end result, balance change in Alice’s account
+  // Alice’s reserved MGR-TUR after auto-compound
   const newLiquidityBalance = await mangataHelper.getBalance("MGR-TUR", mangataAddress);
-  // const newFree = newLiquidityBalance.free.div(new BN('1000000000000000000'));
-
   console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${newLiquidityBalance.reserved.toString()} planck ...`);
+
   console.log(`Alice has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more MGR-TUR ...`);
 }
 
