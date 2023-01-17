@@ -48,6 +48,11 @@ class MangataHelper {
 
   createProxyCall = async (address, extrinsic) => this.api.tx.proxy.proxy(address, 'Any', extrinsic);
 
+  initIssuance = async(keyring)=>{
+    await sendExtrinsic(this.api, this.api.tx.issuance.finalizeTge(), keyring, { isSudo: true });
+    await sendExtrinsic(this.api, this.api.tx.issuance.initIssuanceConfig(), keyring, { isSudo: true });
+  }
+
   mintToken = async(address, symbol, keyring, amount=5000000000000000)=>{
     const tokenId = (_.find(this.assets, {symbol})).id;
     const mintTokenExtrinsic = this.api.tx.tokens.mint(tokenId, address, amount);
@@ -61,18 +66,31 @@ class MangataHelper {
     await this.mangata.createPool(keyring, firstTokenId.toString(), firstAmount, secondTokenId.toString(), secondAmount);
   }
 
-  async promotePool(symbol, keyring) {
+  async updatePoolPromotion(symbol, liquidityMiningIssuanceWeight, keyring) {
     const tokenId = this.getTokenIdBySymbol(symbol);
     console.log("symbol", symbol, "tokenId", tokenId);
-    const promotePoolExtrinsic = this.api.tx.xyk.promotePool(tokenId);
+    const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, 100);
     await sendExtrinsic(this.api, promotePoolExtrinsic, keyring, { isSudo: true });
+  }
+
+  async activateLiquidityV2(symbol, amount, keyring) {
+    const tokenId = this.getTokenIdBySymbol(symbol);
+    const extrinsic = this.api.tx.xyk.activateLiquidityV2(tokenId, amount, undefined);
+    await sendExtrinsic(this.api, extrinsic, keyring, { isSudo: true });
+  }
+
+  async mintLiquidity(firstSymbol, firstAssetAmount, secondSymbol, expectedSecondAssetAmount, keyring) {
+    const firstTokenId = (_.find(this.assets, {symbol: firstSymbol})).id;
+    const secondTokenId = (_.find(this.assets, {symbol: secondSymbol})).id;
+    console.log('secondTokenId: ', secondTokenId);
+    const extrinsic = this.api.tx.xyk.mintLiquidity(firstTokenId, secondTokenId, firstAssetAmount, expectedSecondAssetAmount);
+    await sendExtrinsic(this.api, extrinsic, keyring);
   }
 
   async provideLiquidity(keyring, liquidityAsset, providedAsset, providedAssetAmount) {
     const liquidityAssetId = this.getTokenIdBySymbol(liquidityAsset);
     const providedAssetId = this.getTokenIdBySymbol(providedAsset);
     const tx = this.api.tx.xyk.provideLiquidityWithConversion(liquidityAssetId, providedAssetId, providedAssetAmount);
-
     await sendExtrinsic(this.api, tx, keyring, { isSudo: false });
   }
 

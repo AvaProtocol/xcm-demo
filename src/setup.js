@@ -15,7 +15,6 @@ const { TURING_ENDPOINT, MANGATA_ENDPOINT } = env;
 console.log(env);
 
 // const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
-const MGR_LIQUIDITY_VAULT = "5EYCAe5ijiYetuT4xrRZx2vbVopfJjhvfsZ4546K1Mmdexb1";
 
 /*** Main entrance of the program */
 async function main() {
@@ -29,9 +28,8 @@ async function main() {
   const alice = new Account("Alice");
   await alice.init();
   alice.print();
-
   const mangataAddress = alice.assets[1].address;
-
+  await mangataHelper.initIssuance(alice.keyring);
   console.log("Minting tokens for Alice on Maganta if balance is zero ...");
   for (let i = 0; i < alice.assets[1].tokens.length; i += 1) {
     const { symbol, balance } = alice.assets[1].tokens[i];
@@ -67,52 +65,32 @@ async function main() {
       return pool.firstTokenId === mangataHelper.getTokenIdBySymbol("MGR") && pool.secondTokenId === mangataHelper.getTokenIdBySymbol("TUR");
     });
 
-    if (_.isUndefined(poolFound)) {
-      console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
-      await mangataHelper.createPool(
-        "MGR",
-        "TUR",
-        new BN('10000').mul(new BN(tokenConfig.MGR.decimal)),  // 10000 MGR (MGR is 18 decimals)
-        new BN('100').mul(new BN(tokenConfig.TUR.decimal)),    // 100 TUR (TUR is 12 decimals)
-        alice.keyring,
-      );
-
-      // Update assets
-      console.log(`Checking out assets after pool creation; there should be a new MGR-TUR token ...`);
-      await mangataHelper.updateAssets();
-
-      // Promote pool
-      console.log(`Promote the pool to activate liquidity rewarding ...`);
-      await mangataHelper.promotePool('MGR-TUR', alice.keyring);
-
-      console.log("Providing liquidity to generate rewards...");
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "MGR", new BN('10000').mul(new BN(tokenConfig.MGR.decimal)));
-      await mangataHelper.provideLiquidity(alice.keyring, "MGR-TUR", "TUR", new BN('100').mul(new BN(tokenConfig.TUR.decimal)));
-
-      console.log("Seeding liquidity vault with funds...");
-      await mangataHelper.mintToken(MGR_LIQUIDITY_VAULT, "MGR", alice.keyring, new BN('1000').mul(new BN(tokenConfig.MGR.decimal)));
-    } else {
+    if (!_.isUndefined(poolFound)) {
       console.log(`An existing MGR-TUR pool found; skip pool creation ...`);
     }
-  }
 
-  // Tranfer TUR to Turing Network to fund user’s account
-  // console.log('Transfering TUR token from Mangata to Turing to pay fees ...');
-  // await mangataHelper.transferTur(new BN('10').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring.address, alice.keyring);
+    // Create pool
+    console.log(`No MGR-TUR pool found; creating a MGR-TUR pool with Alice ...`);
+    await mangataHelper.createPool(
+      "MGR",
+      "TUR",
+      new BN('10000').mul(new BN(tokenConfig.MGR.decimal)),  // 10000 MGR (MGR is 18 decimals)
+      new BN('100').mul(new BN(tokenConfig.TUR.decimal)),    // 100 TUR (TUR is 12 decimals)
+      alice.keyring,
+    );
 
-  const answerTestPool = await confirm({ message: '\nPool setup is completed. Press ENTRE to test swap() against the pool.', default: true });
-  if (answerTestPool) {
-    console.log('Swap MGR for TUR to test the pool ...');
-    await mangataHelper.swap("MGR", "TUR", alice.keyring);
+    // Update assets
+    console.log(`Checking out assets after pool creation; there should be a new MGR-TUR token ...`);
+    await mangataHelper.updateAssets();
 
-    // TODO: how do we prove that the liquidity owner earned fee? According to Marian, "the user that provided the liquidity should be eligible for some rewards after some time"
-    //       how to check the amount of fee to claim?
-    //       test claim extrinsic
+    // Promote pool
+    console.log(`Promote the pool to activate liquidity rewarding ...`);
+    await mangataHelper.updatePoolPromotion('MGR-TUR', 1, alice.keyring);
+    await mangataHelper.activateLiquidityV2('MGR-TUR', new BN('10000').mul(new BN(tokenConfig.MGR.decimal)), alice.keyring);
 
-    // Check reward amont
-    console.log('Calling calculateRewardsAmount ...');
-    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, 'MGR-TUR');
-    console.log('rewardAmount: ', rewardAmount);
+    // Mint liquidity to generate rewards...
+    console.log("Mint liquidity to generate rewards...");
+    await mangataHelper.mintLiquidity('MGR', new BN('10000').mul(new BN(tokenConfig.MGR.decimal)), 'TUR', new BN('10000').mul(new BN(tokenConfig.TUR.decimal)), alice.keyring);
   }
 }
 

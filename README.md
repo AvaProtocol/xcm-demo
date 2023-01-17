@@ -9,13 +9,45 @@ Mangata XCM Auto-compound E2E Demo
 3. Run a local Rococo-Mangata-Turing network with instructions in [Run local network with Zombienet](https://github.com/OAK-Foundation/OAK-blockchain#quickstart-run-local-network-with-zombienet)
 
 # Run Mangata demo
-1. Set up accounts and pools
+1. Launch OAK-blockchain, Rococo and Mangata.
+
+	- Compile OAK
+
+		https://github.com/OAK-Foundation/OAK-blockchain/
+
+		```
+		cargo build --release --features turing-node --features dev-queue
+		```
+
+
+	- Compile modified Mangata
+
+		https://github.com/OAK-Foundation/mangata-node/tree/mangata-demo
+
+		```
+		cargo build --release --features mangata-rococo,fast-runtime
+		```
+
+
+	- Clear the relay chain directory of mangata-node before running zombienet command, because currently mangata-node couldn’t auto-purge.
+
+		```
+		./target/release/mangata-node purge-chain
+		```
+
+	- Launch zombie in OAK-blockchain project root with modified Mangata and OAK.
+
+		```
+		zombie spawn zombienets/turing/mangata.toml
+		```
+
+2. Set up accounts and pools
 	```
 	npm run setup-mangata
 	```
-2. Run the program to schedule automation and wait for cross-chain execution
+3. Run the program to schedule automation and wait for cross-chain execution
    ```
-   npm mangata
+   npm run mangata
    ```
 
 # Run Shiubya demo
