@@ -25,11 +25,11 @@ Mangata XCM Auto-compound E2E Demo
 		https://github.com/OAK-Foundation/mangata-node/tree/mangata-demo
 
 		```
-		cargo build --release --features mangata-rococo
+		cargo build --release --features mangata-rococo,fast-runtime
 		```
 
 
-	- Clear the mangata reply chain data
+	- Clear the relay chain directory of mangata-node before running zombienet command, because currently mangata-node couldn’t auto-purge.
 
 		```
 		./target/release/mangata-node purge-chain
