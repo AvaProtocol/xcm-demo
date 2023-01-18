@@ -38,7 +38,7 @@ const main = async () => {
 
   // Create polkadotXcm.send extrinsic
   console.log('\n4. Create polkadotXcm.send extrinsic');
-	const xcmpExtrinsic =  shibuyaHelper.api.tx.polkadotXcm.send(
+	const xcmpExtrinsic = shibuyaHelper.api.tx.polkadotXcm.send(
 		{
       V1: {
         parents: 1,
@@ -48,9 +48,9 @@ const main = async () => {
     {
       V2: [
         {
-          ReserveAssetDeposited: [
+          WithdrawAsset: [
             {
-              fun: { Fungible: 20360954880 },
+              fun: { Fungible: 6255948005536808 },
               id: {
                 Concrete: {
                   interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
@@ -66,23 +66,17 @@ const main = async () => {
               id: {
                 Concrete: { parents: 1, Parachain: { Parachain: SHIBUYA_PARA_ID } },
               },
-              fun: { Fungible: 20360954880 },
+              fun: { Fungible: 6255948005536808 },
             },
-            weightLimit: { Limited: 3787380000 },
+            weightLimit: { Limited: 6191761979 },
           },
-        },
-        {
-          DescendOrigin: { X1: { AccountId32: { network: { Any: '' }, id: turingProxyAccount } } },
         },
         {
           Transact: {
             originType: 'SovereignAccount',
-            requireWeightAtMost: 2787380000,
+            requireWeightAtMost: 191761979,
             call: encodedTuringProxyCall,
           },
-        },
-        {
-          RefundSurplus: ''
         },
         {
           DepositAsset: {
@@ -90,7 +84,7 @@ const main = async () => {
             maxAssets: 1,
             beneficiary: {
               parents: 1,
-              interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
+              interior: { X1: { AccountId32: { network: { Any: '' }, id: turingProxyAccount } } },
             }
           }
         },
@@ -101,7 +95,7 @@ const main = async () => {
 
   console.log('xcmpExtrinsic: ', xcmpExtrinsic);
 
-  console.log('\n5. Sign and send scheduleXcmpTask call ...');
+  console.log('\n5. Sign and send polkadotXcm.send extrinsic ...');
   await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, aliceKeyring);
 };
 
