@@ -63,10 +63,13 @@ const main = async () => {
         {
           BuyExecution: {
             fees: {
-              id: {
-                Concrete: { parents: 1, Parachain: { Parachain: SHIBUYA_PARA_ID } },
-              },
               fun: { Fungible: 6255948005536808 },
+              id: {
+                Concrete: {
+                  interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
+                  parents: 1
+                }
+              }
             },
             weightLimit: { Limited: 6191761979 },
           },
