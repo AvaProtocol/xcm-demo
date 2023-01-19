@@ -15,6 +15,8 @@ const main = async () => {
   const alicePublicKey = aliceKeyring.address;
   const turingAddress = keyring.encodeAddress(alicePublicKey, chainConfig.turing.ss58);
   const turingProxyAccount = turingHelper.getProxyAccount(turingAddress);
+
+  console.log('turingProxyAccount: ', turingProxyAccount)
   
   // Add proxy
   console.log('\n1. Add proxy');
@@ -25,8 +27,40 @@ const main = async () => {
   const transferExtrinsic = turingHelper.api.tx.balances.transfer(turingProxyAccount, '10000000000000');
   await sendExtrinsic(turingHelper.api, transferExtrinsic, aliceKeyring);
 
+  // Reserve transfer amount to proxy account
+  console.log('\n3. Reserve transfer amount to proxy account');
+  const reserveTransferAssetsExtrinsic = shibuyaHelper.api.tx.polkadotXcm.reserveTransferAssets(
+    {
+      V1: {
+        parents: 1,
+        interior: { X1: { Parachain: TURING_PARA_ID } },
+      },
+    },
+    {
+      V1: {
+        interior: { X1: { AccountId32: { network: { Any: '' }, id: turingProxyAccount } } },
+        parents: 0
+      }
+    },
+    {
+      V1: [
+        {
+          fun: { Fungible: '9000000000000000000' },
+          id: {
+            Concrete: {
+              interior: { Here: '' },
+              parents: 0
+            }
+          }
+        }
+      ]
+    },
+    0
+  );
+  await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, aliceKeyring);
+
   // Create the call for scheduleXcmpTask
-  console.log('\n3. Create the call for polkadotXcm.send');
+  console.log('\n4. Create the call for polkadotXcm.send');
   const turingProxyExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
   const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingProxyAccount, 'Any', turingProxyExtrinsic);
   
@@ -37,7 +71,7 @@ const main = async () => {
   console.log('turingProxyCallFees: ', turingProxyCallFees.toHuman());
 
   // Create polkadotXcm.send extrinsic
-  console.log('\n4. Create polkadotXcm.send extrinsic');
+  console.log('\n5. Create polkadotXcm.send extrinsic');
 	const xcmpExtrinsic = shibuyaHelper.api.tx.polkadotXcm.send(
 		{
       V1: {
@@ -82,6 +116,9 @@ const main = async () => {
           },
         },
         {
+          RefundSurplus: ''
+        },
+        {
           DepositAsset: {
             assets: { Wild: 'All' },
             maxAssets: 1,
@@ -98,7 +135,7 @@ const main = async () => {
 
   console.log('xcmpExtrinsic: ', xcmpExtrinsic);
 
-  console.log('\n5. Sign and send polkadotXcm.send extrinsic ...');
+  console.log('\n6. Sign and send polkadotXcm.send extrinsic ...');
   await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, aliceKeyring);
 };
 
