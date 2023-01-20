@@ -2,8 +2,9 @@ import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { env, chainConfig } from './constants';
+import { getProxyAccount } from './utils';
 
-const { MANGATA_PARA_ID} = env;
+const { MANGATA_PARA_ID, TURING_PARA_ID } = env;
 
 class TuringHelper {
   initialize = async (endpoint) => {
@@ -93,6 +94,8 @@ class TuringHelper {
       send();
     });
   }
+
+  getProxyAccount = (address) => getProxyAccount(this.api, TURING_PARA_ID, address)
 }
 
 export default new TuringHelper();
