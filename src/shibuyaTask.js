@@ -2,7 +2,7 @@ import { Keyring } from '@polkadot/api';
 
 import turingHelper from './common/turingHelper';
 import shibuyaHelper from './common/shibuyaHelper';
-import { getProxyAccount, sendExtrinsic } from './common/utils';
+import { sendExtrinsic } from './common/utils';
 import { env, chainConfig } from './common/constants';
 
 const { SHIBUYA_ENDPOINT, TURING_ENDPOINT, SHIBUYA_PARA_ID, TURING_PARA_ID } = env;
@@ -13,35 +13,34 @@ const main = async () => {
 
   const keyring = new Keyring();
   const aliceKeyring = keyring.addFromUri('//Alice', undefined, 'sr25519');
-  const alicePublicKey = aliceKeyring.address;
-  const turingAddress = keyring.encodeAddress(alicePublicKey, chainConfig.turing.ss58);
-  const shibuyaAddress = keyring.encodeAddress(alicePublicKey, chainConfig.shibuya.ss58);
+  const turingAddress = keyring.encodeAddress(aliceKeyring.address, chainConfig.turing.ss58);
+  const shibuyaAddress = keyring.encodeAddress(aliceKeyring.address, chainConfig.shibuya.ss58);
 
-  const shibuyaProxyAccount = getProxyAccount(turingHelper.api, SHIBUYA_PARA_ID, shibuyaAddress)
-  console.log('shibuyaProxyAccount: ', shibuyaProxyAccount);
+  const proxyAccountOnTuring = turingHelper.getProxyAccount(SHIBUYA_PARA_ID, turingAddress);
+  console.log('proxyAccountOnTuring: ', proxyAccountOnTuring);
 
-  const turingProxyAccount = getProxyAccount(shibuyaHelper.api, TURING_PARA_ID, shibuyaAddress)
-  console.log('shibuyaProxyAccount: ', shibuyaProxyAccount);
+  const proxyAccountOnShibuya = shibuyaHelper.getProxyAccount(TURING_PARA_ID, shibuyaAddress)
+  console.log('proxyAccountOnShibuya: ', proxyAccountOnShibuya);
 
-  // Add proxy
+  // Add proxy on Turing and Shibuya
   console.log('\n1.1. Add proxy on Turing');
-  await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(shibuyaProxyAccount, 'Any', 0), aliceKeyring);
+  await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyAccountOnTuring, 'Any', 0), aliceKeyring);
 
   console.log('\n1.2. Add proxy on Shibuya');
-  await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(turingProxyAccount, 'Any', 0), aliceKeyring);
+  await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyAccountOnShibuya, 'Any', 0), aliceKeyring);
 
-  // Transfer amount to proxy account
-  console.log('\n2.1 Transfer amount to proxy account on Turing');
-  const transferExtrinsic = turingHelper.api.tx.balances.transfer(shibuyaProxyAccount, '10000000000000');
+  // Transfer amount to proxy account on Turing
+  console.log('\n2.1. Transfer amount to proxy account on Turing');
+  const transferExtrinsic = turingHelper.api.tx.balances.transfer(proxyAccountOnTuring, '10000000000000');
   await sendExtrinsic(turingHelper.api, transferExtrinsic, aliceKeyring);
 
-  // Transfer amount to proxy account
-  console.log('\n2.2 Transfer amount to proxy account on Shibuya');
-  const transferExtrinsicOnShibuya = shibuyaHelper.api.tx.balances.transfer(turingProxyAccount, '1000000000000000000000');
+  // Transfer amount to proxy account on Shibuya
+  console.log('\n2.2. Transfer amount to proxy account on Shibuya');
+  const transferExtrinsicOnShibuya = shibuyaHelper.api.tx.balances.transfer(proxyAccountOnShibuya, '1000000000000000000000');
   await sendExtrinsic(shibuyaHelper.api, transferExtrinsicOnShibuya, aliceKeyring);
 
-  // Reserve transfer amount to proxy account
-  console.log('\n3. Reserve transfer amount to proxy account');
+  // Reserve transfer SBY to proxy account
+  console.log('\n3. Reserve transfer SBY from Shibuya to the proxy account on Turing');
   const reserveTransferAssetsExtrinsic = shibuyaHelper.api.tx.polkadotXcm.reserveTransferAssets(
     {
       V1: {
@@ -51,7 +50,7 @@ const main = async () => {
     },
     {
       V1: {
-        interior: { X1: { AccountId32: { network: { Any: '' }, id: shibuyaProxyAccount } } },
+        interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccountOnTuring } } },
         parents: 0
       }
     },
@@ -72,18 +71,17 @@ const main = async () => {
   );
   await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, aliceKeyring);
 
-  // Create the call for scheduleXcmpTask
-  console.log('\n4. Create the call for polkadotXcm.send');
-  // const turingProxyExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
-  // const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', turingProxyExtrinsic);
-
+  // Create proxy extrinsic on Shibuya
+  console.log('\n4. Create the shibuya task for automationTime.scheduleXcmpTask');
   const proxyExtrinsic = shibuyaHelper.api.tx.system.remarkWithEvent('Hello!!!');
   const shibuyaProxyCall = shibuyaHelper.api.tx.proxy.proxy(shibuyaAddress, 'Any', proxyExtrinsic);
   const encodedShibuyaProxyCall = shibuyaProxyCall.method.toHex(shibuyaProxyCall);
   const shibuyaProxyCallFees = await shibuyaProxyCall.paymentInfo(shibuyaAddress);
 
+  // Create automationTime.scheduleXcmpTask extrinsic with proxy extrinsic
+  console.log('\n5. Create automationTime.scheduleXcmpTask extrinsic');
   const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
-  const shibuyaTask = turingHelper.api.tx.automationTime.scheduleXcmpTask(
+  const shibuyaTaskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
     providedId,
     { Fixed: { executionTimes: [0] } },
     SHIBUYA_PARA_ID,
@@ -92,7 +90,9 @@ const main = async () => {
     parseInt(shibuyaProxyCallFees.weight.refTime),
   );
 
-  const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', shibuyaTask);
+  // Create the proxy call on Turing
+  console.log('\n6. Create the proxy call on Turing');
+  const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', shibuyaTaskExtrinsic);
   
   const encodedTuringProxyCall = turingProxyCall.method.toHex();
   const turingProxyCallFees = await turingProxyCall.paymentInfo(turingAddress);
@@ -105,8 +105,8 @@ const main = async () => {
   const totalInstructionWeight = 6 * instructionWeight;
   const fungible = 6255948005536808;
 
-  // Create polkadotXcm.send extrinsic
-  console.log('\n5. Create polkadotXcm.send extrinsic');
+  // Create polkadotXcm.send extrinsic from Shibuya
+  console.log('\n7. Create polkadotXcm.send extrinsic from Shibuya');
 	const xcmpExtrinsic = shibuyaHelper.api.tx.polkadotXcm.send(
 		{
       V1: {
@@ -159,7 +159,7 @@ const main = async () => {
             maxAssets: 1,
             beneficiary: {
               parents: 1,
-              interior: { X1: { AccountId32: { network: { Any: '' }, id: shibuyaProxyAccount } } },
+              interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccountOnTuring } } },
             }
           }
         },
@@ -169,7 +169,7 @@ const main = async () => {
 
   console.log('xcmpExtrinsic: ', xcmpExtrinsic);
 
-  console.log('\n6. Sign and send polkadotXcm.send extrinsic ...');
+  console.log('\n8. Sign and send polkadotXcm.send extrinsic ...');
   await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, aliceKeyring);
 };
 
