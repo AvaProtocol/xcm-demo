@@ -114,7 +114,7 @@ const main = async () => {
           Transact: {
             originType: 'SovereignAccount',
             requireWeightAtMost: 191761979,
-            call: encodedTuringProxyCall,
+            call: { encoded: encodedTuringProxyCall },
           },
         },
         {
