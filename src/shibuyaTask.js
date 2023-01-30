@@ -17,17 +17,28 @@ const main = async () => {
   const turingAddress = keyring.encodeAddress(alicePublicKey, chainConfig.turing.ss58);
   const shibuyaAddress = keyring.encodeAddress(alicePublicKey, chainConfig.shibuya.ss58);
 
-  const shibuyaProxyAccount = getProxyAccount(turingHelper.api, 2000, shibuyaAddress)
+  const shibuyaProxyAccount = getProxyAccount(turingHelper.api, SHIBUYA_PARA_ID, shibuyaAddress)
+  console.log('shibuyaProxyAccount: ', shibuyaProxyAccount);
+
+  const turingProxyAccount = getProxyAccount(shibuyaHelper.api, TURING_PARA_ID, shibuyaAddress)
   console.log('shibuyaProxyAccount: ', shibuyaProxyAccount);
 
   // Add proxy
-  console.log('\n1. Add proxy');
+  console.log('\n1.1. Add proxy on Turing');
   await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(shibuyaProxyAccount, 'Any', 0), aliceKeyring);
 
+  console.log('\n1.2. Add proxy on Shibuya');
+  await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(turingProxyAccount, 'Any', 0), aliceKeyring);
+
   // Transfer amount to proxy account
-  console.log('\n2. Transfer amount to proxy account');
+  console.log('\n2.1 Transfer amount to proxy account on Turing');
   const transferExtrinsic = turingHelper.api.tx.balances.transfer(shibuyaProxyAccount, '10000000000000');
   await sendExtrinsic(turingHelper.api, transferExtrinsic, aliceKeyring);
+
+  // Transfer amount to proxy account
+  console.log('\n2.2 Transfer amount to proxy account on Shibuya');
+  const transferExtrinsicOnShibuya = shibuyaHelper.api.tx.balances.transfer(turingProxyAccount, '1000000000000000000000');
+  await sendExtrinsic(shibuyaHelper.api, transferExtrinsicOnShibuya, aliceKeyring);
 
   // Reserve transfer amount to proxy account
   console.log('\n3. Reserve transfer amount to proxy account');
@@ -63,14 +74,36 @@ const main = async () => {
 
   // Create the call for scheduleXcmpTask
   console.log('\n4. Create the call for polkadotXcm.send');
-  const turingProxyExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
-  const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', turingProxyExtrinsic);
+  // const turingProxyExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
+  // const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', turingProxyExtrinsic);
+
+  const proxyExtrinsic = shibuyaHelper.api.tx.system.remarkWithEvent('Hello!!!');
+  const shibuyaProxyCall = shibuyaHelper.api.tx.proxy.proxy(shibuyaAddress, 'Any', proxyExtrinsic);
+  const encodedShibuyaProxyCall = shibuyaProxyCall.method.toHex(shibuyaProxyCall);
+  const shibuyaProxyCallFees = await shibuyaProxyCall.paymentInfo(shibuyaAddress);
+
+  const providedId = "xcmp_automation_test_" + (Math.random() + 1).toString(36).substring(7);
+  const shibuyaTask = turingHelper.api.tx.automationTime.scheduleXcmpTask(
+    providedId,
+    { Fixed: { executionTimes: [0] } },
+    SHIBUYA_PARA_ID,
+    0,
+    encodedShibuyaProxyCall,
+    parseInt(shibuyaProxyCallFees.weight.refTime),
+  );
+
+  const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', shibuyaTask);
   
   const encodedTuringProxyCall = turingProxyCall.method.toHex();
   const turingProxyCallFees = await turingProxyCall.paymentInfo(turingAddress);
 
   console.log('encodedTuringProxyCall: ', encodedTuringProxyCall);
   console.log('turingProxyCallFees: ', turingProxyCallFees.toHuman());
+
+  const requireWeightAtMost = parseInt(turingProxyCallFees.weight);
+  const instructionWeight = 1000000000
+  const totalInstructionWeight = 6 * instructionWeight;
+  const fungible = 6255948005536808;
 
   // Create polkadotXcm.send extrinsic
   console.log('\n5. Create polkadotXcm.send extrinsic');
@@ -86,7 +119,7 @@ const main = async () => {
         {
           WithdrawAsset: [
             {
-              fun: { Fungible: 6255948005536808 },
+              fun: { Fungible: fungible },
               id: {
                 Concrete: {
                   interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
@@ -99,7 +132,7 @@ const main = async () => {
         {
           BuyExecution: {
             fees: {
-              fun: { Fungible: 6255948005536808 },
+              fun: { Fungible: fungible },
               id: {
                 Concrete: {
                   interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
@@ -107,13 +140,13 @@ const main = async () => {
                 }
               }
             },
-            weightLimit: { Limited: 6191761979 },
+            weightLimit: { Limited: requireWeightAtMost + totalInstructionWeight },
           },
         },
         {
           Transact: {
             originType: 'SovereignAccount',
-            requireWeightAtMost: 191761979,
+            requireWeightAtMost: requireWeightAtMost,
             call: { encoded: encodedTuringProxyCall },
           },
         },
