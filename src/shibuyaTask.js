@@ -64,7 +64,7 @@ const main = async () => {
   // Create the call for scheduleXcmpTask
   console.log('\n4. Create the call for polkadotXcm.send');
   const turingProxyExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
-  const turingProxyCall = turingHelper.api.tx.proxy.proxy(shibuyaProxyAccount, 'Any', turingProxyExtrinsic);
+  const turingProxyCall = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', turingProxyExtrinsic);
   
   const encodedTuringProxyCall = turingProxyCall.method.toHex();
   const turingProxyCallFees = await turingProxyCall.paymentInfo(turingAddress);
