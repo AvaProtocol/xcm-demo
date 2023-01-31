@@ -1,9 +1,9 @@
-import { Keyring } from "@polkadot/api";
+import { Keyring } from '@polkadot/api';
 import BN from 'bn.js';
 import _ from 'lodash';
-import util from "util";
-import turingHelper from "./turingHelper";
-import mangataHelper from "./mangataHelper";
+import util from 'util';
+import turingHelper from './turingHelper';
+import mangataHelper from './mangataHelper';
 import { chainConfig, tokenConfig } from './constants';
 
 class Account {
@@ -11,67 +11,69 @@ class Account {
         this.name = name;
         const keyring = new Keyring();
         this.keyring = keyring.addFromUri(`//${name}`, undefined, 'sr25519');
-        this.publicKey= this.keyring.address;
+        this.publicKey = this.keyring.address;
 
         const mangataAddress = keyring.encodeAddress(this.publicKey, chainConfig.mangata.ss58);
 
-        this.assets=[
+        this.assets = [
             {
-                chain: "rococo",
+                chain: 'rococo',
                 address: keyring.encodeAddress(this.publicKey, chainConfig.rococo.ss58),
             },
             {
-                chain: "mangata",
+                chain: 'mangata',
                 address: mangataAddress,
                 proxyAddress: mangataHelper.getProxyAccount(mangataAddress),
-                tokens:[],
+                tokens: [],
             },
             {
-                chain: "turing",
+                chain: 'turing',
                 address: keyring.encodeAddress(this.publicKey, chainConfig.turing.ss58),
-                tokens:[],
-            }
-        ]
+                tokens: [],
+            },
+        ];
     }
-    
+
     /**
      * Read token balances of Alice’s wallet address from both Mangata and Turing
      * This call can be called repeatedly after any chain state update
      */
-    async init(){
-        const mangataAssets = _.find(this.assets, {chain: "mangata"});
+    async init() {
+        const mangataAssets = _.find(this.assets, { chain: 'mangata' });
 
         const balancePromises = _.map(mangataHelper.assets, async (asset) => {
             const { symbol } = asset;
             const mangataBalance = await mangataHelper.getBalance(symbol, mangataAssets.address);
-            const decimal = tokenConfig[symbol].decimal;
+            const { decimal } = tokenConfig[symbol];
 
             // Update value of existing symbol or add a new symbol if not exists
-            if(_.find(mangataAssets.tokens, {"symbol":symbol})){
-                _.merge(mangataAssets.tokens,{ "symbol":symbol,
-                balance: mangataBalance.free,
-                balanceFloat: mangataBalance.free.div(new BN(decimal)).toNumber()
+            if (_.find(mangataAssets.tokens, { symbol })) {
+                _.merge(mangataAssets.tokens, {
+                    symbol,
+                    balance: mangataBalance.free,
+                    balanceFloat: mangataBalance.free.div(new BN(decimal)).toNumber(),
                 });
-            }
-            else{
-              mangataAssets.tokens.push(
-                { "symbol":symbol,
-                balance: mangataBalance.free,
-                balanceFloat: mangataBalance.free.div(new BN(decimal)).toNumber()
-                });   
+            } else {
+                mangataAssets.tokens.push(
+                    {
+                        symbol,
+                        balance: mangataBalance.free,
+                        balanceFloat: mangataBalance.free.div(new BN(decimal)).toNumber(),
+                    },
+                );
             }
         });
 
         await Promise.all(balancePromises);
 
-        const turing = _.find(this.assets, {chain: "turing"});
+        const turing = _.find(this.assets, { chain: 'turing' });
         const balance = await turingHelper.getBalance(turing.address);
-        const decimal = tokenConfig['TUR'].decimal;
-        turing.tokens.push({ symbol:'TUR', balance: balance.free, balanceFloat: balance.free.div(new BN(decimal)).toNumber()});
+        const { decimal } = tokenConfig.TUR;
+        turing.tokens.push({ symbol: 'TUR', balance: balance.free, balanceFloat: balance.free.div(new BN(decimal)).toNumber() });
     }
 
-    print(){
-        console.log(util.inspect(this.assets, {depth: 4, colors: true}))
+    print() {
+        console.log(util.inspect(this.assets, { depth: 4, colors: true }));
     }
 }
 

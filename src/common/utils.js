@@ -1,58 +1,55 @@
 import _ from 'lodash';
 import { decodeAddress } from '@polkadot/util-crypto';
-import { u8aToHex } from "@polkadot/util";
+import { u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 
-export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => {
-	return new Promise((resolve) => {
-
+export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => new Promise((resolve) => {
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
-		newExtrinsic.signAndSend(keyPair, { nonce: -1 }, ({ status, events }) => {
-			console.log("status.type", status.type);
+    newExtrinsic.signAndSend(keyPair, { nonce: -1 }, ({ status, events }) => {
+        console.log('status.type', status.type);
 
-			if (status.isInBlock || status.isFinalized) {
-				events
-				// find/filter for failed events
-				.filter(({ event }) =>api.events.system.ExtrinsicFailed.is(event))
-				// we know that data for system.ExtrinsicFailed is
-				// (DispatchError, DispatchInfo)
-				.forEach(({ event: { data: [error] } }) => {
-					if (error.isModule) {
-						// for module errors, we have the section indexed, lookup
-						const decoded = api.registry.findMetaError(error.asModule);
-						const { docs, method, section } = decoded;
-						console.log(`${section}.${method}: ${docs.join(' ')}`);
-					} else {
-						// Other, CannotLookup, BadOrigin, no extra info
-						console.log(error.toString());
-					}
-				});
+        if (status.isInBlock || status.isFinalized) {
+            events
+            // find/filter for failed events
+                .filter(({ event }) => api.events.system.ExtrinsicFailed.is(event))
+            // we know that data for system.ExtrinsicFailed is
+            // (DispatchError, DispatchInfo)
+                .forEach(({ event: { data: [error] } }) => {
+                    if (error.isModule) {
+                        // for module errors, we have the section indexed, lookup
+                        const decoded = api.registry.findMetaError(error.asModule);
+                        const { docs, method, section } = decoded;
+                        console.log(`${section}.${method}: ${docs.join(' ')}`);
+                    } else {
+                        // Other, CannotLookup, BadOrigin, no extra info
+                        console.log(error.toString());
+                    }
+                });
 
-				if(status.isFinalized){
-					return resolve(status.asFinalized.toString());
-				}
-			}
-			// if (status.type === 'Finalized') {
-			// 	console.log('Finalize extrinsic in block: ', status.asFinalized.toString());
+            if (status.isFinalized) {
+                return resolve(status.asFinalized.toString());
+            }
+        }
+        // if (status.type === 'Finalized') {
+        // 	console.log('Finalize extrinsic in block: ', status.asFinalized.toString());
 
-			// 	if (!_.isNil(dispatchError)) {
-			// 		if (dispatchError.isModule) {
-			// 			const metaError = api.registry.findMetaError(dispatchError.asModule)
-			// 			const { docs, name, section } = metaError
-			// 			const dispatchErrorMessage = JSON.stringify({ docs, name, section })
-			// 			const errMsg = `Transaction finalized with error by blockchain ${dispatchErrorMessage}`
-			// 			console.log(errMsg)
-			// 		} else {
-			// 			const errMsg = `Transaction finalized with error by blockchain ${dispatchError.toString()}`
-			// 			console.log(errMsg)
-			// 		}
-			// 	}
+        // 	if (!_.isNil(dispatchError)) {
+        // 		if (dispatchError.isModule) {
+        // 			const metaError = api.registry.findMetaError(dispatchError.asModule)
+        // 			const { docs, name, section } = metaError
+        // 			const dispatchErrorMessage = JSON.stringify({ docs, name, section })
+        // 			const errMsg = `Transaction finalized with error by blockchain ${dispatchErrorMessage}`
+        // 			console.log(errMsg)
+        // 		} else {
+        // 			const errMsg = `Transaction finalized with error by blockchain ${dispatchError.toString()}`
+        // 			console.log(errMsg)
+        // 		}
+        // 	}
 
-			// 	resolve(status.asFinalized.toString());
-			// }
-		});
-	});
-}
+        // 	resolve(status.asFinalized.toString());
+        // }
+    });
+});
 
 /**
 * Usage: await delay(1000)
@@ -69,86 +66,84 @@ export const delay = async (ms) => new Promise((res) => setTimeout(res, ms));
  * @usage await waitForEvent(mangataHelper.api, "xyk.LiquidityMinted");
  * This is a utility function copied from https://github.com/mangata-finance/mangata-e2e/pull/166/files
  * It works most of the time, avoid using in the CI, used only in manual tests for now; or FIX please :)
- * @param {ApiPromise} api 
- * @param {string} method 
+ * @param {ApiPromise} api
+ * @param {string} method
  * @param {number} blocks starting block number; no idea why it is 3
- * @returns 
+ * @returns
  */
-export const waitForEvent = async (api,method,blocks = 3) => {
-	return new Promise((resolve, reject) => {
-		let counter = 0;
-		const unsub = api.rpc.chain.getFinalizedHead(async (head) => {
-		await api.query.system.events((events) => {
-			counter++;
-			console.log(`await event check for '${method}', attempt ${counter}, head ${head}`);
-			events.forEach(({ phase, event: { data, method, section } }) => {
-				console.log(phase, data, method, section);
-			});
-			const event = _.find(events,({ event }) => `${event.section}.${event.method}` === method);
-			if (event) {
-				resolve();
-				unsub();
-				// } else {
-				//   reject(new Error("event not found"));
-			}
-			if (counter === blocks) {
-				reject(`method ${method} not found within blocks limit`);
-			}
-		});
-	});
-	});
-  };
+export const waitForEvent = async (api, method, blocks = 3) => new Promise((resolve, reject) => {
+    let counter = 0;
+    const unsub = api.rpc.chain.getFinalizedHead(async (head) => {
+        await api.query.system.events((events) => {
+            counter++;
+            console.log(`await event check for '${method}', attempt ${counter}, head ${head}`);
+            events.forEach(({ phase, event: { data, method, section } }) => {
+                console.log(phase, data, method, section);
+            });
+            const event = _.find(events, ({ event }) => `${event.section}.${event.method}` === method);
+            if (event) {
+                resolve();
+                unsub();
+                // } else {
+                //   reject(new Error("event not found"));
+            }
+            if (counter === blocks) {
+                reject(`method ${method} not found within blocks limit`);
+            }
+        });
+    });
+});
 
-  /**
+/**
  * Formatting number with thousand separator.
  * @param  {number} num e.g. 1000000.65
  * @return {string}   "1,000,000.65"
  */
 export function formatNumberThousands(num) {
-	if (_.isUndefined(num)) {
-		return num;
-	}
-  
-	const numStr = num.toString();
-	const parts = numStr.split('.');
-  
-	const decimalStr = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-	const period = _.isUndefined(parts[1]) ? '' : '.';
-	const floatStr = _.isUndefined(parts[1]) ? '' : parts[1];
-  
-	return `${decimalStr}${period}${floatStr}`;
+    if (_.isUndefined(num)) {
+        return num;
+    }
+
+    const numStr = num.toString();
+    const parts = numStr.split('.');
+
+    const decimalStr = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const period = _.isUndefined(parts[1]) ? '' : '.';
+    const floatStr = _.isUndefined(parts[1]) ? '' : parts[1];
+
+    return `${decimalStr}${period}${floatStr}`;
 }
 
 export const getProxyAccount = (api, sourceParaId, address) => {
-  const decodedAddress = decodeAddress(address); // An Int array presentation of the address’ ss58 public key
+    const decodedAddress = decodeAddress(address); // An Int array presentation of the address’ ss58 public key
 
-  const location = {
-    parents: 1, // from source parachain to target parachain
-    interior: {
-      X2: [
-        { Parachain: sourceParaId },
-        {
-          AccountId32: {
-            network: 'Any',
-            id: u8aToHex(decodedAddress),
-          }
-        }
-      ]
-    }
-  };
+    const location = {
+        parents: 1, // from source parachain to target parachain
+        interior: {
+            X2: [
+                { Parachain: sourceParaId },
+                {
+                    AccountId32: {
+                        network: 'Any',
+                        id: u8aToHex(decodedAddress),
+                    },
+                },
+            ],
+        },
+    };
 
-  const multilocation = api.createType("XcmV1MultiLocation", location);
+    const multilocation = api.createType('XcmV1MultiLocation', location);
 
-  const toHash = new Uint8Array([
-    ...new Uint8Array([32]),
-    ...new TextEncoder().encode("multiloc"),
-    ...multilocation.toU8a(),
-  ]);
+    const toHash = new Uint8Array([
+        ...new Uint8Array([32]),
+        ...new TextEncoder().encode('multiloc'),
+        ...multilocation.toU8a(),
+    ]);
 
-  const DescendOriginAddress32 = u8aToHex(api.registry.hash(toHash).slice(0, 32));
+    const DescendOriginAddress32 = u8aToHex(api.registry.hash(toHash).slice(0, 32));
 
-  return DescendOriginAddress32;
-}
+    return DescendOriginAddress32;
+};
 
 /**
  * Return a BN object for the power of 10, for example getDecimalBN(10) returns new BN(10,000,000,000)
