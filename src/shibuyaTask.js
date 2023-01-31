@@ -41,34 +41,7 @@ const main = async () => {
 
   // Reserve transfer SBY to proxy account
   console.log('\n3. Reserve transfer SBY from Shibuya to the proxy account on Turing');
-  const reserveTransferAssetsExtrinsic = shibuyaHelper.api.tx.polkadotXcm.reserveTransferAssets(
-    {
-      V1: {
-        parents: 1,
-        interior: { X1: { Parachain: TURING_PARA_ID } },
-      },
-    },
-    {
-      V1: {
-        interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccountOnTuring } } },
-        parents: 0
-      }
-    },
-    {
-      V1: [
-        {
-          fun: { Fungible: '9000000000000000000' },
-          id: {
-            Concrete: {
-              interior: { Here: '' },
-              parents: 0
-            }
-          }
-        }
-      ]
-    },
-    0
-  );
+  const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TURING_PARA_ID, proxyAccountOnTuring, '9000000000000000000');
   await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, aliceKeyring);
 
   // Create proxy extrinsic on Shibuya
@@ -101,71 +74,17 @@ const main = async () => {
   console.log('turingProxyCallFees: ', turingProxyCallFees.toHuman());
 
   const requireWeightAtMost = parseInt(turingProxyCallFees.weight);
-  const instructionWeight = 1000000000
-  const totalInstructionWeight = 6 * instructionWeight;
   const fungible = 6255948005536808;
 
   // Create polkadotXcm.send extrinsic from Shibuya
   console.log('\n7. Create polkadotXcm.send extrinsic from Shibuya');
-	const xcmpExtrinsic = shibuyaHelper.api.tx.polkadotXcm.send(
-		{
-      V1: {
-        parents: 1,
-        interior: { X1: { Parachain: TURING_PARA_ID } },
-      },
-    },
-    {
-      V2: [
-        {
-          WithdrawAsset: [
-            {
-              fun: { Fungible: fungible },
-              id: {
-                Concrete: {
-                  interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
-                  parents: 1
-                }
-              }
-            }
-          ]
-        },
-        {
-          BuyExecution: {
-            fees: {
-              fun: { Fungible: fungible },
-              id: {
-                Concrete: {
-                  interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
-                  parents: 1
-                }
-              }
-            },
-            weightLimit: { Limited: requireWeightAtMost + totalInstructionWeight },
-          },
-        },
-        {
-          Transact: {
-            originType: 'SovereignAccount',
-            requireWeightAtMost: requireWeightAtMost,
-            call: { encoded: encodedTuringProxyCall },
-          },
-        },
-        {
-          RefundSurplus: ''
-        },
-        {
-          DepositAsset: {
-            assets: { Wild: 'All' },
-            maxAssets: 1,
-            beneficiary: {
-              parents: 1,
-              interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccountOnTuring } } },
-            }
-          }
-        },
-      ]
-    }
-  );
+  const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
+    targetParaId: TURING_PARA_ID,
+    encodedCall: encodedTuringProxyCall,
+    fungible,
+    requireWeightAtMost,
+    proxyAccount: proxyAccountOnTuring,
+  })
 
   console.log('xcmpExtrinsic: ', xcmpExtrinsic);
 
