@@ -1,13 +1,14 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { instructionWeight, env } from './constants';
+import _ from 'lodash';
+import { instructionWeight } from './constants';
 import { getProxyAccount } from './utils';
-
-const { SHIBUYA_PARA_ID } = env;
+import { Shibuya } from '../config';
 
 class ShibuyaHelper {
     initialize = async (endpoint) => {
         const api = await ApiPromise.create({ provider: new WsProvider(endpoint) });
         this.api = api;
+        this.assets = Shibuya.assets;
     };
 
     getApi = () => this.api;
@@ -33,7 +34,7 @@ class ShibuyaHelper {
                                 fun: { Fungible: fungible },
                                 id: {
                                     Concrete: {
-                                        interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
+                                        interior: { X1: { Parachain: Shibuya.paraId } },
                                         parents: 1,
                                     },
                                 },
@@ -46,7 +47,7 @@ class ShibuyaHelper {
                                 fun: { Fungible: fungible },
                                 id: {
                                     Concrete: {
-                                        interior: { X1: { Parachain: SHIBUYA_PARA_ID } },
+                                        interior: { X1: { Parachain: Shibuya.paraId } },
                                         parents: 1,
                                     },
                                 },
@@ -112,6 +113,16 @@ class ShibuyaHelper {
 
         return extrinsic;
     };
+
+    /**
+     * Returns the decimal number such as 18 for a specific asset
+     * @param {string} symbol such as SBY
+     * @returns 18 for SBY
+     */
+    getDecimalBySymbol(symbol) {
+        const token = _.find(this.assets, { symbol });
+        return token.decimals;
+    }
 }
 
 export default new ShibuyaHelper();
