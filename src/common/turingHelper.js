@@ -1,8 +1,11 @@
+import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
+
 import { env, chainConfig } from './constants';
-import { getProxyAccount } from './utils';
+import { getProxies, getProxyAccount } from './utils';
+import { TuringDev } from '../config';
 
 const { MANGATA_PARA_ID } = env;
 
@@ -12,6 +15,7 @@ class TuringHelper {
             provider: new WsProvider(endpoint), rpc, types, runtime,
         });
         this.api = api;
+        this.assets = TuringDev.assets;
     };
 
     getApi = () => this.api;
@@ -22,6 +26,8 @@ class TuringHelper {
 
         return balance;
     };
+
+    getTokenBalance = async (address, tokenId) => await this.api.query.tokens.accounts(address, tokenId);
 
     getProxyAddressMangata = (address) => {
         const keyring = new Keyring();
@@ -96,6 +102,18 @@ class TuringHelper {
     });
 
     getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
+
+    getProxies = async (address) => getProxies(this.api, address);
+
+    /**
+     * Returns the decimal number such as 18 for a specific asset
+     * @param {string} symbol such as TUR
+     * @returns 10 for TUR
+     */
+    getDecimalBySymbol(symbol) {
+        const token = _.find(this.assets, { symbol });
+        return token.decimals;
+    }
 }
 
 export default new TuringHelper();

@@ -154,3 +154,9 @@ export function getDecimalBN(decimals) {
     const power = new BN(decimals, 10);
     return base.pow(power);
 }
+
+export const getProxies = async (api, address) => {
+    const proxiesResponse = await api.query.proxy.proxies(address);
+    const [proxies] = proxiesResponse.toJSON()[0];
+    return proxies;
+}

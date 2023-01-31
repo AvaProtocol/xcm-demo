@@ -1,5 +1,7 @@
+import _ from 'lodash';
 import { Keyring } from '@polkadot/api';
 import BN from 'bn.js';
+
 import turingHelper from './common/turingHelper';
 import shibuyaHelper from './common/shibuyaHelper';
 import { sendExtrinsic, getDecimalBN } from './common/utils';
@@ -7,10 +9,13 @@ import {TuringDev, Shibuya} from "./config"
 
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
+const SHIBUYA_TOKEN_ID_ON_TURING = 4;
 
 const main = async () => {
     await turingHelper.initialize(TuringDev.endpoint);
     await shibuyaHelper.initialize(Shibuya.endpoint);
+
+    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
 
     const keyring = new Keyring();
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
@@ -22,27 +27,43 @@ const main = async () => {
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
     console.log('\n1. One-time proxy setup on Shibuya');
     const proxyOnShibuya = shibuyaHelper.getProxyAccount(TuringDev.paraId, shibuyaAddress);
+    const proxiesOnShibuya = await shibuyaHelper.getProxies(shibuyaAddress);
+    console.log('proxiesOnShibuya: ', proxiesOnShibuya);
+    if (_.isEmpty(proxiesOnShibuya)) {
+        console.log(`\na) Add a proxy of Turing (paraId:${TuringDev.paraId}) for Alice on Shibuya ...\n Proxy address: ${proxyOnShibuya}\n`);
+        await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyOnShibuya, 'Any', 0), keyPair);
+    }
 
-    console.log(`\na) Add a proxy of Turing (paraId:${TuringDev.paraId}) for Alice on Shibuya ...\n Proxy address: ${proxyOnShibuya}\n`);
-    await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyOnShibuya, 'Any', 0), keyPair);
-
-    console.log('\nb) Topping up the proxy account on Shibuya with SBY ...\n');
-    const sbyAmount = new BN(1000, 10);
-    const sbyAmountBN = sbyAmount.mul(getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY')));
-
-    const transferSBY = shibuyaHelper.api.tx.balances.transfer(proxyOnShibuya, sbyAmountBN.toString());
-    await sendExtrinsic(shibuyaHelper.api, transferSBY, keyPair);
+    const minBalance = new BN(MIN_BALANCE_IN_PROXY).mul(sbyDecimalBN);
+    const balance = await shibuyaHelper.getBalance(proxyOnShibuya);
+    if(balance.free.lt(minBalance)) {
+        console.log('\nb) Topping up the proxy account on Shibuya with SBY ...\n');
+        const sbyAmount = new BN(1000, 10);
+        const sbyAmountBN = sbyAmount.mul(sbyDecimalBN);
+        const transferSBY = shibuyaHelper.api.tx.balances.transfer(proxyOnShibuya, sbyAmountBN.toString());
+        await sendExtrinsic(shibuyaHelper.api, transferSBY, keyPair);
+    }
 
     console.log('\n2. One-time proxy setup on Turing');
     const proxyOnTuring = turingHelper.getProxyAccount(Shibuya.paraId, turingAddress);
-
-    console.log(`\na) Add a proxy of Shibuya (paraId:${Shibuya.paraId}) for Alice on Turing ...\nProxy address: ${proxyOnTuring}\n`);
-    await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, 'Any', 0), keyPair);
+    const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
+    console.log('proxiesOnTuring: ', proxiesOnTuring);
+    if (_.isEmpty(proxiesOnTuring)) {
+        console.log(`\na) Add a proxy of Shibuya (paraId:${Shibuya.paraId}) for Alice on Turing ...\nProxy address: ${proxyOnTuring}\n`);
+        await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, 'Any', 0), keyPair);
+    }
 
     // Reserve transfer SBY to the proxy account on Turing
-    console.log('\nb) Topping up the proxy account on Turing via reserve transfer SBY');
-    const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TuringDev.paraId, proxyOnTuring, '9000000000000000000');
-    await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
+    const minSbyBalanceOnTuring = new BN(MIN_BALANCE_IN_PROXY).mul(sbyDecimalBN);
+    const sbyBalanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, SHIBUYA_TOKEN_ID_ON_TURING);
+    console.log('sbyBalanceOnTuring.free: ', sbyBalanceOnTuring.free);
+    if(sbyBalanceOnTuring.free.lt(minSbyBalanceOnTuring)) {
+        console.log('\nb) Topping up the proxy account on Turing via reserve transfer SBY');
+        const sbyAmount = new BN(1000, 10);
+        const sbyAmountBN = sbyAmount.mul(sbyDecimalBN);
+        const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TuringDev.paraId, proxyOnTuring, sbyAmountBN);
+        await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
+    }
 
     console.log('\n3. Create a payload to store in Turing’s task ...');
 

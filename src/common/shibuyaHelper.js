@@ -1,6 +1,7 @@
-import { ApiPromise, WsProvider } from '@polkadot/api';
 import _ from 'lodash';
-import { getProxyAccount } from './utils';
+import { ApiPromise, WsProvider } from '@polkadot/api';
+
+import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
 class ShibuyaHelper {
@@ -13,6 +14,13 @@ class ShibuyaHelper {
     getApi = () => this.api;
 
     getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
+
+    getProxies = async (address) => getProxies(this.api, address);
+
+    getBalance = async (address) => {
+        const balance = (await this.api.query.system.account(address))?.data;
+        return balance;
+    }
 
     createTransactExtrinsic = ({
         targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount, instructionWeight
