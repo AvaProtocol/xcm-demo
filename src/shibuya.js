@@ -18,10 +18,46 @@ const LISTEN_EVENT_DELAY = 3 * 60;
 
 const keyring = new Keyring({ type: 'sr25519' });
 
+<<<<<<< HEAD
 const scheduleTask = async ({
     turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuringPublicKey, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
+=======
+    const keyring = new Keyring();
+    const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
+    const turingAddress = keyring.encodeAddress(keyPair.address, TuringDev.ss58);
+    const shibuyaAddress = keyring.encodeAddress(keyPair.address, Shibuya.ss58);
+    console.log(`\nUser Alice’s Turing address: ${turingAddress}, Shibuya address: ${shibuyaAddress}`);
+
+    // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
+    // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
+    console.log('\n1. One-time proxy setup on Shibuya');
+    const proxyOnShibuya = shibuyaHelper.getProxyAccount(TuringDev.paraId, shibuyaAddress);
+
+    console.log(`\na) Add a proxy of Turing (paraId:${TuringDev.paraId}) for Alice on Shibuya ...\n Proxy address: ${proxyOnShibuya}\n`);
+    await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyOnShibuya, 'Any', 0), keyPair);
+
+    console.log('\nb) Topping up the proxy account on Shibuya with SBY ...\n');
+    const sbyAmount = new BN(1000, 10);
+    const sbyAmountBN = sbyAmount.mul(getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY')));
+
+    const transferSBY = shibuyaHelper.api.tx.balances.transfer(proxyOnShibuya, sbyAmountBN.toString());
+    await sendExtrinsic(shibuyaHelper.api, transferSBY, keyPair);
+
+    console.log('\n2. One-time proxy setup on Turing');
+    const proxyOnTuring = turingHelper.getProxyAccount(Shibuya.paraId, turingAddress);
+
+    console.log(`\na) Add a proxy of Shibuya (paraId:${Shibuya.paraId}) for Alice on Turing ...\nProxy address: ${proxyOnTuring}\n`);
+    await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, 'Any', 0), keyPair);
+
+    // Reserve transfer SBY to the proxy account on Turing
+    console.log('\nb) Topping up the proxy account on Turing via reserve transfer SBY');
+    const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TuringDev.paraId, proxyOnTuring, '9000000000000000000');
+    await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
+
+    console.log('\n3. Create a payload to store in Turing’s task ...');
+>>>>>>> 76a310a7 (Call createTransactExtrinsic, createReserveTransferAssetsExtrinsic in shibuya.js)
 
     // We are using a very simple system.remark extrinsic to demonstrate the payload here.
     // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
@@ -61,6 +97,7 @@ const scheduleTask = async ({
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
 
+<<<<<<< HEAD
     console.log('\nc) Execute the above an XCM from Shibuya to schedule a task on Turing ...');
     const feePerSecond = await turingHelper.getFeePerSecond(SHIBUYA_TOKEN_ID_ON_TURING);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
@@ -70,6 +107,17 @@ const scheduleTask = async ({
         feePerSecond,
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
+=======
+    console.log('\n5. Execute the above an XCM from Shibuya to schedule a task on Turing ...');
+    const fungible = 6255948005536808;
+    const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
+        targetParaId: TuringDev.paraId,
+        encodedCall: encodedTaskViaProxy,
+        fungible,
+        requireWeightAtMost,
+        proxyOnTuring,
+        instructionWeight: TURING_INSTRUCTION_WEIGHT,
+>>>>>>> 76a310a7 (Call createTransactExtrinsic, createReserveTransferAssetsExtrinsic in shibuya.js)
     });
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
 

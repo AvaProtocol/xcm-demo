@@ -37,7 +37,11 @@ class ShibuyaHelper {
     };
 
     createTransactExtrinsic = ({
+<<<<<<< HEAD
         targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
+=======
+        targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount, instructionWeight
+>>>>>>> 76a310a7 (Call createTransactExtrinsic, createReserveTransferAssetsExtrinsic in shibuya.js)
     }) => {
         // The instruction count of XCM message.
         // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
