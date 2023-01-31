@@ -14,7 +14,7 @@ Mangata XCM Auto-compound E2E Demo
 | :---        |    :----:   |          ---: |
 | Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
 | OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-2aecbd94ab4bcde05657)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
-| Mangata | x   | [f545791](https://github.com/mangata-finance/mangata-node/commits/f54579182e3e94c82673567da74d3f29bb45ab32)        |
+| Mangata | [0.27.1](https://github.com/mangata-finance/mangata-node/releases/tag/v0.27.1)   | [f545791](https://github.com/mangata-finance/mangata-node/commits/f54579182e3e94c82673567da74d3f29bb45ab32)        |
 ## Steps
 1. Launch OAK-blockchain, Rococo and Mangata.
 
