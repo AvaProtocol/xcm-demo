@@ -1,6 +1,5 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import _ from 'lodash';
-import { instructionWeight } from './constants';
 import { getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
@@ -16,7 +15,7 @@ class ShibuyaHelper {
     getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount,
+        targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount, instructionWeight
     }) => {
         const totalInstructionWeight = 6 * instructionWeight;
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
