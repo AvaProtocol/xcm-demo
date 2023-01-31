@@ -3,7 +3,6 @@
     "mangata": "dotenv -e .env babel-node src/mangata.js",
     "setup-mangata": "dotenv -e .env babel-node src/setup-mangata.js",
     "shibuya": "dotenv -e .env babel-node src/shibuya.js",
-    "shibuya-task": "dotenv -e .env babel-node src/shibuyaTask.js",
     "lint": "eslint --fix src/*"
   },
   "dependencies": {

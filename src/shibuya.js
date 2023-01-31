@@ -2,7 +2,7 @@ import { Keyring } from '@polkadot/api';
 
 import turingHelper from './common/turingHelper';
 import shibuyaHelper from './common/shibuyaHelper';
-import { sendExtrinsic } from './common/utils';
+import { sendExtrinsic, getDecimalBN } from './common/utils';
 import { env, chainConfig } from './common/constants';
 
 const { SHIBUYA_ENDPOINT, TURING_ENDPOINT, SHIBUYA_PARA_ID, TURING_PARA_ID } = env;
