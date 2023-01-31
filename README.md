@@ -51,6 +51,13 @@ Mangata XCM Auto-compound E2E Demo
    ```
 
 # Run Shiubya demo
+## Pre-requisite
+| Chain      | Version | Commit hash |
+| :---        |    :----:   |          ---: |
+| Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
+| OAK-blockchain   | 1.8.0     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
+| Astar | x   | [523c067](https://github.com/AstarNetwork/Astar/commit/523c06798a08189a3ea20f790b83cd4ae602c579)        |
+## Steps
 1. Launch OAK-blockchain, Rococo and Shibuya.
 
 	Launch zombie in OAK-blockchain project root with Astar and modified OAK.
@@ -60,13 +67,8 @@ Mangata XCM Auto-compound E2E Demo
 	```
 	zombie spawn zombienets/turing/shibuya.toml
 	```
-	
 
-2. Register an asset on Shibuya.
-  
-	![image](https://user-images.githubusercontent.com/16951509/209597183-0923a9ca-e3c4-40a5-b7e6-1745f117c7b3.png)
-
-3. Run the program to schedule automation and wait for cross-chain execution
+2. Run the program to schedule automation and wait for cross-chain execution
    ```
    npm run shibuya
    ```
