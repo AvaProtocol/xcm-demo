@@ -39,41 +39,9 @@ const main = async () => {
     console.log(`\na) Add a proxy of Shibuya (paraId:${Shibuya.paraId}) for Alice on Turing ...\nProxy address: ${proxyOnTuring}\n`);
     await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, 'Any', 0), keyPair);
 
-    console.log('\nb) Topping up the proxy account on Turing with TUR ...\n');
-    const transferExtrinsic = turingHelper.api.tx.balances.transfer(proxyOnTuring, '10000000000000');
-    await sendExtrinsic(turingHelper.api, transferExtrinsic, keyPair);
-
     // Reserve transfer SBY to the proxy account on Turing
-    console.log('\nc) Topping up the proxy account on Turing via reserve transfer SBY');
-    const reserveTransferAssetsExtrinsic = shibuyaHelper.api.tx.polkadotXcm.reserveTransferAssets(
-        {
-            V1: {
-                parents: 1,
-                interior: { X1: { Parachain: TuringDev.paraId } },
-            },
-        },
-        {
-            V1: {
-                interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyOnTuring } } },
-                parents: 0,
-            },
-        },
-        {
-            V1: [
-                {
-                    fun: { Fungible: '9000000000000000000' },
-                    id: {
-                        Concrete: {
-                            interior: { Here: '' },
-                            parents: 0,
-                        },
-                    },
-                },
-            ],
-        },
-        0,
-    );
-
+    console.log('\nb) Topping up the proxy account on Turing via reserve transfer SBY');
+    const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TURING_PARA_ID, proxyOnTuring, '9000000000000000000');
     await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
 
     console.log('\n3. Create a payload to store in Turing’s task ...');
@@ -111,69 +79,14 @@ const main = async () => {
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
 
     console.log('\n5. Execute the above an XCM from Shibuya to schedule a task on Turing ...');
-    const totalInstructionWeight = 6 * TURING_INSTRUCTION_WEIGHT;
     const fungible = 6255948005536808;
-
-    const xcmpExtrinsic = shibuyaHelper.api.tx.polkadotXcm.send(
-        {
-            V1: {
-                parents: 1,
-                interior: { X1: { Parachain: TuringDev.paraId } },
-            },
-        },
-        {
-            V2: [
-                {
-                    WithdrawAsset: [
-                        {
-                            fun: { Fungible: fungible },
-                            id: {
-                                Concrete: {
-                                    interior: { X1: { Parachain: Shibuya.paraId } },
-                                    parents: 1,
-                                },
-                            },
-                        },
-                    ],
-                },
-                {
-                    BuyExecution: {
-                        fees: {
-                            fun: { Fungible: fungible },
-                            id: {
-                                Concrete: {
-                                    interior: { X1: { Parachain: Shibuya.paraId } },
-                                    parents: 1,
-                                },
-                            },
-                        },
-                        weightLimit: { Limited: requireWeightAtMost + totalInstructionWeight },
-                    },
-                },
-                {
-                    Transact: {
-                        originType: 'SovereignAccount',
-                        requireWeightAtMost,
-                        call: { encoded: encodedTaskViaProxy },
-                    },
-                },
-                {
-                    RefundSurplus: '',
-                },
-                {
-                    DepositAsset: {
-                        assets: { Wild: 'All' },
-                        maxAssets: 1,
-                        beneficiary: {
-                            parents: 1,
-                            interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyOnTuring } } },
-                        },
-                    },
-                },
-            ],
-        },
-    );
-
+    const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
+        targetParaId: TURING_PARA_ID,
+        encodedCall: encodedTaskViaProxy,
+        fungible,
+        requireWeightAtMost,
+        proxyOnTuring,
+    });
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
 
     console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
