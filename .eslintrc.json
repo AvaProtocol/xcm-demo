@@ -9,10 +9,7 @@
     ],
     "parserOptions": {
         "ecmaVersion": "latest",
-        "sourceType": "module",
-        "babelOptions": {
-            "configFile": "./babel.config.js"
-          }
+        "sourceType": "module"
     },
     "rules": {
         "indent": ["warn", 4],
