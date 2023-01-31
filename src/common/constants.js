@@ -37,4 +37,6 @@ const tokenConfig={
     }
 }
 
-export {env, chainConfig, tokenConfig};
+const instructionWeight = 1000000000;
+
+export {env, chainConfig, tokenConfig, instructionWeight};

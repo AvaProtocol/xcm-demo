@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { u8aToHex } from "@polkadot/util";
+import BN from 'bn.js';
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => {
 	return new Promise((resolve) => {
@@ -147,4 +148,14 @@ export const getProxyAccount = (api, sourceParaId, address) => {
   const DescendOriginAddress32 = u8aToHex(api.registry.hash(toHash).slice(0, 32));
 
   return DescendOriginAddress32;
+}
+
+/**
+ * Return a BN object for the power of 10, for example getDecimalBN(10) returns new BN(10,000,000,000)
+ * @param {*} decimals The decimals number of a token
+ */
+export function getDecimalBN(decimals) {
+    const base = new BN(10, 10);
+    const power = new BN(decimals, 10);
+    return base.pow(power);
 }
