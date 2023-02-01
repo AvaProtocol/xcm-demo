@@ -1,8 +1,12 @@
 import _ from 'lodash';
 import { ApiPromise, WsProvider } from '@polkadot/api';
+import { BN } from 'bn.js';
 
 import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
+
+// frame_support::weights::constants::WEIGHT_PER_SECOND
+const WEIGHT_PER_SECOND = 1000000000000;
 
 class ShibuyaHelper {
     initialize = async (endpoint) => {
@@ -20,12 +24,18 @@ class ShibuyaHelper {
     getBalance = async (address) => {
         const balance = (await this.api.query.system.account(address))?.data;
         return balance;
-    }
+    };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount, instructionWeight
+        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
     }) => {
-        const totalInstructionWeight = 6 * instructionWeight;
+        // The instruction count of XCM message.
+        // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
+        // So instructionCount should be V2.length + 1
+        const instructionCount = 6;
+        const totalInstructionWeight = instructionCount * instructionWeight;
+        const weightLimit = requireWeightAtMost + totalInstructionWeight;
+        const fungible = new BN(weightLimit).mul(new BN(feePerSecond)).div(new BN(WEIGHT_PER_SECOND));
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
             {
                 V1: {
@@ -59,7 +69,7 @@ class ShibuyaHelper {
                                     },
                                 },
                             },
-                            weightLimit: { Limited: requireWeightAtMost + totalInstructionWeight },
+                            weightLimit: { Limited: weightLimit },
                         },
                     },
                     {

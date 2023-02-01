@@ -27,7 +27,7 @@ class TuringHelper {
         return balance;
     };
 
-    getTokenBalance = async (address, tokenId) => await this.api.query.tokens.accounts(address, tokenId);
+    getTokenBalance = async (address, tokenId) => this.api.query.tokens.accounts(address, tokenId);
 
     getProxyAddressMangata = (address) => {
         const keyring = new Keyring();
@@ -104,6 +104,11 @@ class TuringHelper {
     getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
 
     getProxies = async (address) => getProxies(this.api, address);
+
+    getFeePerSecond = async (assetId) => {
+        const { additional: { feePerSecond } } = (await this.api.query.assetRegistry.metadata(assetId)).toJSON();
+        return feePerSecond;
+    };
 
     /**
      * Returns the decimal number such as 18 for a specific asset
