@@ -1,17 +1,13 @@
 import _ from 'lodash';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-<<<<<<< HEAD
 import { BN } from 'bn.js';
 import Keyring from '@polkadot/keyring';
-=======
-
->>>>>>> d41b38cc (Check proxies and balances)
 import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
-// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48>>>>>>> 405234f2 (Change shibuya proxy type to DappsStaking; Calculate XCM fees;)
 const WEIGHT_PER_SECOND = 1000000000000;
 
 class ShibuyaHelper {
@@ -40,19 +36,8 @@ class ShibuyaHelper {
         return balance;
     };
 
-    getProxies = async (address) => getProxies(this.api, address);
-
-    getBalance = async (address) => {
-        const balance = (await this.api.query.system.account(address))?.data;
-        return balance;
-    }
-
     createTransactExtrinsic = ({
-<<<<<<< HEAD
         targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
-=======
-        targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount, instructionWeight
->>>>>>> 76a310a7 (Call createTransactExtrinsic, createReserveTransferAssetsExtrinsic in shibuya.js)
     }) => {
         // The instruction count of XCM message.
         // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.

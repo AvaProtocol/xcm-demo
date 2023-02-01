@@ -1,18 +1,7 @@
 import _ from 'lodash';
-<<<<<<< HEAD
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import moment from 'moment';
-=======
-import { Keyring } from '@polkadot/api';
-import BN from 'bn.js';
-
-import turingHelper from './common/turingHelper';
-import shibuyaHelper from './common/shibuyaHelper';
-import { sendExtrinsic, getDecimalBN } from './common/utils';
-import {TuringDev, Shibuya} from "./config"
->>>>>>> d41b38cc (Check proxies and balances)
-
 import TuringHelper from './common/turingHelper';
 import ShibuyaHelper from './common/shibuyaHelper';
 import { sendExtrinsic, getDecimalBN, listenEvents } from './common/utils';
