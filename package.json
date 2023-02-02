@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "mangata-rococo": "dotenv -e .env babel-node src/mangata-rococo.js",
     "mangata": "dotenv -e .env babel-node src/mangata.js",
     "setup-mangata": "dotenv -e .env babel-node src/setup-mangata.js",
     "shibuya": "dotenv -e .env babel-node src/shibuya.js",
@@ -7,11 +8,13 @@
   },
   "dependencies": {
     "@inquirer/confirm": "^0.0.19-alpha.0",
-    "@mangata-finance/sdk": "^1.9.0",
+    "@mangata-finance/sdk": "^1.14.2",
     "@oak-network/api-augment": "^1.8.0-rc.4",
     "@oak-network/types": "^1.8.0-rc.4",
     "@polkadot/api": "^9.3.3",
+    "@polkadot/keyring": "^10.3.1",
     "@polkadot/util": "^10.1.7",
+    "@polkadot/util-crypto": "^10.3.1",
     "bn.js": "^5.2.1",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
