@@ -51,10 +51,6 @@ async function main() {
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     keyPair.meta.name = 'Alice';
 
-    const json = await readMnemonicFromFile();
-    const restoredPair = keyring.addFromJson(json);
-    restoredPair.unlock(process.env.PASS_PHRASE);
-
     const account = new Account(keyPair);
     await account.init([turingHelper, mangataHelper]);
     account.print();
@@ -62,10 +58,10 @@ async function main() {
     const mangataAddress = account.getChainByName(mangataChainName)?.address;
     const mangataTokens = account.getChainByName(mangataChainName)?.tokens;
 
-    console.log('2. Initing inssuance on Mangata ...');
+    console.log('\n2. Initing inssuance on Mangata ...');
     await mangataHelper.initIssuance(account.pair);
 
-    console.log(`3. Minting tokens for ${account.name} on Maganta if balance is zero ...`);
+    console.log(`\n3. Minting tokens for ${account.name} on Maganta if balance is zero ...`);
     for (let i = 0; i < mangataTokens.length; i += 1) {
         const { symbol, balance } = mangataTokens[i];
 
@@ -78,7 +74,7 @@ async function main() {
     }
 
     // If there is no proxy, add a proxy of Turing on Mangata
-    console.log('4. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...');
+    console.log('\n4. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...');
 
     const proxyAddress = mangataHelper.getProxyAccount(mangataAddress, turingHelper.config.paraId);
     const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
@@ -108,7 +104,7 @@ async function main() {
         // Get current pools available
         const pools = await mangataHelper.getPools();
 
-        console.log('5. Existing pools: ', pools);
+        console.log('\n5. Existing pools: ', pools);
 
         const poolName = `${mangataNativeToken.symbol}-${turingNativeToken.symbol}`;
         const poolFound = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
@@ -129,7 +125,7 @@ async function main() {
         }
 
         // Update assets
-        console.log(`Checking out assets after pool creation; there should be a new ${poolName} token ...`);
+        console.log(`\nChecking out assets after pool creation; there should be a new ${poolName} token ...`);
         await mangataHelper.updateAssets();
 
         // Promote pool
