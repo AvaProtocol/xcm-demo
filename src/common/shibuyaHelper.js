@@ -6,6 +6,8 @@ import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48
 const WEIGHT_PER_SECOND = 1000000000000;
 
 class ShibuyaHelper {
