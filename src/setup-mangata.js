@@ -5,15 +5,13 @@ import confirm from '@inquirer/confirm';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { Keyring } from '@polkadot/api';
 import BN from 'bn.js';
-import { compactStripLength } from '@polkadot/util';
 import TuringHelper from './common/turingHelper';
 import MangataHelper from './common/mangataHelper';
 import Account from './common/account';
 import { delay, readMnemonicFromFile } from './common/utils';
-import seed from '../private/seed.json';
 
 import {
-    TuringDev, MangataDev, Turing, Mangata,
+    TuringDev, MangataDev,
 } from './config';
 
 // Create a keyring instance
@@ -107,15 +105,16 @@ async function main() {
     const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.', default: true });
 
     if (answerPool) {
-    // Get current pools available
+        // Get current pools available
         const pools = await mangataHelper.getPools();
+
         console.log('5. Existing pools: ', pools);
 
         const poolName = `${mangataNativeToken.symbol}-${turingNativeToken.symbol}`;
         const poolFound = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
 
+        // Create a MGR-TUR pool is not found
         if (_.isUndefined(poolFound)) {
-            // Create pool
             console.log(`No ${poolName} pool found; creating a ${poolName} pool with ${account.name} ...`);
 
             await mangataHelper.createPool(

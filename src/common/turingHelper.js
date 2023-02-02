@@ -29,12 +29,10 @@ class TuringHelper {
 
     getTokenBalance = async (address, tokenId) => this.api.query.tokens.accounts(address, tokenId);
 
+    // TODO: this function doesn’t look correct. It can be replicated from mangataHelper, calling getProxyAccount in utils.js
     getProxyAddress = (address, paraId) => {
         const keyring = new Keyring();
         const mangataAddress = keyring.encodeAddress(address, 42);
-
-        console.log('keyring.decodeAddress(mangataAddress)', keyring.decodeAddress(mangataAddress));
-        console.log('keyring.decodeAddress(turingAddress)', address);
 
         const location = {
             parents: 1,

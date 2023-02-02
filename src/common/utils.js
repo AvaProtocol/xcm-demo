@@ -217,7 +217,6 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
 
     listenSystemEvents().catch(console.log);
 });
-
 /*
  * Return a JSON file of a wallet
  * @returns a JSON, to be used for keyring.addFromJson(json);
