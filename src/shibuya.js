@@ -71,7 +71,8 @@ const scheduleTask = async ({
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
     });
-    await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
+    const { taskId, providedId, executionTime } = result;
+    console.log(`The task { taskId: ${taskId}, providerId: ${providedId} } will be executed at: ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}).`);
 
     console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
   1. Shibuya\n
@@ -196,7 +197,6 @@ const main = async () => {
         console.log('Task cancellation failed! It executes again.');
         return;
     }
-
     console.log("Task canceled successfully! It didn't execute again.");
 };
 
