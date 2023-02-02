@@ -189,7 +189,7 @@ const pools = [
 const Config = {
     name: 'Mangata',
     key: 'mangata',
-    endpoint: 'wss://prod-kusama-collator-01.mangatafinance.cloud',
+    endpoint: 'wss://roccoco-testnet-collator-01.mangatafinance.cloud',
     relayChain: 'Kusama',
     paraId: 2110,
     ss58: 42,

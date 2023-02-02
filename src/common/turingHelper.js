@@ -2,20 +2,20 @@ import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
-
-import { env, chainConfig } from './constants';
 import { getProxies, getProxyAccount } from './utils';
-import { TuringDev } from '../config';
-
-const { MANGATA_PARA_ID } = env;
 
 class TuringHelper {
-    initialize = async (endpoint) => {
+    constructor(config) {
+        this.config = config;
+    }
+
+    initialize = async () => {
         const api = await ApiPromise.create({
-            provider: new WsProvider(endpoint), rpc, types, runtime,
+            provider: new WsProvider(this.config.endpoint), rpc, types, runtime,
         });
+
         this.api = api;
-        this.assets = TuringDev.assets;
+        this.assets = this.config.assets;
     };
 
     getApi = () => this.api;
@@ -29,15 +29,18 @@ class TuringHelper {
 
     getTokenBalance = async (address, tokenId) => this.api.query.tokens.accounts(address, tokenId);
 
-    getProxyAddressMangata = (address) => {
+    getProxyAddress = (address, paraId) => {
         const keyring = new Keyring();
-        const mangataAddress = keyring.encodeAddress(address, chainConfig.mangata.ss58);
+        const mangataAddress = keyring.encodeAddress(address, 42);
+
+        console.log('keyring.decodeAddress(mangataAddress)', keyring.decodeAddress(mangataAddress));
+        console.log('keyring.decodeAddress(turingAddress)', address);
 
         const location = {
             parents: 1,
             interior: {
                 X2: [
-                    { Parachain: MANGATA_PARA_ID },
+                    { Parachain: paraId },
                     {
                         AccountId32: {
                             network: 'Any',
@@ -121,4 +124,4 @@ class TuringHelper {
     }
 }
 
-export default new TuringHelper();
+export default TuringHelper;

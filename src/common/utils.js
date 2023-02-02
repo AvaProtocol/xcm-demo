@@ -2,6 +2,8 @@ import _ from 'lodash';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
+import fs from 'fs';
+import path from 'path';
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => new Promise((resolve) => {
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
@@ -215,3 +217,13 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
 
     listenSystemEvents().catch(console.log);
 });
+
+/*
+ * Return a JSON file of a wallet
+ * @returns a JSON, to be used for keyring.addFromJson(json);
+ */
+export const readMnemonicFromFile = async () => {
+    const jsonPath = path.join(__dirname, '../../private', 'seed.json');
+    const json = await fs.promises.readFile(jsonPath);
+    return JSON.parse(json);
+};
