@@ -160,3 +160,58 @@ export const getProxies = async (api, address) => {
     const proxies = proxiesResponse.toJSON()[0];
     return proxies;
 };
+
+/**
+ * Listen events from chain
+ * @param {*} api
+ * @param {*} section
+ * @param {*} method
+ * @param {*} timeout - Set timeout to stop event listening.
+ * @returns
+ */
+export const listenEvents = async (api, section, method, timeout = undefined) => new Promise((resolve, reject) => {
+    let unsub = null;
+    let timeoutId = null;
+
+    if (timeout) {
+        timeoutId = setTimeout(() => {
+            unsub();
+            resolve(false);
+        }, timeout);
+    }
+
+    const listenSystemEvents = async () => {
+        unsub = await api.query.system.events((events) => {
+            let foundEvent = false;
+            // Loop through the Vec<EventRecord>
+            events.forEach((record) => {
+                // Extract the phase, event and the event types
+                const { event, phase } = record;
+                const { section: eventSection, method: eventMethod, typeDef: types } = event;
+
+                // console.log('section.method: ', `${section}.${method}`);
+                if (eventSection === section && eventMethod === method) {
+                    foundEvent = true;
+                    // Show what we are busy with
+                    console.log(`\t${section}:${method}:: (phase=${phase.toString()})`);
+                    // console.log(`\t\t${event.meta.documentation.toString()}`);
+
+                    // Loop through each of the parameters, displaying the type and data
+                    event.data.forEach((data, index) => {
+                        console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+                    });
+                }
+            });
+
+            if (foundEvent) {
+                unsub();
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                resolve(true);
+            }
+        });
+    };
+
+    listenSystemEvents().catch(console.log);
+});
