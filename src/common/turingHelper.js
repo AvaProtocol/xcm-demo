@@ -1,17 +1,23 @@
+import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
-import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
+import { ApiPromise, WsProvider } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
-import { env, chainConfig } from './constants';
-import { getProxyAccount } from './utils';
-
-const { MANGATA_PARA_ID } = env;
+import Keyring from '@polkadot/keyring';
+import { getProxies, getProxyAccount } from './utils';
 
 class TuringHelper {
-    initialize = async (endpoint) => {
+    constructor(config) {
+        this.config = config;
+    }
+
+    initialize = async () => {
         const api = await ApiPromise.create({
-            provider: new WsProvider(endpoint), rpc, types, runtime,
+            provider: new WsProvider(this.config.endpoint), rpc, types, runtime,
         });
+
         this.api = api;
+        this.assets = this.config.assets;
+        this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
     };
 
     getApi = () => this.api;
@@ -23,36 +29,7 @@ class TuringHelper {
         return balance;
     };
 
-    getProxyAddressMangata = (address) => {
-        const keyring = new Keyring();
-        const mangataAddress = keyring.encodeAddress(address, chainConfig.mangata.ss58);
-
-        const location = {
-            parents: 1,
-            interior: {
-                X2: [
-                    { Parachain: MANGATA_PARA_ID },
-                    {
-                        AccountId32: {
-                            network: 'Any',
-                            id: keyring.decodeAddress(mangataAddress),
-                        },
-                    },
-                ],
-            },
-        };
-
-        const multilocation = this.api.createType('XcmV1MultiLocation', location);
-
-        const toHash = new Uint8Array([
-            ...new Uint8Array([32]),
-            ...new TextEncoder().encode('multiloc'),
-            ...multilocation.toU8a(),
-        ]);
-
-        const proxyAccount = u8aToHex(this.api.registry.hash(toHash).slice(0, 32));
-        return proxyAccount;
-    };
+    getTokenBalance = async (address, tokenId) => this.api.query.tokens.accounts(address, tokenId);
 
     /**
    * Get XCM fees
@@ -95,7 +72,27 @@ class TuringHelper {
         send();
     });
 
-    getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
+    getProxyAccount = (address, paraId) => {
+        const accountId = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId);
+    };
+
+    getProxies = async (address) => getProxies(this.api, address);
+
+    getFeePerSecond = async (assetId) => {
+        const { additional: { feePerSecond } } = (await this.api.query.assetRegistry.metadata(assetId)).toJSON();
+        return feePerSecond;
+    };
+
+    /**
+     * Returns the decimal number such as 18 for a specific asset
+     * @param {string} symbol such as TUR
+     * @returns 10 for TUR
+     */
+    getDecimalBySymbol(symbol) {
+        const token = _.find(this.assets, { symbol });
+        return token.decimals;
+    }
 }
 
-export default new TuringHelper();
+export default TuringHelper;

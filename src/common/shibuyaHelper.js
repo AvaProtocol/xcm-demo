@@ -1,24 +1,51 @@
-import { ApiPromise, WsProvider } from '@polkadot/api';
 import _ from 'lodash';
-import { instructionWeight } from './constants';
-import { getProxyAccount } from './utils';
+import { ApiPromise, WsProvider } from '@polkadot/api';
+import { BN } from 'bn.js';
+import Keyring from '@polkadot/keyring';
+import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
+// frame_support::weights::constants::WEIGHT_PER_SECOND
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48
+const WEIGHT_PER_SECOND = 1000000000000;
+
 class ShibuyaHelper {
-    initialize = async (endpoint) => {
-        const api = await ApiPromise.create({ provider: new WsProvider(endpoint) });
+    constructor(config) {
+        this.config = config;
+    }
+
+    initialize = async () => {
+        const api = await ApiPromise.create({ provider: new WsProvider(this.config.endpoint) });
         this.api = api;
-        this.assets = Shibuya.assets;
+        this.assets = this.config.assets;
+        this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
     };
 
     getApi = () => this.api;
 
-    getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
+    getProxyAccount = (address, paraId) => {
+        const accountId = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId);
+    };
+
+    getProxies = async (address) => getProxies(this.api, address);
+
+    getBalance = async (address) => {
+        const balance = (await this.api.query.system.account(address))?.data;
+        return balance;
+    };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, fungible, requireWeightAtMost, proxyAccount,
+        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
     }) => {
-        const totalInstructionWeight = 6 * instructionWeight;
+        // The instruction count of XCM message.
+        // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
+        // So instructionCount should be V2.length + 1
+        const instructionCount = 6;
+        const totalInstructionWeight = instructionCount * instructionWeight;
+        const weightLimit = requireWeightAtMost + totalInstructionWeight;
+        const fungible = new BN(weightLimit).mul(new BN(feePerSecond)).div(new BN(WEIGHT_PER_SECOND));
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
             {
                 V1: {
@@ -52,7 +79,7 @@ class ShibuyaHelper {
                                     },
                                 },
                             },
-                            weightLimit: { Limited: requireWeightAtMost + totalInstructionWeight },
+                            weightLimit: { Limited: weightLimit },
                         },
                     },
                     {
@@ -125,4 +152,4 @@ class ShibuyaHelper {
     }
 }
 
-export default new ShibuyaHelper();
+export default ShibuyaHelper;

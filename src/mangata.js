@@ -1,14 +1,15 @@
 import '@oak-network/api-augment';
+import _ from 'lodash';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
-import turingHelper from './common/turingHelper';
-import mangataHelper from './common/mangataHelper';
-import { env } from './common/constants';
+import Keyring from '@polkadot/keyring';
+import TuringHelper from './common/turingHelper';
+import MangataHelper from './common/mangataHelper';
 import Account from './common/account';
-import { delay } from './common/utils.js';
+import { delay, listenEvents } from './common/utils';
 
-const { TURING_ENDPOINT, MANGATA_ENDPOINT, MANGATA_PARA_ID } = env;
-
-// const OAK_SOV_ACCOUNT = "68kxzikS2WZNkYSPWdYouqH5sEZujecVCy3TFt9xHWB5MDG5";
+import {
+    TuringDev, MangataDev,
+} from './config';
 
 /**
  * Make sure you run `npm run setup` before running this file.
@@ -17,75 +18,61 @@ const { TURING_ENDPOINT, MANGATA_ENDPOINT, MANGATA_PARA_ID } = env;
  * 2. Alice account has balances
  *   a) MGR on Mangata
  *   b) MGR-TUR liquidity token on Mangata
- *   c) Reward claimable in MGR-TUR pool <-- TODO
+ *   c) Reward claimable in MGR-TUR pool
  *   d) TUR on Turing for transaction fees
  *
  */
 
-const listenEvents = async (api) => new Promise((resolve) => {
-    const listenSystemEvents = async () => {
-        const unsub = await api.query.system.events((events) => {
-            let foundEvent = false;
-            // Loop through the Vec<EventRecord>
-            events.forEach((record) => {
-                // Extract the phase, event and the event types
-                const { event, phase } = record;
-                const { section, method, typeDef: types } = event;
+// Create a keyring instance
+const keyring = new Keyring({ type: 'sr25519' });
 
-                // console.log('section.method: ', `${section}.${method}`);
-                if (section === 'proxy' && method === 'ProxyExecuted') {
-                    foundEvent = true;
-                    // Show what we are busy with
-                    console.log(`\t${section}:${method}:: (phase=${phase.toString()})`);
-                    // console.log(`\t\t${event.meta.documentation.toString()}`);
-
-                    // Loop through each of the parameters, displaying the type and data
-                    event.data.forEach((data, index) => {
-                        console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
-                    });
-                }
-            });
-
-            if (foundEvent) {
-                unsub();
-                resolve();
-            }
-        });
-    };
-
-    listenSystemEvents().catch(console.error);
-});
-
+/** * Main entrance of the program */
 async function main() {
     await cryptoWaitReady();
 
     console.log('Initializing APIs of both chains ...');
-    await turingHelper.initialize(TURING_ENDPOINT);
-    await mangataHelper.initialize(MANGATA_ENDPOINT);
+    const turingHelper = new TuringHelper(TuringDev);
+    await turingHelper.initialize();
 
-    console.log('Reading token and balance of Alice and Bob accounts ...');
-    const alice = new Account('Alice');
-    await alice.init();
-    alice.print();
+    const mangataHelper = new MangataHelper(MangataDev);
+    await mangataHelper.initialize();
 
-    const mangataAddress = alice.assets[1].address;
-    const turingAddress = alice.assets[2].address;
+    const turingChainName = turingHelper.config.key;
+    const mangataChainName = mangataHelper.config.key;
+    const turingNativeToken = _.first(turingHelper.config.assets);
+    const mangataNativeToken = _.first(mangataHelper.config.assets);
+
+    console.log(`\nTuring chain name: ${turingChainName}, native token: ${JSON.stringify(turingNativeToken)}`);
+    console.log(`Mangata chain name: ${mangataChainName}, native token: ${JSON.stringify(mangataNativeToken)}\n`);
+
+    console.log('Reading token and balance of Alice account ...');
+    const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
+    keyPair.meta.name = 'Alice';
+
+    const account = new Account(keyPair);
+    await account.init([turingHelper, mangataHelper]);
+    account.print();
+
+    const mangataAddress = account.getChainByName(mangataChainName)?.address;
+    const turingAddress = account.getChainByName(turingChainName)?.address;
+    const poolName = `${mangataNativeToken.symbol}-${turingNativeToken.symbol}`;
 
     // Calculate rwards amount in pool
-    const lquidityToken = 'MGR-TUR';
-    console.log(`Checking how much reward available in ${lquidityToken} pool ...`);
-    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, lquidityToken);
-    console.log(`Claimable reward in ${lquidityToken}: `, rewardAmount);
+    console.log(`Checking how much reward available in ${poolName} pool ...`);
+    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, poolName);
+    console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
-    // Alice’s reserved MGR-TUR before auto-compound
-    const liquidityBalance = await mangataHelper.getBalance('MGR-TUR', mangataAddress);
-    console.log(`Before auto-compound, Alice’s reserved "MGR-TUR": ${liquidityBalance.reserved.toString()} Planck ...`);
+    // Alice’s reserved LP token before auto-compound
+    const liquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
+    console.log(`Before auto-compound, ${account.name} reserved "${poolName}": ${liquidityBalance.reserved.toString()} Planck ...`);
 
     // Create Mangata proxy call
     console.log('\nStart to schedule an auto-compound call via XCM ...');
-    const liquidityTokenId = mangataHelper.getTokenIdBySymbol('MGR-TUR');
+
+    const proxyType = 'AutoCompound';
+    const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
     const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
-    const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyExtrinsic);
+    const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyType, proxyExtrinsic);
     const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
     const mangataProxyCallFees = await mangataProxyCall.paymentInfo(mangataAddress);
 
@@ -98,10 +85,10 @@ async function main() {
     const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
         { Fixed: { executionTimes: [0] } },
-        MANGATA_PARA_ID,
+        mangataHelper.config.paraId,
         0,
         encodedMangataProxyCall,
-        parseInt(mangataProxyCallFees.weight.refTime),
+        parseInt(mangataProxyCallFees.weight.refTime, 10),
     );
 
     console.log('xcmpCall: ', xcmpCall);
@@ -117,20 +104,23 @@ async function main() {
 
     // Send extrinsic
     console.log('\n3. Sign and send scheduleXcmpTask call ...');
-    await turingHelper.sendXcmExtrinsic(xcmpCall, alice.keyring, taskId);
+    await turingHelper.sendXcmExtrinsic(xcmpCall, account.pair, taskId);
 
     // Listen XCM events on Mangata side
     console.log('\n4. waiting for XCM events on Mangata side ...');
-    await listenEvents(mangataHelper.api);
+    await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted');
 
     console.log('\nWaiting 20 seconds before reading new chain states ...');
     await delay(20000);
 
-    // Alice’s reserved MGR-TUR after auto-compound
-    const newLiquidityBalance = await mangataHelper.getBalance('MGR-TUR', mangataAddress);
-    console.log(`\nAfter auto-compound, Alice’s reserved "MGR-TUR" is: ${newLiquidityBalance.reserved.toString()} planck ...`);
+    // Account’s reserved LP token after auto-compound
+    const newLiquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
+    console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
 
-    console.log(`Alice has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more MGR-TUR ...`);
+    console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
 }
 
-main().catch(console.error).finally(() => process.exit());
+main().catch(console.error).finally(() => {
+    console.log('Reached end of main() ...');
+    process.exit();
+});
