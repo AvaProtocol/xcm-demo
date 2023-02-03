@@ -144,4 +144,4 @@ class ShibuyaHelper {
     }
 }
 
-export default new ShibuyaHelper();
+export default ShibuyaHelper;

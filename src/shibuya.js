@@ -3,8 +3,8 @@ import { Keyring } from '@polkadot/api';
 import BN from 'bn.js';
 import moment from 'moment';
 
-import turingHelper from './common/turingHelper';
-import shibuyaHelper from './common/shibuyaHelper';
+import TuringHelper from './common/turingHelper';
+import ShibuyaHelper from './common/shibuyaHelper';
 import { sendExtrinsic, getDecimalBN, listenEvents } from './common/utils';
 import { TuringDev, Shibuya } from './config';
 
@@ -17,7 +17,7 @@ const TASK_FREQUENCY = 3600;
 const LISTEN_EVENT_DELAY = 3 * 60;
 
 const scheduleTask = async ({
-    turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
+    turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
@@ -87,7 +87,10 @@ const scheduleTask = async ({
 };
 
 const main = async () => {
-    await turingHelper.initialize(TuringDev.endpoint);
+    const turingHelper = new TuringHelper(TuringDev);
+    await turingHelper.initialize();
+
+    const shibuyaHelper = new ShibuyaHelper(Shibuya);
     await shibuyaHelper.initialize(Shibuya.endpoint);
 
     const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
@@ -143,25 +146,27 @@ const main = async () => {
 
     console.log('\n3. Execute an XCM from Shibuya to schedule a task on Turing ...');
     const result = await scheduleTask({
-        turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
+        turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
     });
     const { taskId, providedId, executionTime } = result;
     console.log(`The task { taskId: ${taskId}, providerId: ${providedId} } will be executed at: ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}).`);
 
+    const timeout = ((executionTime - moment().valueOf() / 1000) + LISTEN_EVENT_DELAY) * 1000;
     console.log('\n4. Wait for the task to execute ...');
-    const isTaskExecuted = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', LISTEN_EVENT_DELAY);
+    const isTaskExecuted = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', timeout);
     if (!isTaskExecuted) {
-        console.log('Task has been executed!');
+        console.log('Timeout! Task was not executed.');
         return;
     }
-    console.log('Task executed!');
+    console.log('Task has been executed!');
 
     console.log('\n5. Cancel task ...');
     const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
     await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
-    const timeoutTimestamp = (executionTime + TASK_FREQUENCY + LISTEN_EVENT_DELAY) * 1000;
-    console.log(`\n6. Keep Listen events from Shibuya until ${moment(timeoutTimestamp).format('YYYY-MM-DD HH:mm:ss')}(${timeoutTimestamp}). to verify that the task was successfully canceled ...`);
+    const nextExecutionTime = executionTime + TASK_FREQUENCY;
+    const timeoutTimestamp = (nextExecutionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
+    console.log(`\n6. Keep Listening events from Shibuya until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timeoutTimestamp}). to verify that the task was successfully canceled ...`);
     const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', (TASK_FREQUENCY + LISTEN_EVENT_DELAY) * 1000);
     if (isTaskExecutedAgain) {
         console.log('Task cancellation failed! It executes again.');
