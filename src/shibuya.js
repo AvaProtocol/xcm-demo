@@ -21,7 +21,7 @@ const scheduleTask = async ({
     turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuringPublicKey, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
-    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
+    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalsBySymbol('SBY'));
 
     // We are using a very simple system.remark extrinsic to demonstrate the payload here.
     // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
@@ -71,6 +71,7 @@ const scheduleTask = async ({
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
     });
+    
     const { taskId, providedId, executionTime } = result;
     console.log(`The task { taskId: ${taskId}, providerId: ${providedId} } will be executed at: ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}).`);
 
@@ -98,7 +99,7 @@ const main = async () => {
     const shibuyaHelper = new ShibuyaHelper(Shibuya);
     await shibuyaHelper.initialize();
 
-    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
+    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalsBySymbol('SBY'));
 
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     const turingAddress = keyring.encodeAddress(keyPair.address, TuringDev.ss58);

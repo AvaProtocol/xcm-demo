@@ -117,8 +117,6 @@ async function main() {
 
             const parachainTokenDeposit = 10000; // Add 10,000 initial MGR to pool
             const turingTokenDeposit = 1000; // Add 1,000 initial TUR to pool
-            console.log('mgxToken', mgxToken);
-            console.log('turToken', turToken);
 
             const result = await mangataHelper.createPool({
                 firstTokenId: mgxToken.id,
@@ -128,7 +126,6 @@ async function main() {
                 keyPair: account.pair,
             });
 
-            console.log('result', result);
             // Update assets
             console.log(`\nChecking out assets after pool creation; there should be a new ${poolName} token ...`);
             await mangataHelper.updateAssets();

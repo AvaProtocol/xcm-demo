@@ -76,8 +76,8 @@ class MangataHelper {
 
     /**
      *
-     * @param {*} firstSymbol
-     * @param {*} secondSymbol
+     * @param {*} firstTokenId
+     * @param {*} secondTokenId
      * @param {number} firstAmount Amount in token unit, not planck
      * @param {number} secondAmount Amount in token unit, not planck
      * @param {*} keyPair
@@ -207,7 +207,13 @@ class MangataHelper {
         await this.mangata.buyAsset(keyPair, sellTokenId, buyTokenId, new BN(amount), new BN('100000000000000000000000000'));
     }
 
-    getPools = async ({ isPromoted, thousandSeparator }) => {
+    /**
+     *
+     * @param {object} param0 options
+     * @param {boolean} param0.isPromoted Only list promoted pools if true; this value has to be specified
+     * @returns
+     */
+    getPools = async ({ isPromoted }) => {
         const pools = await this.mangata.getPools();
         const that = this;
 
@@ -215,15 +221,10 @@ class MangataHelper {
 
         const formatted = _.map(filterd, (item) => {
             const firstToken = _.find(that.assets, { id: item.firstTokenId });
-
             const firstTokenAmountFloat = (new BN(item.firstTokenAmount)).div(getDecimalBN(firstToken.decimals));
-            console.log('firstToken', firstToken);
-            console.log('firstTokenAmountFloat', firstTokenAmountFloat);
 
             const secondToken = _.find(that.assets, { id: item.secondTokenId });
             const secondTokenAmountFloat = (new BN(item.secondTokenAmount)).div(getDecimalBN(secondToken.decimals));
-            console.log('secondToken', secondToken);
-            console.log('secondTokenAmountFloat', secondTokenAmountFloat);
 
             return _.extend(item, {
                 firstTokenAmountFloat,
