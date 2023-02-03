@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
-import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
+import { ApiPromise, WsProvider } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
+import Keyring from '@polkadot/keyring';
 import { getProxies, getProxyAccount } from './utils';
 
 class TuringHelper {
@@ -16,6 +17,7 @@ class TuringHelper {
 
         this.api = api;
         this.assets = this.config.assets;
+        this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
     };
 
     getApi = () => this.api;
@@ -28,38 +30,6 @@ class TuringHelper {
     };
 
     getTokenBalance = async (address, tokenId) => this.api.query.tokens.accounts(address, tokenId);
-
-    // TODO: this function doesn’t look correct. It can be replicated from mangataHelper, calling getProxyAccount in utils.js
-    getProxyAddress = (address, paraId) => {
-        const keyring = new Keyring();
-        const mangataAddress = keyring.encodeAddress(address, 42);
-
-        const location = {
-            parents: 1,
-            interior: {
-                X2: [
-                    { Parachain: paraId },
-                    {
-                        AccountId32: {
-                            network: 'Any',
-                            id: keyring.decodeAddress(mangataAddress),
-                        },
-                    },
-                ],
-            },
-        };
-
-        const multilocation = this.api.createType('XcmV1MultiLocation', location);
-
-        const toHash = new Uint8Array([
-            ...new Uint8Array([32]),
-            ...new TextEncoder().encode('multiloc'),
-            ...multilocation.toU8a(),
-        ]);
-
-        const proxyAccount = u8aToHex(this.api.registry.hash(toHash).slice(0, 32));
-        return proxyAccount;
-    };
 
     /**
    * Get XCM fees
@@ -102,7 +72,10 @@ class TuringHelper {
         send();
     });
 
-    getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
+    getProxyAccount = (address, paraId) => {
+        const accountId = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId);
+    };
 
     getProxies = async (address) => getProxies(this.api, address);
 

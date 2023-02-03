@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { BN } from 'bn.js';
-
+import Keyring from '@polkadot/keyring';
 import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
@@ -19,11 +19,15 @@ class ShibuyaHelper {
         const api = await ApiPromise.create({ provider: new WsProvider(this.config.endpoint) });
         this.api = api;
         this.assets = this.config.assets;
+        this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
     };
 
     getApi = () => this.api;
 
-    getProxyAccount = (parachainId, address) => getProxyAccount(this.api, parachainId, address);
+    getProxyAccount = (address, paraId) => {
+        const accountId = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId);
+    };
 
     getProxies = async (address) => getProxies(this.api, address);
 
