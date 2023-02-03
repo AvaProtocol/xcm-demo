@@ -101,10 +101,6 @@ async function main() {
             throw new Error(`Not enough MGX balance, current: ${mgxToken.balance} ...`);
         }
 
-<<<<<<< HEAD
-=======
-        const token = _.find(Mangata.assets, { symbol: 'MGX' });
->>>>>>> 3fea41d3 (Added mintLiquidity to mangata-rococo and utils file to read claimable rewards)
         // const destAddress = dest.getAddressByChain('mangata');
 
         // console.log('destAddress', destAddress);
