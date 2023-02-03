@@ -105,6 +105,9 @@ async function main() {
         const { liquidityTokenId } = pool;
 
         console.log(`Checking how much reward available in ${poolName} pool, tokenId: ${liquidityTokenId} ...`);
+
+        // Issue: current we couldn’t read this rewards value correct by always getting 0 on the claimable rewards.
+        // The result is different from that in src/mangata.js
         const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
         console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
