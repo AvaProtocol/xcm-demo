@@ -5,8 +5,9 @@ import moment from 'moment';
 import TuringHelper from './common/turingHelper';
 import ShibuyaHelper from './common/shibuyaHelper';
 import { sendExtrinsic, getDecimalBN, listenEvents } from './common/utils';
-import { TuringDev, Shibuya } from './config';
+import { TuringStaging, Rocstar } from './config';
 import Account from './common/account';
+import 
 
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
@@ -71,7 +72,6 @@ const scheduleTask = async ({
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
     });
-
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
 
     console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
@@ -92,10 +92,10 @@ const scheduleTask = async ({
 const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
 
 const main = async () => {
-    const turingHelper = new TuringHelper(TuringDev);
+    const turingHelper = new TuringHelper(TuringStaging);
     await turingHelper.initialize();
 
-    const shibuyaHelper = new ShibuyaHelper(Shibuya);
+    const shibuyaHelper = new ShibuyaHelper(Rocstar);
     await shibuyaHelper.initialize();
 
     const turingChainName = turingHelper.config.key;
@@ -105,15 +105,12 @@ const main = async () => {
     console.log(`\nTuring chain key: ${turingChainName}`);
     console.log(`Parachain name: ${parachainName}, native token: ${JSON.stringify(parachainNativeToken)}\n`);
 
-    const accountName = 'Alice';
+    const json = await readMnemonicFromFile();
+    const keyPair = keyring.addFromJson(json);
+    keyPair.unlock(process.env.PASS_PHRASE);
 
-    console.log(`1. Reading token and balance of ${accountName} account ...`);
-
-    const keyPair = keyring.addFromUri(`//${accountName}`, undefined, 'sr25519');
     const account = new Account(keyPair);
-    account.name = accountName;
-
-    await account.init([turingHelper, shibuyaHelper]);
+    await account.init([turingHelper, mangataHelper]);
     account.print();
 
     const parachainAddress = account.getChainByName(parachainName)?.address;
