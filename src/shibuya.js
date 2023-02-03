@@ -66,7 +66,7 @@ const scheduleTask = async ({
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: TuringDev.paraId,
         encodedCall: encodedTaskViaProxy,
-        proxyOnTuringPublicKey,
+        proxyAccount: proxyOnTuringPublicKey,
         feePerSecond,
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
