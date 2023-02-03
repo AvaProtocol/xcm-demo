@@ -19,7 +19,7 @@ const LISTEN_EVENT_DELAY = 3 * 60;
 const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
+    turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuringPublicKey, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
@@ -66,7 +66,7 @@ const scheduleTask = async ({
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: TuringDev.paraId,
         encodedCall: encodedTaskViaProxy,
-        proxyAccount: keyring.decodeAddress(proxyOnTuring),
+        proxyOnTuringPublicKey,
         feePerSecond,
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
@@ -139,6 +139,7 @@ const main = async () => {
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${Shibuya.paraId})\n`);
     const proxyTypeTuring = 'Any';
     const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, Shibuya.paraId);
+    const proxyOnTuringPublicKey = keyring.decodeAddress(proxyOnTuring);
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
     const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
 
@@ -157,7 +158,7 @@ const main = async () => {
         console.log('\nb) Topping up the proxy account on Turing via reserve transfer SBY');
         const sbyAmount = new BN(1000, 10);
         const sbyAmountBN = sbyAmount.mul(sbyDecimalBN);
-        const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TuringDev.paraId, proxyOnTuring, sbyAmountBN);
+        const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TuringDev.paraId, proxyOnTuringPublicKey, sbyAmountBN);
         await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
     } else {
         const freeSBYOnTuring = (new BN(sbyBalanceOnTuring.free)).div(sbyDecimalBN);
@@ -166,7 +167,7 @@ const main = async () => {
 
     console.log('\n3. Execute an XCM from Shibuya to schedule a task on Turing ...');
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
+        turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuringPublicKey, keyPair,
     });
 
     const { taskId, providedId, executionTime } = result;
