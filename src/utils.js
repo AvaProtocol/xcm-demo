@@ -24,40 +24,30 @@ const actions = [
         value: 'get-mangata-assets',
         description: 'Get all assets registered on Mangata.',
     },
-    // {
-    //     name: 'Transfer TUR on Mangata',
-    //     value: 'transfer-tur-on-mangata',
-    //     description: 'Transfer TUR on Mangata',
-    // },
-    // {
-    //     name: 'Transfer MGX on Mangata',
-    //     value: 'transfer-mgx-on-mangata',
-    //     description: 'Transfer MGX on Mangata',
-    // },
-    // {
-    //     name: 'Transfer TUR on Turing Network',
-    //     value: 'transfer-tur-on-turing',
-    //     description: 'Transfer TUR on Mangata',
-    // },
-    // {
-    //     name: 'Withdraw TUR from Mangata',
-    //     value: 'withdraw-tur-from-mangata',
-    //     description: 'Withdraw TUR from Mangata',
-    // },
-    // {
-    //     name: 'Swap TUR for MGX',
-    //     value: 'swap-tur-for-mgx',
-    //     description: 'Swap TUR for MGX',
-    // },
-    // {
-    //     name: 'Generate Multilocation',
-    //     value: 'generate-multilocation',
-    //     description: 'Generate Multilocation',
-    // },
     {
-        name: 'Check claimable rewards',
+        name: 'Transfer MGX on Mangata',
+        value: 'transfer-tur-on-mangata',
+        description: 'Transfer MGX on Mangata',
+    },
+    {
+        name: 'Withdraw TUR from Mangata',
+        value: 'withdraw-tur-from-mangata',
+        description: 'Withdraw TUR from Mangata',
+    },
+    {
+        name: 'Swap TUR for MGX',
+        value: 'swap-tur-for-mgx',
+        description: 'Swap TUR for MGX',
+    },
+    {
+        name: 'Generate Multilocation',
+        value: 'generate-multilocation',
+        description: 'Generate Multilocation',
+    },
+    {
+        name: 'Check claimable rewards on Mangata',
         value: 'check-claimable rewards',
-        description: 'Check claimable rewards',
+        description: 'Check claimable rewards on Mangata',
     },
 ];
 
@@ -87,11 +77,11 @@ async function main() {
         break;
     case 'transfer-tur-on-mangata':
     {
-        const seed = 'visit hazard toss claim edge century bunker correct great very insect calm';
-        const account = keyring.addUri(seed, undefined);
-        console.log('account', account);
-        const token = _.find(Mangata.assets, { symbol: 'TUR' });
-        console.log('token', token);
+        // Load account from ./private/seed.json and unlock        
+        const account = new Account();
+        await account.init();
+        account.print();
+
         await mangataHelper.transferToken({
             keyPair: account.pair, tokenId: token.id, decimals: token.decimals, dest: '5HDjVvqaSMQ8YuFVo9yghvqUWLpW5vZ5s5EagUiiYF16ikc3', amount: 100,
         });
@@ -99,10 +89,8 @@ async function main() {
     }
     case 'transfer-mgx-on-mangata':
     {
-        const seed = 'visit hazard toss claim edge century bunker correct great very insect calm';
-        const json = keyring.addFromMnemonic(seed, undefined);
-
-        const source = new Account(json);
+        // Load account from ./private/seed.json and unlock
+        const source = new Account();
         await source.init();
         source.print();
 
@@ -113,7 +101,6 @@ async function main() {
             throw new Error(`Not enough MGX balance, current: ${mgxToken.balance} ...`);
         }
 
-        const token = _.find(Mangata.assets, { symbol: 'MGX' });
         // const destAddress = dest.getAddressByChain('mangata');
 
         // console.log('destAddress', destAddress);
@@ -122,36 +109,6 @@ async function main() {
             keyPair: source.pair, tokenId: token.id, decimals: token.decimals, dest: '5Hg97z8iVvkZiViemwp5gfBC4SPDBmGx3qJHr7URbPdtZQka', amount: 100,
         });
 
-        break;
-    }
-    case 'transfer-tur-on-turing': {
-        const chain = 'turing';
-        const symbol = 'TUR';
-
-        const source = new Account();
-        await source.init();
-        source.print();
-
-        const dest = new Account(3);
-        await dest.init();
-        dest.print();
-
-        const asset = source.getAssetByChainAndSymbol(chain, symbol);
-        console.log('asset', asset);
-
-        if (asset.balance <= 0) {
-            throw new Error(`Not enough ${symbol} balance ...`);
-        }
-
-        const destAddress = dest.getAddressByChain('turing');
-
-        console.log('destAddress', destAddress);
-
-        await turingHelper.transferTUR({
-            recipient: destAddress, amount: 50, keyPair: source.pair,
-        });
-
-        console.log('Transfer completed!');
         break;
     }
     case 'withdraw-tur-from-mangata': {
