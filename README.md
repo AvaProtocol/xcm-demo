@@ -56,6 +56,9 @@ Mangata XCM Auto-compound E2E Demo
    ```
    npm run mangata
    ```
+## Output example
+Below are the console logs from `npm run mangata-rococo`
+
 
 # Shibuya Auto-restake Demo
 ## Pre-requisites
@@ -81,6 +84,7 @@ Mangata XCM Auto-compound E2E Demo
    ```
 
 ## Output example
+Below are the console logs from `npm run shibuya`
 ```
 yarn run v1.22.19
 warning package.json: No license field
