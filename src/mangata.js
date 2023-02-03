@@ -59,9 +59,10 @@ async function main() {
 
     // Calculate rwards amount in pool
     console.log(`Checking how much reward available in ${poolName} pool ...`);
-    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, poolName);
+    const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
+    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
     console.log(`Claimable reward in ${poolName}: `, rewardAmount);
-
+ 
     // Alice’s reserved LP token before auto-compound
     const liquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
     console.log(`Before auto-compound, ${account.name} reserved "${poolName}": ${liquidityBalance.reserved.toString()} Planck ...`);
@@ -70,7 +71,6 @@ async function main() {
     console.log('\nStart to schedule an auto-compound call via XCM ...');
 
     const proxyType = 'AutoCompound';
-    const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
     const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
     const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyType, proxyExtrinsic);
     const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);

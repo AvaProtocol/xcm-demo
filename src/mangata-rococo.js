@@ -63,9 +63,9 @@ async function main() {
 
     const mgxToken = account.getAssetByChainAndSymbol(mangataChainName, mangataNativeToken.symbol);
     const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
-    const poolToken = `${mgxToken.symbol}-${turToken.symbol}`;
+    const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
 
-    console.log('poolToken', poolToken);
+    console.log('poolName', poolName);
 
     console.log('\n2. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...');
 
@@ -91,30 +91,35 @@ async function main() {
         await mangataHelper.addProxy(proxyAddress, proxyType, account.pair);
     }
 
-    const shouldMintLiquidity = await confirm({ message: `\nAccount balance check is completed and proxy is set up. Press ENTRE to mint ${poolToken}.`, default: true });
+    const shouldMintLiquidity = await confirm({ message: `\nAccount balance check is completed and proxy is set up. Press ENTRE to mint ${poolName}.`, default: true });
 
     if (shouldMintLiquidity) {
+        const pools = await mangataHelper.getPools({ isPromoted: true });
+        console.log('pools', pools);
+
+        const pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
+        console.log('pool', pool);
+
+        if (_.isUndefined(pool)) {
+            throw new Error(`Couldn’t find a liquidity pool for ${poolName} ...`);
+        }
+
         // Calculate rwards amount in pool
-        console.log(`Checking how much reward available in ${poolToken} pool ...`);
-        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, poolToken);
-        console.log(`Claimable reward in ${poolToken}: `, rewardAmount);
+        const { liquidityTokenId } = pool;
 
-        const liquidityBalance = await mangataHelper.getBalance(mangataAddress, poolToken);
-        const poolTokenDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolToken));
-        const numReserved = (new BN(liquidityBalance.reserved)).div(poolTokenDecimalBN);
+        console.log(`Checking how much reward available in ${poolName} pool, tokenId: ${liquidityTokenId} ...`);
+        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
+        console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
-        console.log('liquidityBalance.reserved.toNumber()', liquidityBalance.reserved.toNumber());
+        const liquidityBalance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
+        const poolNameDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
+        const numReserved = (new BN(liquidityBalance.reserved)).div(poolNameDecimalBN);
 
-        console.log(`Before auto-compound, ${account.name} reserved "${poolToken}": ${numReserved.toString()} ...`);
+        console.log(`Before auto-compound, ${account.name} reserved "${poolName}": ${numReserved.toString()} ...`);
 
-        if (liquidityBalance.reserved.toNumber() === 0) {
+        // Mint liquidity to create reserved MGR-TUR if it’s zero
+        if (numReserved.toNumber() === 0) {
             console.log('Reserved pool token is zero; minting liquidity to generate rewards...');
-
-            const pools = await mangataHelper.getPools({ isPromoted: true });
-            console.log('pools', pools);
-
-            const pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
-            console.log('pool', pool);
 
             const firstTokenAmount = 1000;
             const MAX_SLIPPIAGE = 0.04; // 4% slippage; can’t be too large
@@ -144,7 +149,6 @@ async function main() {
         if (answerPool) {
             // Create Mangata proxy call
             console.log('\n4. Start to schedule an auto-compound call via XCM ...');
-            const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolToken);
             const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
             const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyType, proxyExtrinsic);
             const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
@@ -195,10 +199,10 @@ async function main() {
             await delay(20000);
 
             // Account’s reserved LP token after auto-compound
-            const newLiquidityBalance = await mangataHelper.getBalance(mangataAddress, poolToken);
-            console.log(`\nAfter auto-compound, reserved ${poolToken} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
+            const newLiquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
+            console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
 
-            console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolToken} ...`);
+            console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
         }
     }
 }

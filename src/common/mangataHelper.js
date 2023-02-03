@@ -251,16 +251,15 @@ class MangataHelper {
         await sendExtrinsic(this.api, extrinsic, keyPair);
     };
 
-    calculateRewardsAmount = async (address, symbol) => {
-        const liquidityTokenId = this.getTokenIdBySymbol(symbol);
-        console.log('address', address, 'liquidityTokenId', liquidityTokenId);
-        const bnNumber = await this.mangata.calculateRewardsAmount(address, liquidityTokenId);
+    calculateRewardsAmount = async (address, tokenId) => {
+        // console.log('calculateRewardsAmount: address', address, 'liquidityTokenId', _.toString(tokenId));
+        const bnNumber = await this.mangata.calculateRewardsAmount(address, _.toString(tokenId));
 
         // We assume the reward is in MGR which should always be the case
         const { decimal } = tokenConfig.MGR;
         const result = bnNumber.div(new BN(decimal));
 
-        return result.toNumber();
+        return result.toString();
     };
 }
 
