@@ -65,8 +65,6 @@ async function main() {
     const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
     const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
 
-    console.log('poolName', poolName);
-
     console.log('\n2. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...');
 
     const proxyAddress = mangataHelper.getProxyAccount(mangataAddress, turingHelper.config.paraId);
@@ -95,10 +93,9 @@ async function main() {
 
     if (shouldMintLiquidity) {
         const pools = await mangataHelper.getPools({ isPromoted: true });
-        console.log('pools', pools);
 
         const pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
-        console.log('pool', pool);
+        console.log(`Found a pool of ${poolName}`, pool);
 
         if (_.isUndefined(pool)) {
             throw new Error(`Couldn’t find a liquidity pool for ${poolName} ...`);
