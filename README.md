@@ -16,6 +16,8 @@ Mangata XCM Auto-compound E2E Demo
 | OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.8.0)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
 | Mangata | [0.27.1](https://github.com/mangata-finance/mangata-node/releases/tag/v0.27.1)   | [f545791](https://github.com/OAK-Foundation/mangata-node/tree/ac60aeb51ea2c3545fc60c8b90f6bc65077ba10c)(a fork of 0.27.1 which added Alice as Sudo to create pools and mint tokens for setup)        |
 ## Steps
+### Local dev environment
+
 1. Launch OAK-blockchain, Rococo and Mangata.
 
 	- Compile OAK
@@ -56,7 +58,14 @@ Mangata XCM Auto-compound E2E Demo
    ```
    npm run mangata
    ```
-## Output example
+
+### Rococo environment
+Run the program to schedule automation and wait for cross-chain execution
+```
+npm run mangata-rococo
+```
+
+### Output example
 Below are the console logs from `npm run mangata-rococo`
 ```
  mangata-rococo
@@ -162,6 +171,7 @@ Task: {
 | OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-2aecbd94ab4bcde05657)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
 | Astar | x   | [523c067](https://github.com/AstarNetwork/Astar/commit/523c06798a08189a3ea20f790b83cd4ae602c579)        |
 ## Steps
+### Local dev environment
 1. Launch OAK-blockchain, Rococo and Shibuya.
 
 	Launch zombie in OAK-blockchain project root with Astar and modified OAK.
@@ -177,7 +187,7 @@ Task: {
    npm run shibuya
    ```
 
-## Output example
+### Output example
 Below are the console logs from `npm run shibuya`
 ```
 yarn run v1.22.19
@@ -304,4 +314,10 @@ status.type Finalized
 Task canceled successfully! It didn't execute again.
 Reached the end of main() ...
 ✨  Done in 5927.19s.
+```
+
+### Rococo environment
+Run the program to schedule automation and wait for cross-chain execution
+```
+npm run shiden
 ```
