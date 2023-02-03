@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { Keyring } from '@polkadot/api';
+import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import moment from 'moment';
 
@@ -15,6 +15,8 @@ const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if it
 const SHIBUYA_TOKEN_ID_ON_TURING = 4;
 const TASK_FREQUENCY = 3600;
 const LISTEN_EVENT_DELAY = 3 * 60;
+
+const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
     turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
@@ -64,7 +66,7 @@ const scheduleTask = async ({
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: TuringDev.paraId,
         encodedCall: encodedTaskViaProxy,
-        proxyAccount: proxyOnTuring,
+        proxyAccount: keyring.decodeAddress(proxyOnTuring),
         feePerSecond,
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
@@ -97,7 +99,6 @@ const main = async () => {
 
     const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
 
-    const keyring = new Keyring();
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     const turingAddress = keyring.encodeAddress(keyPair.address, TuringDev.ss58);
     const shibuyaAddress = keyring.encodeAddress(keyPair.address, Shibuya.ss58);
@@ -106,58 +107,79 @@ const main = async () => {
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
     console.log('\n1. One-time proxy setup on Shibuya');
-    console.log(`\na) Add a proxy for Alice on Shibuya If there is no proxy of Turing (paraId:${TuringDev.paraId}) \n`);
-    const proxyType = 'Any';
-    // const proxyType = 'DappsStaking';
-    const proxyOnShibuya = shibuyaHelper.getProxyAccount(TuringDev.paraId, shibuyaAddress);
+    console.log(`\na) Add a proxy for Alice If there is none setup on Shibuya (paraId:${TuringDev.paraId}) \n`);
+
+    const proxyTypeShibuya = 'Any'; // We cannotset proxyType to "DappsStaking" without the actual auto-restake call
+    const proxyOnShibuya = shibuyaHelper.getProxyAccount(shibuyaAddress, TuringDev.paraId);
     const proxiesOnShibuya = await shibuyaHelper.getProxies(shibuyaAddress);
-    if (!_.find(proxiesOnShibuya, { delegate: keyring.encodeAddress(proxyOnShibuya, Shibuya.ss58), proxyType })) {
-        console.log(`\n Add a proxy of Turing (paraId:${TuringDev.paraId}) for Alice on Shibuya ...\n Proxy address: ${proxyOnShibuya}\n`);
-        await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyOnShibuya, proxyType, 0), keyPair);
+    const proxyMatch = _.find(proxiesOnShibuya, { delegate: proxyOnShibuya, proxyType: proxyTypeShibuya });
+
+    if (proxyMatch) {
+        console.log(`Proxy address ${proxyOnShibuya} for paraId: ${TuringDev.paraId} and proxyType: ${proxyTypeShibuya} already exists; skipping creation ...`);
+    } else {
+        console.log(`Add a proxy of Turing (paraId:${TuringDev.paraId}) and proxyType: ${proxyTypeShibuya} on Shibuya ...\n Proxy address: ${proxyOnShibuya}\n`);
+        await sendExtrinsic(shibuyaHelper.api, shibuyaHelper.api.tx.proxy.addProxy(proxyOnShibuya, proxyTypeShibuya, 0), keyPair);
     }
 
     const minBalance = new BN(MIN_BALANCE_IN_PROXY).mul(sbyDecimalBN);
     const balance = await shibuyaHelper.getBalance(proxyOnShibuya);
+
     if (balance.free.lt(minBalance)) {
         console.log('\nb) Topping up the proxy account on Shibuya with SBY ...\n');
         const sbyAmount = new BN(1000, 10);
         const sbyAmountBN = sbyAmount.mul(sbyDecimalBN);
         const transferSBY = shibuyaHelper.api.tx.balances.transfer(proxyOnShibuya, sbyAmountBN.toString());
         await sendExtrinsic(shibuyaHelper.api, transferSBY, keyPair);
+    } else {
+        const freeSBY = (new BN(balance.free)).div(sbyDecimalBN);
+        console.log(`\nb) Proxy’s balance is ${freeSBY.toString()}, no need to top it up with SBY transfer ...`);
     }
 
     console.log('\n2. One-time proxy setup on Turing');
-    console.log(`\na) Add a proxy for Alice on Turing If there is no proxy of Shibuya (paraId:${Shibuya.paraId})\n`);
-    const proxyOnTuring = turingHelper.getProxyAccount(Shibuya.paraId, turingAddress);
+    console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${Shibuya.paraId})\n`);
+    const proxyTypeTuring = 'Any';
+    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, Shibuya.paraId);
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
-    if (!_.find(proxiesOnTuring, { delegate: keyring.encodeAddress(proxyOnTuring, TuringDev.ss58), proxyType: 'Any' })) {
-        console.log(`\n Add a proxy of Shibuya (paraId:${Shibuya.paraId}) for Alice on Turing ...\nProxy address: ${proxyOnTuring}\n`);
-        await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, 'Any', 0), keyPair);
+    const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
+
+    if (proxyMatchTuring) {
+        console.log(`Proxy address ${proxyOnTuring} for paraId: ${Shibuya.paraId} and proxyType: ${proxyTypeTuring} already exists; skipping creation ...`);
+    } else {
+        console.log(`Add a proxy of Shibuya (paraId:${Shibuya.paraId}) and proxyType: ${proxyTypeTuring} on Turing ...\n Proxy address: ${proxyOnTuring}\n`);
+        await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, proxyTypeTuring, 0), keyPair);
     }
 
     // Reserve transfer SBY to the proxy account on Turing
     const minSbyBalanceOnTuring = new BN(MIN_BALANCE_IN_PROXY).mul(sbyDecimalBN);
     const sbyBalanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, SHIBUYA_TOKEN_ID_ON_TURING);
+
     if (sbyBalanceOnTuring.free.lt(minSbyBalanceOnTuring)) {
         console.log('\nb) Topping up the proxy account on Turing via reserve transfer SBY');
         const sbyAmount = new BN(1000, 10);
         const sbyAmountBN = sbyAmount.mul(sbyDecimalBN);
         const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(TuringDev.paraId, proxyOnTuring, sbyAmountBN);
         await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
+    } else {
+        const freeSBYOnTuring = (new BN(sbyBalanceOnTuring.free)).div(sbyDecimalBN);
+        console.log(`\nb) Proxy’s balance is ${freeSBYOnTuring.toString()}, no need to top it up with SBY reserve transfer ...`);
     }
 
     console.log('\n3. Execute an XCM from Shibuya to schedule a task on Turing ...');
     const result = await scheduleTask({
         turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
     });
+
     const { taskId, providedId, executionTime } = result;
     const timeout = calculateTimeout(executionTime);
+
     console.log(`\n4. Keep Listening events from Shibuya until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
     const isTaskExecuted = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', timeout);
+
     if (!isTaskExecuted) {
         console.log('Timeout! Task was not executed.');
         return;
     }
+
     console.log('Task has been executed!');
 
     console.log('\n5. Cancel task ...');
@@ -168,10 +190,12 @@ const main = async () => {
     const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
     console.log(`\n6. Keep Listening events from Shibuya until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
     const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
+
     if (isTaskExecutedAgain) {
         console.log('Task cancellation failed! It executes again.');
         return;
     }
+
     console.log("Task canceled successfully! It didn't execute again.");
 };
 
