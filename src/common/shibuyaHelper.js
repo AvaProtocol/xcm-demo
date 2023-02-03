@@ -11,10 +11,14 @@ import { Shibuya } from '../config';
 const WEIGHT_PER_SECOND = 1000000000000;
 
 class ShibuyaHelper {
-    initialize = async (endpoint) => {
-        const api = await ApiPromise.create({ provider: new WsProvider(endpoint) });
+    constructor(config) {
+        this.config = config;
+    }
+
+    initialize = async () => {
+        const api = await ApiPromise.create({ provider: new WsProvider(this.config.endpoint) });
         this.api = api;
-        this.assets = Shibuya.assets;
+        this.assets = this.config.assets;
     };
 
     getApi = () => this.api;

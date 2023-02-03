@@ -91,7 +91,7 @@ const main = async () => {
     await turingHelper.initialize();
 
     const shibuyaHelper = new ShibuyaHelper(Shibuya);
-    await shibuyaHelper.initialize(Shibuya.endpoint);
+    await shibuyaHelper.initialize();
 
     const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
 
