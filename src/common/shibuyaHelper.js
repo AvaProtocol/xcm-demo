@@ -146,7 +146,7 @@ class ShibuyaHelper {
      * @param {string} symbol such as SBY
      * @returns 18 for SBY
      */
-    getDecimalBySymbol(symbol) {
+    getDecimalsBySymbol(symbol) {
         const token = _.find(this.assets, { symbol });
         return token.decimals;
     }

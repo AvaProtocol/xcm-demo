@@ -1,8 +1,11 @@
+/* eslint-disable no-throw-literal */
 import BN from 'bn.js';
 import _ from 'lodash';
 import { Mangata } from '@mangata-finance/sdk';
 import Keyring from '@polkadot/keyring';
-import { sendExtrinsic, getProxyAccount } from './utils';
+import {
+    sendExtrinsic, getProxyAccount, getFloatFromBN, getDecimalBN,
+} from './utils';
 import { env, tokenConfig } from './constants';
 
 const { TURING_PARA_ID } = env;
@@ -42,8 +45,13 @@ class MangataHelper {
     };
 
     getTokenIdBySymbol(symbol) {
-        const tokenId = (_.find(this.assets, { symbol })).id;
-        return tokenId;
+        const token = _.find(this.assets, { symbol });
+        return token.id;
+    }
+
+    getDecimalsBySymbol(symbol) {
+        const token = _.find(this.assets, { symbol });
+        return token.decimals;
     }
 
     getProxyAccount = (address, paraId) => {
@@ -75,7 +83,6 @@ class MangataHelper {
 
     async updatePoolPromotion(symbol, liquidityMiningIssuanceWeight, keyPair) {
         const tokenId = this.getTokenIdBySymbol(symbol);
-        console.log('symbol', symbol, 'tokenId', tokenId);
         const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, 100);
         await sendExtrinsic(this.api, promotePoolExtrinsic, keyPair, { isSudo: true });
     }
@@ -86,13 +93,91 @@ class MangataHelper {
         await sendExtrinsic(this.api, extrinsic, keyPair, { isSudo: true });
     }
 
-    async mintLiquidity(firstSymbol, firstAssetAmount, secondSymbol, expectedSecondAssetAmount, keyPair) {
-        const firstTokenId = (_.find(this.assets, { symbol: firstSymbol })).id;
-        const secondTokenId = (_.find(this.assets, { symbol: secondSymbol })).id;
-        console.log('secondTokenId: ', secondTokenId);
-        const extrinsic = this.api.tx.xyk.mintLiquidity(firstTokenId, secondTokenId, firstAssetAmount, expectedSecondAssetAmount);
-        await sendExtrinsic(this.api, extrinsic, keyPair);
-    }
+    getMintLiquidityFee = async ({
+        pair, firstTokenSymbol, secondTokenSymbol, firstTokenAmount, expectedSecondTokenAmount,
+    }) => {
+        const firstTokenId = this.getTokenIdBySymbol(firstTokenSymbol);
+        const secondTokenId = this.getTokenIdBySymbol(secondTokenSymbol);
+
+        const firstDecimal = this.getDecimalsBySymbol(firstTokenSymbol);
+        const firstDecimalBN = getDecimalBN(firstDecimal);
+        const firstTokenAmountBN = new BN(firstTokenAmount, 10);
+
+        const secondTokenDecimal = this.getDecimalsBySymbol(secondTokenSymbol);
+        const secondTokenDecimalBN = getDecimalBN(secondTokenDecimal);
+        const secondTokenAmountBN = new BN(expectedSecondTokenAmount, 10);
+
+        const firstAmount = firstTokenAmountBN.mul(firstDecimalBN);
+        const expectedSecondAmount = secondTokenAmountBN.mul(secondTokenDecimalBN);
+
+        console.log('firstTokenId', firstTokenId, 'secondTokenId', secondTokenId, 'firstAmount', firstAmount.toString(), 'expectedSecondAmount', expectedSecondAmount.toString());
+
+        const fees = await this.mangata.mintLiquidityFee(pair, firstTokenId, secondTokenId, firstAmount, expectedSecondAmount);
+
+        console.log('fees', fees);
+
+        return fees;
+    };
+
+    mintLiquidity = async ({
+        pair, firstTokenSymbol, secondTokenSymbol, firstTokenAmount, expectedSecondTokenAmount,
+    }) => {
+        const firstTokenId = this.getTokenIdBySymbol(firstTokenSymbol);
+        const secondTokenId = this.getTokenIdBySymbol(secondTokenSymbol);
+
+        const firstDecimal = this.getDecimalsBySymbol(firstTokenSymbol);
+        const firstDecimalBN = getDecimalBN(firstDecimal);
+        const firstTokenAmountBN = new BN(firstTokenAmount, 10);
+
+        const secondTokenDecimal = this.getDecimalsBySymbol(secondTokenSymbol);
+        const secondTokenDecimalBN = getDecimalBN(secondTokenDecimal);
+        const secondTokenAmountBN = new BN(expectedSecondTokenAmount, 10);
+
+        const amount = firstTokenAmountBN.mul(firstDecimalBN);
+        const expectedSecondAmount = secondTokenAmountBN.mul(secondTokenDecimalBN);
+
+        console.log('firstTokenId', firstTokenId, 'secondTokenId', secondTokenId, 'firstAmount', amount.toString(), 'expectedSecondAmount', expectedSecondAmount.toString());
+
+        return this.mangata.mintLiquidity(pair, firstTokenId, secondTokenId, amount, expectedSecondAmount)
+            .then((events) => {
+                const lastEvent = _.last(events);
+
+                if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicFailed') {
+                    const txPaymentEvent = _.find(events, (event) => {
+                        const { section, method } = event;
+                        return section === 'transactionPayment' && method === 'TransactionFeePaid';
+                    });
+
+                    throw {
+                        message: lastEvent?.error?.documentation, feePayer: txPaymentEvent?.eventData[0]?.data,
+                    };
+                } if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicSuccess') {
+                    const matchedEvent = _.find(events, (event) => {
+                        if (event.section === 'xyk' && event.method === 'LiquidityMinted') {
+                            return event;
+                        }
+
+                        return undefined;
+                    });
+
+                    if (!_.isUndefined(matchedEvent)) {
+                        const address = matchedEvent.eventData[0]?.data;
+                        const firstId = new BN(matchedEvent.eventData[1]?.data);
+                        const secondId = new BN(matchedEvent.eventData[3]?.data);
+                        const firstAmount = new BN(matchedEvent.eventData[2]?.data);
+                        const secondAmount = new BN(matchedEvent.eventData[4]?.data);
+
+                        return {
+                            module: 'xyk.LiquidityMinted', address, firstId: firstId.toNumber(), firstAmount: firstAmount.toString(), secondId: secondId.toNumber(), secondAmount: secondAmount.toString(),
+                        };
+                    }
+
+                    return events;
+                }
+
+                return events;
+            });
+    };
 
     async provideLiquidity(keyPair, liquidityAsset, providedAsset, providedAssetAmount) {
         const liquidityAssetId = this.getTokenIdBySymbol(liquidityAsset);
@@ -115,7 +200,29 @@ class MangataHelper {
         await this.mangata.buyAsset(keyPair, sellTokenId, buyTokenId, new BN(amount), new BN('100000000000000000000000000'));
     }
 
-    getPools = async () => this.mangata.getPools();
+    getPools = async ({ isPromoted, thousandSeparator }) => {
+        const pools = await this.mangata.getPools();
+        const that = this;
+
+        const filterd = isPromoted ? _.filter(pools, (item) => item.isPromoted) : pools;
+
+        const formatted = _.map(filterd, (item) => {
+            const firstToken = _.find(that.assets, { id: item.firstTokenId });
+            const firstTokenAmountFloat = getFloatFromBN(item.firstTokenAmount, firstToken.decimals, 2, thousandSeparator);
+
+            const secondToken = _.find(that.assets, { id: item.secondTokenId });
+            const secondTokenAmountFloat = getFloatFromBN(item.secondTokenAmount, secondToken.decimals, 2, thousandSeparator);
+
+            return _.extend(item, {
+                firstTokenAmountFloat,
+                // firstTokenRatioFloat,
+                secondTokenAmountFloat,
+                // secondTokenRatioFloat,
+            });
+        });
+
+        return formatted;
+    };
 
     transferTur = async (amount, address, keyPair) => {
         const publicKey = this.keyring.decodeAddress(address);

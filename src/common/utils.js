@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { decodeAddress } from '@polkadot/util-crypto';
-import { u8aToHex } from '@polkadot/util';
+import { BN_MAX_INTEGER, u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
@@ -227,3 +227,41 @@ export const readMnemonicFromFile = async () => {
     const json = await fs.promises.readFile(jsonPath);
     return JSON.parse(json);
 };
+
+/**
+ * Return a float number of a token based on a BN amount input
+ * @param {BN} amount The input BN number
+ * @param {number} decimal The decimals number of a token
+ * @param {number} decimalShift Shift decimal to the left by how many digits, for example shifting by 2 changes the final result from 5 to 0.05
+ * @param {boolean} thousandSeparator Whether to display the final number with thousand separator
+ */
+export function getFloatFromBN(amount, decimal, decimalShift, thousandSeparator) {
+    // console.log('amount.toString', amount.toString());
+    const decimalBN = getDecimalBN(decimal);
+    // console.log('decimalBN.toString()', decimalBN.toString());
+
+    const amountBN = decimal >= 0 ? amount.div(decimalBN) : amount.mul(decimalBN);
+    // console.log('amountBN.toString()', amountBN.toString());
+
+    // if (!amountBN.isZero()) {
+    //     return thousandSeparator ? formatNumberThousands(amountBN) : amountBN;
+    // }
+
+    const decimalShiftBN = getDecimalBN(decimalShift);
+    // console.log('decimalShiftBN.toString()', decimalShiftBN.toString());
+
+    const amountShiftedBN = amountBN.mul(decimalShiftBN);
+    // console.log('amountShiftedBN.toString()', amountShiftedBN.toString());
+
+    // If the number is too large, devide the decmial shift within BN and then print; otherwise there will be cannot convert to int error
+    if (amountShiftedBN.gt(BN_MAX_INTEGER)) {
+        console.log('amountShiftedBN is greater than BN_MAX_INTEGER');
+        const quotient = amountShiftedBN.div(decimalShiftBN);
+
+        const quotientNumber = quotient.gt(BN_MAX_INTEGER) ? quotient.toString() : quotient.toNumber();
+        return thousandSeparator ? formatNumberThousands(quotientNumber) : quotientNumber;
+    }
+
+    const amountFloat = amountShiftedBN.toNumber() / decimalShiftBN.toNumber();
+    return thousandSeparator ? formatNumberThousands(amountFloat) : amountFloat;
+}
