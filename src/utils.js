@@ -179,17 +179,29 @@ async function main() {
         const mangataNativeToken = _.first(mangataHelper.config.assets);
 
         const mangataAddress = account.getChainByName(mangataChainName)?.address;
-        const poolName = `${mangataNativeToken.symbol}-${turingNativeToken.symbol}`;
+        const mgxToken = account.getAssetByChainAndSymbol(mangataChainName, mangataNativeToken.symbol);
+        const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
+        const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
 
         console.log(`Checking how much reward available in ${poolName} pool ...`);
-        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, poolName);
+        const pools = await mangataHelper.getPools({ isPromoted: true });
+        console.log('pools', pools);
+
+        const pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
+        console.log('pool', pool);
+
+        if (_.isUndefined(pool)) {
+            throw new Error(`Couldn’t find a liquidity pool for ${poolName} ...`);
+        }
+
+        // Calculate rwards amount in pool
+        const { liquidityTokenId } = pool;
+        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
         console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
-        const liquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
-
-        console.log('mangataHelper.getDecimalsBySymbol(poolName)', mangataHelper.getDecimalsBySymbol(poolName));
-        const poolTokenDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
-        const numReserved = (new BN(liquidityBalance.reserved)).div(poolTokenDecimalBN);
+        const balance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
+        const poolNameDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
+        const numReserved = (new BN(balance.reserved)).div(poolNameDecimalBN);
 
         console.log(`${account.name} reserved "${poolName}": ${numReserved.toString()} ...`);
 

@@ -4,10 +4,12 @@
     "mangata": "dotenv -e .env babel-node src/mangata.js",
     "setup-mangata": "dotenv -e .env babel-node src/setup-mangata.js",
     "shibuya": "dotenv -e .env babel-node src/shibuya.js",
+    "utils": "dotenv -e .env babel-node src/utils.js",
     "lint": "eslint --fix src/*"
   },
   "dependencies": {
     "@inquirer/confirm": "^0.0.19-alpha.0",
+    "@inquirer/select": "^0.0.18-alpha.0",
     "@mangata-finance/sdk": "^1.14.2",
     "@oak-network/api-augment": "^1.8.0-rc.4",
     "@oak-network/types": "^1.8.0-rc.4",

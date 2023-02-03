@@ -8,7 +8,6 @@ import BN from 'bn.js';
 import TuringHelper from './common/turingHelper';
 import MangataHelper from './common/mangataHelper';
 import Account from './common/account';
-import { delay, readMnemonicFromFile } from './common/utils';
 
 import {
     TuringDev, MangataDev,
@@ -57,11 +56,16 @@ async function main() {
 
     const mangataAddress = account.getChainByName(mangataChainName)?.address;
     const mangataTokens = account.getChainByName(mangataChainName)?.tokens;
+    const mgxToken = account.getAssetByChainAndSymbol(mangataChainName, mangataNativeToken.symbol);
+    const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
+    const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
 
     console.log('\n2. Initing inssuance on Mangata ...');
-    await mangataHelper.initIssuance(account.pair);
+    // await mangataHelper.initIssuance(account.pair);
 
     console.log(`\n3. Minting tokens for ${account.name} on Maganta if balance is zero ...`);
+
+    // We are iterating all assets here for minting, but ROC is not used or required for this demo
     for (let i = 0; i < mangataTokens.length; i += 1) {
         const { symbol, balance } = mangataTokens[i];
 
@@ -102,40 +106,67 @@ async function main() {
 
     if (answerPool) {
         // Get current pools available
-        const pools = await mangataHelper.getPools();
-
+        const pools = await mangataHelper.getPools({ isPromoted: false });
         console.log('\n5. Existing pools: ', pools);
 
-        const poolName = `${mangataNativeToken.symbol}-${turingNativeToken.symbol}`;
         const poolFound = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
 
         // Create a MGR-TUR pool is not found
         if (_.isUndefined(poolFound)) {
             console.log(`No ${poolName} pool found; creating a ${poolName} pool with ${account.name} ...`);
 
-            await mangataHelper.createPool(
-                mangataNativeToken.symbol,
-                turingNativeToken.symbol,
-                new BN('10000').mul(new BN(mangataNativeToken.decimals)), // 10000 MGR (MGR is 18 decimals)
-                new BN('100').mul(new BN(turingNativeToken.decimals)), // 100 TUR (TUR is 12 decimals)
-                account.pair,
-            );
+            const parachainTokenDeposit = 10000; // Add 10,000 initial MGR to pool
+            const turingTokenDeposit = 1000; // Add 1,000 initial TUR to pool
+
+            const result = await mangataHelper.createPool({
+                firstTokenId: mgxToken.id,
+                firstAmount: parachainTokenDeposit,
+                secondTokenId: turToken.id,
+                secondAmount: turingTokenDeposit,
+                keyPair: account.pair,
+            });
+
+            // Update assets
+            console.log(`\nChecking out assets after pool creation; there should be a new ${poolName} token ...`);
+            await mangataHelper.updateAssets();
         } else {
             console.log(`An existing ${poolName} pool found; skip pool creation ...`);
         }
 
-        // Update assets
-        console.log(`\nChecking out assets after pool creation; there should be a new ${poolName} token ...`);
-        await mangataHelper.updateAssets();
+        const poolsRetry = await mangataHelper.getPools({ isPromoted: false });
+
+        const pool = _.find(poolsRetry, { firstTokenId: mgxToken.id, secondTokenId: turToken.id });
+        console.log(`Found a pool of ${poolName}`, pool);
 
         // Promote pool
         console.log('\n6. Promote the pool to activate liquidity rewarding ...');
-        await mangataHelper.updatePoolPromotion(poolName, 1, account.pair);
-        await mangataHelper.activateLiquidityV2(poolName, new BN('10000').mul(new BN(mangataNativeToken.decimals)), account.pair);
+        await mangataHelper.updatePoolPromotion(pool.liquidityTokenId, 100, account.pair);
+
+        const liquidityTokenAmount = 1000;
+        await mangataHelper.activateLiquidityV2({ tokenId: pool.liquidityTokenId, amount: liquidityTokenAmount, keyPair: account.pair });
 
         // Mint liquidity to generate rewards...
         console.log('\n7. Mint liquidity to generate rewards...');
-        await mangataHelper.mintLiquidity(mangataNativeToken.symbol, new BN('10000').mul(new BN(mangataNativeToken.decimals)), turingNativeToken.symbol, new BN('10000').mul(new BN(turingNativeToken.decimals)), account.pair);
+
+        const firstTokenAmount = 1000;
+        const MAX_SLIPPIAGE = 0.04; // 4% slippage; can’t be too large
+        const poolRatio = pool.firstTokenAmountFloat / pool.secondTokenAmountFloat;
+        const expectedSecondTokenAmount = (firstTokenAmount / poolRatio) * (1 + MAX_SLIPPIAGE);
+
+        // Estimate of fees; no need to be accurate
+        const fees = await mangataHelper.getMintLiquidityFee({
+            pair: account.pair, firstTokenId: mgxToken.id, firstTokenAmount, secondTokenId: turToken.id, expectedSecondTokenAmount,
+        });
+
+        console.log(`Mint Liquidity Fee: ${fees} ${mgxToken.symbol}`);
+
+        await mangataHelper.mintLiquidity({
+            pair: account.pair,
+            firstTokenId: mgxToken.id,
+            firstTokenAmount: firstTokenAmount - fees,
+            secondTokenId: turToken.id,
+            expectedSecondTokenAmount,
+        });
     }
 }
 

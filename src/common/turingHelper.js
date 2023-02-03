@@ -89,7 +89,7 @@ class TuringHelper {
      * @param {string} symbol such as TUR
      * @returns 10 for TUR
      */
-    getDecimalBySymbol(symbol) {
+    getDecimalsBySymbol(symbol) {
         const token = _.find(this.assets, { symbol });
         return token.decimals;
     }

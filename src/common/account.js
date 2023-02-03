@@ -42,12 +42,13 @@ class Account {
             // The major difference among chains is the format of balance object
             if (_.includes(['mangata', 'mangata-rococo', 'mangata-dev'], config.key)) {
                 const tokenPromises = _.map(provider.config.assets, async (asset) => {
-                    const { symbol, decimals } = asset;
+                    const { symbol, decimals, id } = asset;
                     return provider.getBalance(chainAssets.address, symbol).then((balance) => {
                         const decimalBN = getDecimalBN(decimals);
 
                         return {
                             symbol,
+                            id,
                             balance: balance.free.div(decimalBN).toNumber(),
                             reserved: balance.reserved.div(decimalBN).toNumber(),
                             frozen: balance.frozen.div(decimalBN).toNumber(),

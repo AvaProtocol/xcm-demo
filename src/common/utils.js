@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { decodeAddress } from '@polkadot/util-crypto';
-import { u8aToHex } from '@polkadot/util';
+import { BN_MAX_INTEGER, u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
@@ -217,6 +217,7 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
 
     listenSystemEvents().catch(console.log);
 });
+
 /*
  * Return a JSON file of a wallet
  * @returns a JSON, to be used for keyring.addFromJson(json);

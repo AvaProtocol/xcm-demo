@@ -1,11 +1,12 @@
 import '@oak-network/api-augment';
 import _ from 'lodash';
+import BN from 'bn.js';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import Keyring from '@polkadot/keyring';
 import TuringHelper from './common/turingHelper';
 import MangataHelper from './common/mangataHelper';
 import Account from './common/account';
-import { delay, listenEvents } from './common/utils';
+import { delay, getDecimalBN, listenEvents } from './common/utils';
 
 import {
     TuringDev, MangataDev,
@@ -59,18 +60,21 @@ async function main() {
 
     // Calculate rwards amount in pool
     console.log(`Checking how much reward available in ${poolName} pool ...`);
-    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, poolName);
+
+    // TODO: determining liquidityTokenId by symbol name cannot handle duplicate symbols. It’s better we retrieve pools and find the correct pool
+    const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
+    const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
     console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
     // Alice’s reserved LP token before auto-compound
     const liquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
-    console.log(`Before auto-compound, ${account.name} reserved "${poolName}": ${liquidityBalance.reserved.toString()} Planck ...`);
+    const liquidityDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
+    console.log(`Before auto-compound, ${account.name} reserved ${poolName}: ${(new BN(liquidityBalance.reserved)).div(liquidityDecimalBN).toString()} ...`);
 
     // Create Mangata proxy call
     console.log('\nStart to schedule an auto-compound call via XCM ...');
 
     const proxyType = 'AutoCompound';
-    const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
     const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
     const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyType, proxyExtrinsic);
     const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
@@ -115,9 +119,12 @@ async function main() {
 
     // Account’s reserved LP token after auto-compound
     const newLiquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
-    console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
+    const newReservedBalanceBN = (new BN(newLiquidityBalance.reserved)).div(liquidityDecimalBN);
+    console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newReservedBalanceBN} ${poolName} ...`);
 
-    console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
+    const reservedPlanckDeltaBN = newLiquidityBalance.reserved.sub(liquidityBalance.reserved);
+    const reservedDeltaBN = reservedPlanckDeltaBN.div(liquidityDecimalBN);
+    console.log(`${account.name} has compounded ${reservedDeltaBN.toString()} more ${poolName} ...`);
 }
 
 main().catch(console.error).finally(() => {

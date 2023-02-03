@@ -2,7 +2,6 @@ import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import moment from 'moment';
-
 import TuringHelper from './common/turingHelper';
 import ShibuyaHelper from './common/shibuyaHelper';
 import { sendExtrinsic, getDecimalBN, listenEvents } from './common/utils';
@@ -22,6 +21,7 @@ const scheduleTask = async ({
     turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuringPublicKey, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
+    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalsBySymbol('SBY'));
 
     // We are using a very simple system.remark extrinsic to demonstrate the payload here.
     // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
@@ -71,7 +71,9 @@ const scheduleTask = async ({
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
     });
-    await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
+    
+    const { taskId, providedId, executionTime } = result;
+    console.log(`The task { taskId: ${taskId}, providerId: ${providedId} } will be executed at: ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}).`);
 
     console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
   1. Shibuya\n
@@ -97,7 +99,7 @@ const main = async () => {
     const shibuyaHelper = new ShibuyaHelper(Shibuya);
     await shibuyaHelper.initialize();
 
-    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalBySymbol('SBY'));
+    const sbyDecimalBN = getDecimalBN(shibuyaHelper.getDecimalsBySymbol('SBY'));
 
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     const turingAddress = keyring.encodeAddress(keyPair.address, TuringDev.ss58);
@@ -196,7 +198,6 @@ const main = async () => {
         console.log('Task cancellation failed! It executes again.');
         return;
     }
-
     console.log("Task canceled successfully! It didn't execute again.");
 };
 
