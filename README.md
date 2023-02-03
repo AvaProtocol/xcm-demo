@@ -68,7 +68,6 @@ npm run mangata-rococo
 ### Output example
 Below are the console logs from `npm run mangata-rococo`
 ```
- mangata-rococo
 > dotenv -e .env babel-node src/mangata-rococo.js
 
 Initializing APIs of both chains ...
@@ -190,44 +189,6 @@ Task: {
 ### Output example
 Below are the console logs from `npm run shibuya`
 ```
-yarn run v1.22.19
-warning package.json: No license field
-$ dotenv -e .env babel-node src/shibuya.js
-2023-02-03 10:22:24        API/INIT: RPC methods not decorated: transaction_unstable_submitAndWatch, transaction_unstable_unwatch
-
-User Alice’s Turing address: 6AwtFW6sYcQ8RcuAJeXdDKuFtUVXj4xW57ghjYQ5xyciT1yd, Shibuya address: ajYMsCKsEAhEvHpeA4XqsfiA9v1CdzZPrCfS6pEfeGHW9j8
-
-1. One-time proxy setup on Shibuya
-
-a) Add a proxy for Alice on Shibuya If there is no proxy of Turing (paraId:2114) 
-
-
-2. One-time proxy setup on Turing
-
-a) Add a proxy for Alice on Turing If there is no proxy of Shibuya (paraId:2000)
-
-
-3. Execute an XCM from Shibuya to schedule a task on Turing ...
-
-a). Create a payload to store in Turing’s task ...
-Encoded call data: 0x120000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01000a082048656c6c6f212121
-Encoded call weight: 191761979
-
-b) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...
-Encoded call data: 0x200000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01003c026878636d705f6175746f6d6174696f6e5f746573745f667a787a7a01b078dc6300000000100e000000000000d007000000000000c0120000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01000a082048656c6c6f2121213b0e6e0b00000000
-requireWeightAtMost: 1014876000
-
-c) Execute the above an XCM from Shibuya to schedule a task on Turing ...
-status.type Ready
-2023-02-03 10:22:28          API-WS: disconnected from ws://127.0.0.1:9946: 1006:: Connection dropped by remote peer.
-2023-02-03 10:22:28          API-WS: disconnected from ws://127.0.0.1:9948: 1006:: Connection dropped by remote peer.
-^C
-star@chenxingyoudeMacBook-Pro xcm-demo % 
-star@chenxingyoudeMacBook-Pro xcm-demo % 
-star@chenxingyoudeMacBook-Pro xcm-demo % 
-star@chenxingyoudeMacBook-Pro xcm-demo % yarn shibuya
-yarn run v1.22.19
-warning package.json: No license field
 $ dotenv -e .env babel-node src/shibuya.js
 2023-02-03 10:24:14        API/INIT: RPC methods not decorated: transaction_unstable_submitAndWatch, transaction_unstable_unwatch
 
@@ -236,7 +197,6 @@ User Alice’s Turing address: 6AwtFW6sYcQ8RcuAJeXdDKuFtUVXj4xW57ghjYQ5xyciT1yd,
 1. One-time proxy setup on Shibuya
 
 a) Add a proxy for Alice on Shibuya If there is no proxy of Turing (paraId:2114) 
-
 
  Add a proxy of Turing (paraId:2114) for Alice on Shibuya ...
  Proxy address: 0xc3f91ea5c873ee4f4be432f11c670e7102674b3965de7e4dfc40a2aa59366568
@@ -254,7 +214,6 @@ status.type Finalized
 2. One-time proxy setup on Turing
 
 a) Add a proxy for Alice on Turing If there is no proxy of Shibuya (paraId:2000)
-
 
  Add a proxy of Shibuya (paraId:2000) for Alice on Turing ...
 Proxy address: 0xb28bad43ad8e66f54af980033b8c559bccf58633f55e48213fde8214a2faf159
