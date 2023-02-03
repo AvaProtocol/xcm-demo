@@ -86,6 +86,8 @@ const scheduleTask = async ({
     return { providedId, taskId, executionTime: nextExecutionTime };
 };
 
+const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
+
 const main = async () => {
     const turingHelper = new TuringHelper(TuringDev);
     await turingHelper.initialize();
@@ -149,10 +151,8 @@ const main = async () => {
         turingHelper, shibuyaHelper, turingAddress, shibuyaAddress, proxyOnTuring, keyPair,
     });
     const { taskId, providedId, executionTime } = result;
-    console.log(`The task { taskId: ${taskId}, providerId: ${providedId} } will be executed at: ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}).`);
-
-    const timeout = ((executionTime - moment().valueOf() / 1000) + LISTEN_EVENT_DELAY) * 1000;
-    console.log('\n4. Wait for the task to execute ...');
+    const timeout = calculateTimeout(executionTime);
+    console.log(`\n4. Keep Listening events from Shibuya until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
     const isTaskExecuted = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', timeout);
     if (!isTaskExecuted) {
         console.log('Timeout! Task was not executed.');
@@ -165,9 +165,9 @@ const main = async () => {
     await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
     const nextExecutionTime = executionTime + TASK_FREQUENCY;
-    const timeoutTimestamp = (nextExecutionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
-    console.log(`\n6. Keep Listening events from Shibuya until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timeoutTimestamp}). to verify that the task was successfully canceled ...`);
-    const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', (TASK_FREQUENCY + LISTEN_EVENT_DELAY) * 1000);
+    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+    console.log(`\n6. Keep Listening events from Shibuya until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
+    const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
     if (isTaskExecutedAgain) {
         console.log('Task cancellation failed! It executes again.');
         return;
