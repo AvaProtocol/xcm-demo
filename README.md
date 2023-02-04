@@ -1,22 +1,22 @@
-Mangata XCM Auto-compound E2E Demo
-----------
-# Overview
+# OAK Network XCM Automation Demos
+
+## Overview
 ![Automation Integration Flow Chart](./assets/flow-technical.png)
 
-# Installation
+## Installation
 1. Install dependencies, `npm i`
 2. Set up environment variables for local network in `.env`.
 3. Run a local Rococo-Mangata-Turing network with instructions in [Run local network with Zombienet](https://github.com/OAK-Foundation/OAK-blockchain#quickstart-run-local-network-with-zombienet)
 
-# Mangata Auto-compound Demo
-## Pre-requisites
+## Mangata Auto-compound Demo
+### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
 | Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
 | OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.8.0)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
 | Mangata | [0.27.1](https://github.com/mangata-finance/mangata-node/releases/tag/v0.27.1)   | [f545791](https://github.com/OAK-Foundation/mangata-node/tree/ac60aeb51ea2c3545fc60c8b90f6bc65077ba10c)(a fork of 0.27.1 which added Alice as Sudo to create pools and mint tokens for setup)        |
-## Steps
-### Local dev environment
+### Steps
+#### Local dev environment
 
 1. Launch OAK-blockchain, Rococo and Mangata.
 
@@ -59,13 +59,12 @@ Mangata XCM Auto-compound E2E Demo
    npm run mangata
    ```
 
-### Rococo environment
+#### Rococo environment
 Run the program to schedule automation and wait for cross-chain execution
 ```
 npm run mangata-rococo
 ```
 
-### Output example
 Below are the console logs from `npm run mangata-rococo`
 ```
 > dotenv -e .env babel-node src/mangata-rococo.js
@@ -162,15 +161,15 @@ Task: {
 }
 ```
 
-# Shibuya Auto-restake Demo
-## Pre-requisites
+## Shibuya Auto-restake Demo
+### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
 | Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
 | OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-2aecbd94ab4bcde05657)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
 | Astar | x   | [523c067](https://github.com/AstarNetwork/Astar/commit/523c06798a08189a3ea20f790b83cd4ae602c579)        |
-## Steps
-### Local dev environment
+### Steps
+#### Local dev environment
 1. Launch OAK-blockchain, Rococo and Shibuya.
 
 	Launch zombie in OAK-blockchain project root with Astar and modified OAK.
@@ -186,7 +185,6 @@ Task: {
    npm run shibuya
    ```
 
-### Output example
 Below are the console logs from `npm run shibuya`
 ```
 $ dotenv -e .env babel-node src/shibuya.js
@@ -275,7 +273,7 @@ Reached the end of main() ...
 ✨  Done in 5927.19s.
 ```
 
-### Rococo environment
+#### Rococo environment
 Run the program to schedule automation and wait for cross-chain execution
 ```
 npm run shiden
