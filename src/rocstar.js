@@ -4,10 +4,11 @@ import BN from 'bn.js';
 import moment from 'moment';
 import TuringHelper from './common/turingHelper';
 import ShibuyaHelper from './common/shibuyaHelper';
-import { sendExtrinsic, getDecimalBN, listenEvents } from './common/utils';
+import {
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile,
+} from './common/utils';
 import { TuringStaging, Rocstar } from './config';
 import Account from './common/account';
-import 
 
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
@@ -110,7 +111,7 @@ const main = async () => {
     keyPair.unlock(process.env.PASS_PHRASE);
 
     const account = new Account(keyPair);
-    await account.init([turingHelper, mangataHelper]);
+    await account.init([turingHelper, shibuyaHelper]);
     account.print();
 
     const parachainAddress = account.getChainByName(parachainName)?.address;
@@ -118,6 +119,9 @@ const main = async () => {
     const decimalBN = getDecimalBN(parachainNativeToken.decimals);
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
+
+    const sbyIdOnTuring = await turingHelper.getSiblingAssetId(shibuyaHelper.config.paraId);
+    console.log('Rocstar ID on Turing: ', sbyIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
