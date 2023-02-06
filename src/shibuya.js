@@ -122,6 +122,9 @@ const main = async () => {
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
+    const sbyIdOnTuring = await turingHelper.getSiblingAssetId(shibuyaHelper.config.paraId);
+    console.log('Shibuya ID on Turing: ', sbyIdOnTuring);
+
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
     console.log(`\n1. One-time proxy setup on ${parachainName} ...`);
