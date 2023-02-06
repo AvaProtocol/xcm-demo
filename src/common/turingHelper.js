@@ -1,7 +1,6 @@
 import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { u8aToHex } from '@polkadot/util';
 import Keyring from '@polkadot/keyring';
 import { getProxies, getProxyAccount } from './utils';
 
