@@ -26,8 +26,13 @@ const actions = [
     },
     {
         name: 'Transfer MGX on Mangata',
-        value: 'transfer-tur-on-mangata',
+        value: 'transfer-mgx-on-mangata',
         description: 'Transfer MGX on Mangata',
+    },
+    {
+        name: 'Transfer TUR on Mangata',
+        value: 'transfer-tur-on-mangata',
+        description: 'Transfer TUR on Mangata',
     },
     {
         name: 'Withdraw TUR from Mangata',
@@ -77,7 +82,7 @@ async function main() {
         break;
     case 'transfer-tur-on-mangata':
     {
-        // Load account from ./private/seed.json and unlock        
+        // Load account from ./private/seed.json and unlock
         const account = new Account();
         await account.init();
         account.print();
@@ -90,23 +95,31 @@ async function main() {
     case 'transfer-mgx-on-mangata':
     {
         // Load account from ./private/seed.json and unlock
-        const source = new Account();
-        await source.init();
-        source.print();
+        const json = await readMnemonicFromFile();
+        const keyPair = keyring.addFromJson(json);
+        keyPair.unlock(process.env.PASS_PHRASE);
 
-        const mgxToken = source.getAssetByChainAndSymbol('mangata', 'MGX');
-        // console.log('mgxToken', mgxToken);
+        const account = new Account(keyPair);
+        await account.init([mangataHelper]);
+        account.print();
+
+        // 1. Specify chain and token symbol here
+        const mgxToken = account.getAssetByChainAndSymbol('mangata-rococo', 'MGR');
+
+        // 2. Set the destination address to your account
+        const dest = '5DLP5KLo3oPF8angc8VtxuMZ1CRt5ViM9AMiQokr5XPUXnJR';
+
+        // 3. Set the amount of transfer
+        const amount = 1000;
+
+        console.log('mgxToken', mgxToken);
 
         if (mgxToken.balance <= 0) {
             throw new Error(`Not enough MGX balance, current: ${mgxToken.balance} ...`);
         }
 
-        // const destAddress = dest.getAddressByChain('mangata');
-
-        // console.log('destAddress', destAddress);
-
         await mangataHelper.transferToken({
-            keyPair: source.pair, tokenId: token.id, decimals: token.decimals, dest: '5Hg97z8iVvkZiViemwp5gfBC4SPDBmGx3qJHr7URbPdtZQka', amount: 100,
+            keyPair: account.pair, tokenId: mgxToken.id, decimals: mgxToken.decimals, dest, amount,
         });
 
         break;

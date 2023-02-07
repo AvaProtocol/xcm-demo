@@ -272,6 +272,89 @@ class MangataHelper {
 
         return result.toString();
     };
+
+
+    /**
+     * Extrinsic that transfers Token Id in value amount from origin to destination
+     * @param {string | Keyringpair} account
+     * @param {string} tokenId
+     * @param {string} address
+     * @param {BN} amount
+     * @param {TxOptions} [txOptions]
+     *
+     * @returns {(MangataGenericEvent|Array)}
+     */
+    transferToken = async ({
+        keyPair, sender, tokenId, decimals, dest, amount,
+    }) => {
+        const decimalBN = getDecimalBN(decimals);
+        const amountBN = new BN(amount, 10);
+        // console.log('decimalBN.mul.amountBN', decimalBN.mul(amountBN).toString());
+        console.log(`Sending ${amount} #${tokenId} token from ${sender} to ${dest} ...`);
+
+        return this.mangata.transferToken(
+            keyPair,
+            tokenId,
+            dest,
+            decimalBN.mul(amountBN),
+            {
+                // statusCallback: (result) => {
+                //     // result is of the form ISubmittableResult
+                //     console.log('statusCallback.result', result);
+                //     console.log('statusCallback.result.status', result.status);
+                // },
+                // extrinsicStatus: (result) => {
+                //     // result is of the form MangataGenericEvent[]
+                //     for (let index = 0; index < result.length; index += 1) {
+                //         console.log('Phase', result[index].phase.toString());
+                //         console.log('Section', result[index].section);
+                //         console.log('Method', result[index].method);
+                //         console.log('Documentation', result[index].metaDocumentation);
+                //     }
+                // },
+            },
+        ).then((events) => {
+            let sentSource;
+            let sentDest;
+            let sentAmountBN;
+
+            const lastEvent = _.last(events);
+
+            if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicFailed') {
+                const txPaymentEvent = _.find(events, (event) => {
+                    const { section, method } = event;
+                    return section === 'transactionPayment' && method === 'TransactionFeePaid';
+                });
+
+                throw {
+                    message: lastEvent?.error?.documentation, feePayer: txPaymentEvent?.eventData[0]?.data, recipient: sentDest,
+                };
+            } if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicSuccess') {
+                const transferEvent = _.find(events, (event) => {
+                    if (event.section === 'tokens' && event.method === 'Transfer') {
+                        return event;
+                    }
+
+                    return undefined;
+                });
+
+                if (!_.isUndefined(transferEvent)) {
+                    sentSource = transferEvent.eventData[1]?.data;
+                    sentDest = transferEvent.eventData[2]?.data;
+
+                    const inputBN = new BN(transferEvent.eventData[3]?.data);
+                    sentAmountBN = inputBN.div(decimalBN);
+                }
+
+                return {
+                    module: 'tokens.Transfer', sender: sentSource, recipient: sentDest, amount: sentAmountBN.toNumber(),
+                };
+            }
+
+            return events;
+        });
+    };
+
 }
 
 export default MangataHelper;
