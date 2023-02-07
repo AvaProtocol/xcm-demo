@@ -4,6 +4,9 @@ import { u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
+import moment from 'moment';
+
+const LISTEN_EVENT_DELAY = 3 * 60;
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => new Promise((resolve) => {
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
@@ -209,3 +212,5 @@ export const readMnemonicFromFile = async () => {
     const json = await fs.promises.readFile(jsonPath);
     return JSON.parse(json);
 };
+
+export const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;

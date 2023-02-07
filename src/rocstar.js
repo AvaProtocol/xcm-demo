@@ -5,7 +5,7 @@ import moment from 'moment';
 import TuringHelper from './common/turingHelper';
 import ShibuyaHelper from './common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile,
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout,
 } from './common/utils';
 import { TuringStaging, Rocstar } from './config';
 import Account from './common/account';
@@ -16,7 +16,6 @@ const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const SHIBUYA_TOKEN_ID_ON_TURING = 4;
 const TASK_FREQUENCY = 3600;
-const LISTEN_EVENT_DELAY = 3 * 60;
 
 const keyring = new Keyring({ type: 'sr25519' });
 
@@ -90,8 +89,6 @@ const scheduleTask = async ({
     return { providedId, taskId, executionTime: nextExecutionTime };
 };
 
-const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
-
 const main = async () => {
     const turingHelper = new TuringHelper(TuringStaging);
     await turingHelper.initialize();
@@ -120,7 +117,7 @@ const main = async () => {
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
-    const sbyIdOnTuring = await turingHelper.getSiblingAssetId(shibuyaHelper.config.paraId);
+    const sbyIdOnTuring = await turingHelper.getAssetIdByParaId(shibuyaHelper.config.paraId);
     console.log('Rocstar ID on Turing: ', sbyIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
