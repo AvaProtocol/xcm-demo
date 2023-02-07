@@ -83,12 +83,25 @@ async function main() {
     case 'transfer-tur-on-mangata':
     {
         // Load account from ./private/seed.json and unlock
-        const account = new Account();
-        await account.init();
+        const json = await readMnemonicFromFile();
+        const keyPair = keyring.addFromJson(json);
+        keyPair.unlock(process.env.PASS_PHRASE);
+
+        const account = new Account(keyPair);
+        await account.init([mangataHelper]);
         account.print();
 
+        // 1. Specify chain and token symbol here
+        const token = account.getAssetByChainAndSymbol('mangata-rococo', 'TUR');
+
+        // 2. Set the destination address to your account
+        const dest = '';
+
+        // 3. Set the amount of transfer
+        const amount = 10;
+
         await mangataHelper.transferToken({
-            keyPair: account.pair, tokenId: token.id, decimals: token.decimals, dest: '5HDjVvqaSMQ8YuFVo9yghvqUWLpW5vZ5s5EagUiiYF16ikc3', amount: 100,
+            keyPair: account.pair, tokenId: token.id, decimals: token.decimals, dest, amount,
         });
         break;
     }
@@ -107,7 +120,7 @@ async function main() {
         const mgxToken = account.getAssetByChainAndSymbol('mangata-rococo', 'MGR');
 
         // 2. Set the destination address to your account
-        const dest = '5DLP5KLo3oPF8angc8VtxuMZ1CRt5ViM9AMiQokr5XPUXnJR';
+        const dest = '';
 
         // 3. Set the amount of transfer
         const amount = 1000;
@@ -125,18 +138,20 @@ async function main() {
         break;
     }
     case 'withdraw-tur-from-mangata': {
+        // Load account from ./private/seed.json and unlock
         const json = await readMnemonicFromFile();
         const keyPair = keyring.addFromJson(json);
         keyPair.unlock(process.env.PASS_PHRASE);
+
         console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
 
         const account = new Account(keyPair);
-        await account.init();
+        await account.init([mangataHelper]);
         account.print();
 
         const mangataAddress = account.getAddressByChain('mangata');
 
-        const token = _.find(Turing.assets, { symbol: 'TUR' });
+        const token = account.getAssetByChainAndSymbol('mangata-rococo', 'TUR');
 
         try {
             await mangataHelper.withdrawTUR({
@@ -149,13 +164,15 @@ async function main() {
         break;
     }
     case 'swap-tur-for-mgx': {
+        // Load account from ./private/seed.json and unlock
         const json = await readMnemonicFromFile();
         const keyPair = keyring.addFromJson(json);
         keyPair.unlock(process.env.PASS_PHRASE);
+
         console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
 
         const account = new Account(keyPair);
-        await account.init();
+        await account.init([mangataHelper]);
         account.print();
 
         const { pair } = account;
@@ -176,17 +193,17 @@ async function main() {
         break;
     }
     case 'check-claimable rewards': {
-        console.log('Loading wallet json and balance of assets ...');
-
+    // Load account from ./private/seed.json and unlock
         const json = await readMnemonicFromFile();
         const keyPair = keyring.addFromJson(json);
         keyPair.unlock(process.env.PASS_PHRASE);
 
+        console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
+
         const account = new Account(keyPair);
-        await account.init([turingHelper, mangataHelper]);
+        await account.init([mangataHelper]);
         account.print();
 
-        const turingChainName = turingHelper.config.key;
         const mangataChainName = mangataHelper.config.key;
         const turingNativeToken = _.first(turingHelper.config.assets);
         const mangataNativeToken = _.first(mangataHelper.config.assets);
