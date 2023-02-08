@@ -2,16 +2,14 @@
 import '@oak-network/api-augment';
 import _ from 'lodash';
 import confirm from '@inquirer/confirm';
+
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { Keyring } from '@polkadot/api';
-import BN from 'bn.js';
 import TuringHelper from './common/turingHelper';
 import MangataHelper from './common/mangataHelper';
 import Account from './common/account';
-
-import {
-    TuringDev, MangataDev,
-} from './config';
+import { TuringDev, MangataDev } from './config';
+import { delay } from './common/utils';
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -61,7 +59,7 @@ async function main() {
     const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
 
     console.log('\n2. Initing inssuance on Mangata ...');
-    // await mangataHelper.initIssuance(account.pair);
+    await mangataHelper.initIssuance(account.pair);
 
     console.log(`\n3. Minting tokens for ${account.name} on Maganta if balance is zero ...`);
 
@@ -118,7 +116,7 @@ async function main() {
             const parachainTokenDeposit = 10000; // Add 10,000 initial MGR to pool
             const turingTokenDeposit = 1000; // Add 1,000 initial TUR to pool
 
-            const result = await mangataHelper.createPool({
+            await mangataHelper.createPool({
                 firstTokenId: mgxToken.id,
                 firstAmount: parachainTokenDeposit,
                 secondTokenId: turToken.id,
@@ -142,9 +140,6 @@ async function main() {
         console.log('\n6. Promote the pool to activate liquidity rewarding ...');
         await mangataHelper.updatePoolPromotion(pool.liquidityTokenId, 100, account.pair);
 
-        const liquidityTokenAmount = 1000;
-        await mangataHelper.activateLiquidityV2({ tokenId: pool.liquidityTokenId, amount: liquidityTokenAmount, keyPair: account.pair });
-
         // Mint liquidity to generate rewards...
         console.log('\n7. Mint liquidity to generate rewards...');
 
@@ -167,6 +162,13 @@ async function main() {
             secondTokenId: turToken.id,
             expectedSecondTokenAmount,
         });
+
+        console.log('\nWaiting 60 seconds to check claimable reward ...');
+        await delay(60 * 1000);
+
+        const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
+        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
+        console.log(`Claimable reward in ${poolName}: `, rewardAmount);
     }
 }
 
