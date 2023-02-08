@@ -9,7 +9,7 @@ import TuringHelper from './common/turingHelper';
 import MangataHelper from './common/mangataHelper';
 import Account from './common/account';
 import {
-    delay, listenEvents, readMnemonicFromFile, getDecimalBN, sendExtrinsic, calculateTimeout,
+    delay, listenEvents, readMnemonicFromFile, getDecimalBN,
 } from './common/utils';
 import {
     TuringStaging, MangataRococo,
@@ -121,22 +121,22 @@ async function main() {
         if (numReserved.toNumber() === 0) {
             console.log('Reserved pool token is zero; minting liquidity to generate rewards...');
 
-            const firstTokenAmount = 1000;
+            const firstTokenAmount = 100;
             const MAX_SLIPPIAGE = 0.04; // 4% slippage; can’t be too large
             const poolRatio = pool.firstTokenAmountFloat / pool.secondTokenAmountFloat;
             const expectedSecondTokenAmount = (firstTokenAmount / poolRatio) * (1 + MAX_SLIPPIAGE);
 
             // Estimate of fees; no need to be accurate
             const fees = await mangataHelper.getMintLiquidityFee({
-                pair: account.pair, firstTokenSymbol: mangataNativeToken.symbol, secondTokenSymbol: turingNativeToken.symbol, firstTokenAmount, expectedSecondTokenAmount,
+                pair: account.pair, firstTokenId: mgxToken.id, secondTokenId: turToken.id, firstTokenAmount, expectedSecondTokenAmount,
             });
 
             console.log('fees', fees);
 
             await mangataHelper.mintLiquidity({
                 pair: account.pair,
-                firstTokenSymbol: mangataNativeToken.symbol,
-                secondTokenSymbol: turingNativeToken.symbol,
+                firstTokenId: mgxToken.id,
+                secondTokenId: turToken.symbol,
                 firstTokenAmount: firstTokenAmount - fees,
                 expectedSecondTokenAmount,
             });
@@ -192,16 +192,8 @@ async function main() {
             await turingHelper.sendXcmExtrinsic(xcmpCall, account.pair, taskId);
 
             // Listen XCM events on Mangata side
-            console.log(`\n4. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
-
-            const nextHourTimeout = calculateTimeout(timestampNextHour);
-            const isTaskExecuted = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', nextHourTimeout);
-            if (!isTaskExecuted) {
-                console.log('Timeout! Task was not executed.');
-                return;
-            }
-
-            console.log('Task has been executed!');
+            console.log('\nd) waiting for XCM events on Mangata side ...');
+            await listenEvents(mangataHelper.api);
 
             console.log('\nWaiting 20 seconds before reading new chain states ...');
             await delay(20000);
@@ -211,20 +203,6 @@ async function main() {
             console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
 
             console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
-
-            console.log('\n5. Cancel task ...');
-            const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
-            await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
-
-            console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
-
-            const twoHoursLaterExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
-            const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', twoHoursLaterExecutionTimeout);
-            if (isTaskExecutedAgain) {
-                console.log('Task cancellation failed! It executes again.');
-                return;
-            }
-            console.log("Task canceled successfully! It didn't execute again.");
         }
     }
 }
