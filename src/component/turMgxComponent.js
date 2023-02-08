@@ -9,7 +9,7 @@ import TuringHelper from '../common/turingHelper';
 import MangataHelper from '../common/mangataHelper';
 import Account from '../common/account';
 import {
-    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout,
+    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic,
 } from '../common/utils';
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -203,6 +203,10 @@ class TurMgxComponent {
                 console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
 
                 console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
+
+                console.log('\n5. Cancel task ...');
+                const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
+                await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
                 const twoHoursExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
 
