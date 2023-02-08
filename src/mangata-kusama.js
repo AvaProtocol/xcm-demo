@@ -1,20 +1,20 @@
 import TurMgxComponent from './component/turMgxComponent';
-import { MangataRococo, TuringStaging } from './config';
+import { Mangata, Turing } from './config';
 
 /**
  * README!
  *
- * 1. Unlike dev environment there’s no Sudo in Rococo, so we need to important a wallet first.
+ * 1. Unlike dev environment there’s no Sudo in Kusama, so we need to important a wallet first.
  * a) Export a wallet from polkadot.js plugin, and save it as a file ./private/seed.json
- * b) Run "PASS_PHRASE=<password_for_unlock> npm run mangata-rococo"
+ * b) Run "PASS_PHRASE=<password_for_unlock> npm run mangata-kusama"
  *
- * 2. You need to have balances in both MGR and TUR on Mangata Rococo
+ * 2. You need to have balances in both MGR and TUR on Mangata Kusama
  * 3. You need to have balances in TUR on Turing Staging
  */
 
 /** * Main entrance of the program */
 async function main() {
-    const turMgx = new TurMgxComponent(TuringStaging, MangataRococo);
+    const turMgx = new TurMgxComponent(Turing, Mangata);
     await turMgx.run();
 }
 
