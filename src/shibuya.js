@@ -25,7 +25,7 @@ const scheduleTask = async ({
     console.log('\na). Create a payload to store in Turing’s task ...');
 
     // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
-    const payload = shibuyaHelper.api.tx.system.dappsStaking.claimStaker({
+    const payload = shibuyaHelper.api.tx.dappsStaking.claimStaker({
         Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a'
     });
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
