@@ -49,6 +49,7 @@ class Account {
                         return {
                             symbol,
                             id,
+                            decimals,
                             balance: balance.free.div(decimalBN).toNumber(),
                             reserved: balance.reserved.div(decimalBN).toNumber(),
                             frozen: balance.frozen.div(decimalBN).toNumber(),
