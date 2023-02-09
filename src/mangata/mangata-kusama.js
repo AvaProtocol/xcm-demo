@@ -1,4 +1,4 @@
-import MangataCommon from './common';
+import AutoCompound from './common';
 import { Mangata, Turing } from '../config';
 
 /**
@@ -14,8 +14,8 @@ import { Mangata, Turing } from '../config';
 
 /** * Main entrance of the program */
 async function main() {
-    const mangataCommon = new MangataCommon(Turing, Mangata);
-    await mangataCommon.run();
+    const autoCompound = new AutoCompound(Turing, Mangata);
+    await autoCompound.run();
 }
 
 main().catch(console.error).finally(() => {

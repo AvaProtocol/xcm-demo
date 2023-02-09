@@ -16,7 +16,7 @@ import {
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 
-class MangataCommon {
+class AutoCompound {
     constructor(turingConfig, managataConfig) {
         this.turingConfig = turingConfig;
         this.managataConfig = managataConfig;
@@ -225,4 +225,4 @@ class MangataCommon {
     };
 }
 
-export default MangataCommon;
+export default AutoCompound;
