@@ -66,13 +66,14 @@ async function main() {
     // Calculate rwards amount in pool
     console.log(`Checking how much reward available in ${poolName} pool ...`);
 
-    // TODO: determining liquidityTokenId by symbol name cannot handle duplicate symbols. It’s better we retrieve pools and find the correct pool
-    const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
+    const pools = await mangataHelper.getPools({ isPromoted: true });
+    const { liquidityTokenId } = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
+
     const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
     console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
     // Alice’s reserved LP token before auto-compound
-    const liquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
+    const liquidityBalance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
     const liquidityDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
     console.log(`Before auto-compound, ${account.name} reserved ${poolName}: ${(new BN(liquidityBalance.reserved)).div(liquidityDecimalBN).toString()} ...`);
 
@@ -136,7 +137,7 @@ async function main() {
     await delay(20000);
 
     // Account’s reserved LP token after auto-compound
-    const newLiquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
+    const newLiquidityBalance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
     const newReservedBalanceBN = (new BN(newLiquidityBalance.reserved)).div(liquidityDecimalBN);
     console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newReservedBalanceBN} ${poolName} ...`);
 
