@@ -5,16 +5,13 @@ import { cryptoWaitReady } from '@polkadot/util-crypto';
 import moment from 'moment';
 import Keyring from '@polkadot/keyring';
 
-import TuringHelper from './common/turingHelper';
-import MangataHelper from './common/mangataHelper';
-import Account from './common/account';
+import TuringHelper from '../common/turingHelper';
+import MangataHelper from '../common/mangataHelper';
+import Account from '../common/account';
 import {
     calculateTimeout, delay, getDecimalBN, listenEvents, sendExtrinsic,
-} from './common/utils';
-
-import {
-    TuringDev, MangataDev,
-} from './config';
+} from '../common/utils';
+import { TuringDev, MangataDev } from '../config';
 
 /**
  * Make sure you run `npm run setup` before running this file.

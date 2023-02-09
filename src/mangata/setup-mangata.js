@@ -2,14 +2,14 @@
 import '@oak-network/api-augment';
 import _ from 'lodash';
 import confirm from '@inquirer/confirm';
-
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { Keyring } from '@polkadot/api';
-import TuringHelper from './common/turingHelper';
-import MangataHelper from './common/mangataHelper';
-import Account from './common/account';
-import { TuringDev, MangataDev } from './config';
-import { delay } from './common/utils';
+
+import TuringHelper from '../common/turingHelper';
+import MangataHelper from '../common/mangataHelper';
+import Account from '../common/account';
+import { TuringDev, MangataDev } from '../config';
+import { delay } from '../common/utils';
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -42,7 +42,6 @@ async function main() {
 
     console.log(`\nTuring chain name: ${turingChainName}, native token: ${JSON.stringify(turingNativeToken)}`);
     console.log(`Mangata chain name: ${mangataChainName}, native token: ${JSON.stringify(mangataNativeToken)}\n`);
-
 
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     keyPair.meta.name = 'Alice';

@@ -5,16 +5,18 @@ import { cryptoWaitReady } from '@polkadot/util-crypto';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import confirm from '@inquirer/confirm';
+
 import TuringHelper from '../common/turingHelper';
 import MangataHelper from '../common/mangataHelper';
 import Account from '../common/account';
 import {
     delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic,
 } from '../common/utils';
+
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 
-class TurMgxComponent {
+class MangataCommon {
     constructor(turingConfig, managataConfig) {
         this.turingConfig = turingConfig;
         this.managataConfig = managataConfig;
@@ -223,4 +225,4 @@ class TurMgxComponent {
     };
 }
 
-export default TurMgxComponent;
+export default MangataCommon;

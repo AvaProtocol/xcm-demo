@@ -1,5 +1,5 @@
-import TurMgxComponent from './component/turMgxComponent';
-import { MangataRococo, TuringStaging } from './config';
+import MangataCommon from './common';
+import { MangataRococo, TuringStaging } from '../config';
 
 /**
  * README!
@@ -14,8 +14,8 @@ import { MangataRococo, TuringStaging } from './config';
 
 /** * Main entrance of the program */
 async function main() {
-    const turMgx = new TurMgxComponent(TuringStaging, MangataRococo);
-    await turMgx.run();
+    const mangataCommon = new MangataCommon(TuringStaging, MangataRococo);
+    await mangataCommon.run();
 }
 
 main().catch(console.error).finally(() => {

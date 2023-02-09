@@ -3,9 +3,8 @@ import BN from 'bn.js';
 import _ from 'lodash';
 import { Mangata } from '@mangata-finance/sdk';
 import Keyring from '@polkadot/keyring';
-import {
-    sendExtrinsic, getProxyAccount, getDecimalBN,
-} from './utils';
+
+import { sendExtrinsic, getProxyAccount, getDecimalBN } from './utils';
 
 class MangataHelper {
     constructor(config) {
@@ -271,7 +270,6 @@ class MangataHelper {
         return result.toString();
     };
 
-
     /**
      * Extrinsic that transfers Token Id in value amount from origin to destination
      * @param {string | Keyringpair} account
@@ -352,7 +350,6 @@ class MangataHelper {
             return events;
         });
     };
-
 }
 
 export default MangataHelper;
