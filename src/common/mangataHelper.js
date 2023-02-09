@@ -6,9 +6,7 @@ import Keyring from '@polkadot/keyring';
 import {
     sendExtrinsic, getProxyAccount, getDecimalBN,
 } from './utils';
-import { env, tokenConfig } from './constants';
 
-const { TURING_PARA_ID } = env;
 class MangataHelper {
     constructor(config) {
         this.config = config;
@@ -235,7 +233,7 @@ class MangataHelper {
         return formatted;
     };
 
-    transferTur = async (amount, address, keyPair) => {
+    transferTur = async (amount, address, paraId, keyPair) => {
         const publicKey = this.keyring.decodeAddress(address);
         const publicKeyHex = `0x${Buffer.from(publicKey).toString('hex')}`;
 
@@ -246,7 +244,7 @@ class MangataHelper {
                 parents: 1,
                 interior: {
                     X2: [
-                        { Parachain: TURING_PARA_ID },
+                        { Parachain: paraId },
                         {
                             AccountId32: {
                                 network: 'Any',
@@ -264,11 +262,11 @@ class MangataHelper {
 
     calculateRewardsAmount = async (address, tokenId) => {
         // console.log('calculateRewardsAmount: address', address, 'liquidityTokenId', _.toString(tokenId));
-        const bnNumber = await this.mangata.calculateRewardsAmount(address, _.toString(tokenId));
+        const amountBN = await this.mangata.calculateRewardsAmount(address, _.toString(tokenId));
+        const token = _.find(this.assets, { id: tokenId });
+        const decimalBN = getDecimalBN(token.decimals);
 
-        // We assume the reward is in MGR which should always be the case
-        const { decimal } = tokenConfig.MGR;
-        const result = bnNumber.div(new BN(decimal));
+        const result = amountBN.div(decimalBN);
 
         return result.toString();
     };

@@ -45,12 +45,12 @@ async function main() {
     console.log(`\nTuring chain name: ${turingChainName}, native token: ${JSON.stringify(turingNativeToken)}`);
     console.log(`Mangata chain name: ${mangataChainName}, native token: ${JSON.stringify(mangataNativeToken)}\n`);
 
-    console.log('1. Reading token and balance of Alice account ...');
 
     const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     keyPair.meta.name = 'Alice';
-
     const account = new Account(keyPair);
+
+    console.log(`1. Reading token and balance of ${account.name} account ...`);
     await account.init([turingHelper, mangataHelper]);
     account.print();
 

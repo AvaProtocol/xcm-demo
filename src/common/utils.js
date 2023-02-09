@@ -1,9 +1,12 @@
 import _ from 'lodash';
 import { decodeAddress } from '@polkadot/util-crypto';
-import { BN_MAX_INTEGER, u8aToHex } from '@polkadot/util';
+import { u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
+import moment from 'moment';
+
+const LISTEN_EVENT_DELAY = 3 * 60;
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => new Promise((resolve) => {
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
@@ -29,27 +32,9 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
                 });
 
             if (status.isFinalized) {
-                return resolve(status.asFinalized.toString());
+                resolve(status.asFinalized.toString());
             }
         }
-        // if (status.type === 'Finalized') {
-        // 	console.log('Finalize extrinsic in block: ', status.asFinalized.toString());
-
-        // 	if (!_.isNil(dispatchError)) {
-        // 		if (dispatchError.isModule) {
-        // 			const metaError = api.registry.findMetaError(dispatchError.asModule)
-        // 			const { docs, name, section } = metaError
-        // 			const dispatchErrorMessage = JSON.stringify({ docs, name, section })
-        // 			const errMsg = `Transaction finalized with error by blockchain ${dispatchErrorMessage}`
-        // 			console.log(errMsg)
-        // 		} else {
-        // 			const errMsg = `Transaction finalized with error by blockchain ${dispatchError.toString()}`
-        // 			console.log(errMsg)
-        // 		}
-        // 	}
-
-        // 	resolve(status.asFinalized.toString());
-        // }
     });
 });
 
@@ -58,7 +43,7 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
 * @param  {number} ms) [description]
 * @return {Promise}    [description]
 */
-export const delay = async (ms) => new Promise((res) => setTimeout(res, ms));
+export const delay = async (ms) => new Promise((res) => { setTimeout(res, ms); });
 
 // @usage: await waitForEvent(mangataHelper.api, "xyk.LiquidityMinted");
 // This is a utility function copied from https://github.com/mangata-finance/mangata-e2e/pull/166/files
@@ -77,20 +62,20 @@ export const waitForEvent = async (api, method, blocks = 3) => new Promise((reso
     let counter = 0;
     const unsub = api.rpc.chain.getFinalizedHead(async (head) => {
         await api.query.system.events((events) => {
-            counter++;
+            counter += 1;
             console.log(`await event check for '${method}', attempt ${counter}, head ${head}`);
-            events.forEach(({ phase, event: { data, method, section } }) => {
+            events.forEach(({ phase, event: { data, section } }) => {
                 console.log(phase, data, method, section);
             });
-            const event = _.find(events, ({ event }) => `${event.section}.${event.method}` === method);
-            if (event) {
+            const foundEvent = _.find(events, ({ event }) => `${event.section}.${event.method}` === method);
+            if (foundEvent) {
                 resolve();
                 unsub();
                 // } else {
                 //   reject(new Error("event not found"));
             }
             if (counter === blocks) {
-                reject(`method ${method} not found within blocks limit`);
+                reject(new Error(`method ${method} not found within blocks limit`));
             }
         });
     });
@@ -171,7 +156,7 @@ export const getProxies = async (api, address) => {
  * @param {*} timeout - Set timeout to stop event listening.
  * @returns
  */
-export const listenEvents = async (api, section, method, timeout = undefined) => new Promise((resolve, reject) => {
+export const listenEvents = async (api, section, method, timeout = undefined) => new Promise((resolve) => {
     let unsub = null;
     let timeoutId = null;
 
@@ -227,3 +212,5 @@ export const readMnemonicFromFile = async () => {
     const json = await fs.promises.readFile(jsonPath);
     return JSON.parse(json);
 };
+
+export const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;

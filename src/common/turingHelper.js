@@ -1,7 +1,6 @@
 import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { u8aToHex } from '@polkadot/util';
 import Keyring from '@polkadot/keyring';
 import { getProxies, getProxyAccount } from './utils';
 
@@ -93,6 +92,13 @@ class TuringHelper {
         const token = _.find(this.assets, { symbol });
         return token.decimals;
     }
+
+    getSiblingAssetId = async (paraId) => {
+        const assetId = (await this.api.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X1: { Parachain: paraId } } }))
+            .unwrapOrDefault()
+            .toNumber();
+        return assetId;
+    };
 }
 
 export default TuringHelper;
