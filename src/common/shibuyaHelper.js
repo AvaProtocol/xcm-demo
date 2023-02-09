@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { BN } from 'bn.js';
 import Keyring from '@polkadot/keyring';
+
 import { getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
