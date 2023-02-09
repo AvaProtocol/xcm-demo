@@ -162,8 +162,8 @@ async function main() {
             expectedSecondTokenAmount,
         });
 
-        console.log('\nWaiting 60 seconds to check claimable reward ...');
-        await delay(60 * 1000);
+        console.log('\nWaiting 120 seconds to check claimable reward ...');
+        await delay(120 * 1000);
 
         const liquidityTokenId = mangataHelper.getTokenIdBySymbol(poolName);
         const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
