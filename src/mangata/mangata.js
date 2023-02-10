@@ -66,6 +66,7 @@ async function main() {
     // Calculate rwards amount in pool
     console.log(`Checking how much reward available in ${poolName} pool ...`);
 
+    // TODO: determining liquidityTokenId by symbol name cannot handle duplicate symbols. It’s better we retrieve pools and find the correct pool
     const pools = await mangataHelper.getPools({ isPromoted: true });
     const { liquidityTokenId } = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
 
