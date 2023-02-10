@@ -14,19 +14,18 @@ import Account from './common/account';
 // It is defined as a UnitWeightCost variable in runtime.
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
-const SHIBUYA_TOKEN_ID_ON_TURING = 4;
 const TASK_FREQUENCY = 3600;
 
 const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, keyPair,
+    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
     // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
     const payload = shibuyaHelper.api.tx.dappsStaking.claimStaker({
-        Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a'
+        Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a',
     });
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
     const encodedCallData = payloadViaProxy.method.toHex();
@@ -64,7 +63,7 @@ const scheduleTask = async ({
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
 
     console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const feePerSecond = await turingHelper.getFeePerSecond(SHIBUYA_TOKEN_ID_ON_TURING);
+    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: turingHelper.config.paraId,
         encodedCall: encodedTaskViaProxy,
@@ -122,8 +121,8 @@ const main = async () => {
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
-    const sbyIdOnTuring = await turingHelper.getAssetIdByParaId(shibuyaHelper.config.paraId);
-    console.log('Shibuya ID on Turing: ', sbyIdOnTuring);
+    const paraTokenIdOnTuring = await turingHelper.getAssetIdByParaId(shibuyaHelper.config.paraId);
+    console.log('Shibuya ID on Turing: ', paraTokenIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
@@ -173,7 +172,7 @@ const main = async () => {
 
     // Reserve transfer SBY to the proxy account on Turing
     const minBalanceOnTuring = new BN(MIN_BALANCE_IN_PROXY).mul(decimalBN);
-    const balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, SHIBUYA_TOKEN_ID_ON_TURING);
+    const balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
 
     if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
         console.log(`\nb) Topping up the proxy account on ${turingChainName} via reserve transfer ...`);
@@ -189,7 +188,7 @@ const main = async () => {
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, keyPair,
+        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
     });
 
     const { taskId, providedId, executionTime } = result;
