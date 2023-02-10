@@ -5,8 +5,14 @@ import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
 import moment from 'moment';
+import select from '@inquirer/select';
 
 const LISTEN_EVENT_DELAY = 3 * 60;
+
+export const ScheduleActionType = {
+    executeImmediately: 'execute-immediately',
+    executeOnTheHour: 'execute-on-the-hour',
+};
 
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => new Promise((resolve) => {
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
@@ -214,3 +220,23 @@ export const readMnemonicFromFile = async () => {
 };
 
 export const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
+
+export const askScheduleAction = async () => {
+    const actions = [
+        {
+            name: 'Execute immediately',
+            value: ScheduleActionType.executeImmediately,
+            description: 'Execute task immediately.',
+        },
+        {
+            name: 'Execute on the hour',
+            value: ScheduleActionType.executeOnTheHour,
+            description: 'Execute task on the hour.',
+        },
+    ];
+    const actionSelected = await select({
+        message: 'Select an action to perform',
+        choices: actions,
+    });
+    return actionSelected;
+};
