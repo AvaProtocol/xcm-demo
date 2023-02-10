@@ -4,8 +4,8 @@
     "mangata-kusama": "dotenv -e .env babel-node src/mangata/mangata-kusama.js",
     "mangata": "dotenv -e .env babel-node src/mangata/mangata.js",
     "setup-mangata": "dotenv -e .env babel-node src/mangata/setup-mangata.js",
-    "shibuya": "dotenv -e .env babel-node src/shibuya.js",
-    "rocstar": "dotenv -e .env babel-node src/rocstar.js",
+    "shibuya": "dotenv -e .env babel-node src/astar/shibuya.js",
+    "rocstar": "dotenv -e .env babel-node src/astar/rocstar.js",
     "utils": "dotenv -e .env babel-node src/utils.js",
     "lint": "eslint --fix src/*"
   },

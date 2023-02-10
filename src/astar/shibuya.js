@@ -2,93 +2,16 @@ import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import moment from 'moment';
-import TuringHelper from './common/turingHelper';
-import ShibuyaHelper from './common/shibuyaHelper';
+import TuringHelper from '../common/turingHelper';
+import ShibuyaHelper from '../common/shibuyaHelper';
 import {
     sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout,
-} from './common/utils';
-import { TuringDev, Shibuya } from './config';
-import Account from './common/account';
-
-// One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
-// It is defined as a UnitWeightCost variable in runtime.
-const TURING_INSTRUCTION_WEIGHT = 1000000000;
-const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
-const TASK_FREQUENCY = 3600;
+} from '../common/utils';
+import { TuringDev, Shibuya } from '../config';
+import Account from '../common/account';
+import { MIN_BALANCE_IN_PROXY, scheduleTask, TASK_FREQUENCY } from './common';
 
 const keyring = new Keyring({ type: 'sr25519' });
-
-const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
-}) => {
-    console.log('\na). Create a payload to store in Turing’s task ...');
-
-    // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
-    const payload = shibuyaHelper.api.tx.dappsStaking.claimStaker({
-        Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a',
-    });
-    const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
-    const encodedCallData = payloadViaProxy.method.toHex();
-    const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
-    const encodedCallWeight = parseInt(payloadViaProxyFees.weight.refTime, 10);
-    console.log(`Encoded call data: ${encodedCallData}`);
-    console.log(`Encoded call weight: ${encodedCallWeight}`);
-
-    console.log('\nb) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...');
-
-    // Schedule an XCMP task from Turing’s timeAutomation pallet
-    // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
-    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-
-    const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
-    const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
-        providedId,
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
-        // { Fixed: { executionTimes: [0] } },
-        shibuyaHelper.config.paraId,
-        0,
-        encodedCallData,
-        encodedCallWeight,
-    );
-
-    const taskViaProxy = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
-    const encodedTaskViaProxy = taskViaProxy.method.toHex();
-    const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
-
-    console.log(`Encoded call data: ${encodedTaskViaProxy}`);
-    console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
-
-    console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
-    const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
-        targetParaId: turingHelper.config.paraId,
-        encodedCall: encodedTaskViaProxy,
-        proxyAccount: proxyAccountId,
-        feePerSecond,
-        instructionWeight: TURING_INSTRUCTION_WEIGHT,
-        requireWeightAtMost,
-    });
-
-    await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
-
-    console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
-  1. Shibuya\n
-  xcmpQueue.XcmpMessageSent and polkadotXcm.Sent - an XCM is successfully sent from Shibuya to Turing to schedule a task.\n
-  2. Turing Dev\n
-  a) proxy.ProxyExecuted and automationTime.TaskScheduled - the above XCM is received and executed on Turing.\n
-  b) xcmpHandler.XcmTransactedLocally, xcmpQueue.XcmpMessageSent, xcmpHandler.XcmSent and automationTime.XcmpTaskSucceeded - the task is triggered and its payload is sent to Shibuya via XCM.\n
-  3. Shibuya\n
-  proxy.ProxyExecuted and xcmpQueue.Success - the above payload is received and executed.\n`);
-
-    const taskIdCodec = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
-    const taskId = taskIdCodec.toString();
-
-    return { providedId, taskId, executionTime: nextExecutionTime };
-};
 
 const main = async () => {
     const turingHelper = new TuringHelper(TuringDev);
@@ -187,6 +110,7 @@ const main = async () => {
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
+    // const taskPayload = shibuyaHelper.api.tx.dappsStaking.claimStaker({ Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a' });
     const result = await scheduleTask({
         turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
     });
