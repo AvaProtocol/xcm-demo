@@ -9,7 +9,10 @@ import {
 } from '../common/utils';
 import { TuringDev, Shibuya } from '../config';
 import Account from '../common/account';
-import { MIN_BALANCE_IN_PROXY, scheduleTask, TASK_FREQUENCY } from './common';
+import { scheduleTask } from './common';
+import { TASK_FREQUENCY } from './constants';
+
+const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 
 const keyring = new Keyring({ type: 'sr25519' });
 
@@ -110,9 +113,20 @@ const main = async () => {
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
-    // const taskPayload = shibuyaHelper.api.tx.dappsStaking.claimStaker({ Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a' });
+    // const parachainTaskExtrinsic = shibuyaHelper.api.tx.dappsStaking.claimStaker({
+    //     Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a',
+    // });
+
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+        turingHelper,
+        shibuyaHelper,
+        // parachainTaskExtrinsic,
+        turingAddress,
+        parachainAddress,
+        paraTokenIdOnTuring,
+        proxyAccountId,
+        proxyTypeParachain,
+        keyPair,
     });
 
     const { taskId, providedId, executionTime } = result;

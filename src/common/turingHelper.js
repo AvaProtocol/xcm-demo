@@ -2,8 +2,10 @@ import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import Keyring from '@polkadot/keyring';
+import moment from 'moment';
 
 import { getProxies, getProxyAccount } from './utils';
+import { TASK_FREQUENCY } from '../astar/constants';
 
 class TuringHelper {
     constructor(config) {
@@ -99,6 +101,42 @@ class TuringHelper {
             .unwrapOrDefault()
             .toNumber();
         return assetId;
+    };
+
+    createScheduleXcmpTask = async ({
+        turingAddress, parachainId, taskPayload,
+    }) => {
+        const { encodedCallData, encodedCallWeight } = taskPayload;
+        console.log('\nb) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...');
+
+        // Schedule an XCMP task from Turing’s timeAutomation pallet
+        // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
+        const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
+        const secondsInHour = 3600;
+        const millisecondsInHour = 3600 * 1000;
+        const currentTimestamp = moment().valueOf();
+        const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+        const taskExtrinsic = this.api.tx.automationTime.scheduleXcmpTask(
+            providedId,
+            { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
+            // { Fixed: { executionTimes: [0] } },
+            parachainId,
+            0,
+            encodedCallData,
+            encodedCallWeight,
+        );
+
+        const taskViaProxy = this.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
+        const encodedTaskViaProxy = taskViaProxy.method.toHex();
+        const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
+        const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
+
+        console.log(`Encoded call data: ${encodedTaskViaProxy}`);
+        console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
+
+        return {
+            encodedTaskViaProxy, requireWeightAtMost, nextExecutionTime, providedId,
+        };
     };
 }
 

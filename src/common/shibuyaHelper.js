@@ -151,6 +151,20 @@ class ShibuyaHelper {
         const token = _.find(this.assets, { symbol });
         return token.decimals;
     }
+
+    createTaskPayload = async ({ task, parachainAddress, proxyTypeParachain }) => {
+        // We are using a very simple system.remark extrinsic to demonstrate the payload here.
+        // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
+        // const payload = shibuyaHelper.api.tx.system.remarkWithEvent('Hello!!!');
+        const payload = task || this.api.tx.system.remarkWithEvent('Hello!!!');
+        const payloadViaProxy = this.api.tx.proxy.proxy(parachainAddress, proxyTypeParachain, payload);
+        const encodedCallData = payloadViaProxy.method.toHex();
+        const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
+        const encodedCallWeight = parseInt(payloadViaProxyFees.weight.refTime, 10);
+        console.log(`Encoded call data: ${encodedCallData}`);
+        console.log(`Encoded call weight: ${encodedCallWeight}`);
+        return { encodedCallData, encodedCallWeight };
+    };
 }
 
 export default ShibuyaHelper;

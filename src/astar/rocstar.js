@@ -9,7 +9,8 @@ import {
 } from '../common/utils';
 import { TuringStaging, Rocstar } from '../config';
 import Account from '../common/account';
-import { MIN_BALANCE_IN_PROXY, scheduleTask, TASK_FREQUENCY } from './common';
+import { MIN_BALANCE_IN_PROXY, TASK_FREQUENCY } from './constants';
+import { scheduleTask } from './common';
 
 const keyring = new Keyring({ type: 'sr25519' });
 
@@ -108,7 +109,14 @@ const main = async () => {
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+        turingHelper,
+        shibuyaHelper,
+        turingAddress,
+        parachainAddress,
+        paraTokenIdOnTuring,
+        proxyAccountId,
+        proxyTypeParachain,
+        keyPair,
     });
 
     const { taskId, providedId, executionTime } = result;
