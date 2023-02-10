@@ -201,7 +201,7 @@ class AutoCompound {
                 await delay(20000);
 
                 // Account’s reserved LP token after auto-compound
-                const newLiquidityBalance = await mangataHelper.getBalance(mangataAddress, poolName);
+                const newLiquidityBalance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
                 console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
 
                 console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
