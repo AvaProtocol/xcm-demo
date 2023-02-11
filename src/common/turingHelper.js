@@ -94,7 +94,7 @@ class TuringHelper {
         return token.decimals;
     }
 
-    getSiblingAssetId = async (paraId) => {
+    getAssetIdByParaId = async (paraId) => {
         const assetId = (await this.api.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X1: { Parachain: paraId } } }))
             .unwrapOrDefault()
             .toNumber();
