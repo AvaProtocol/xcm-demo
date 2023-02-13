@@ -153,25 +153,28 @@ async function main() {
     const reservedDeltaBN = reservedPlanckDeltaBN.div(liquidityDecimalBN);
     console.log(`${account.name} has compounded ${reservedDeltaBN.toString()} more ${poolName} ...`);
 
-    if (actionSelected !== ScheduleActionType.executeOnTheHour) {
-        return;
+    switch (actionSelected) {
+    case ScheduleActionType.executeOnTheHour: {
+        console.log('\n5. Cancel task ...');
+        const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
+        await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
+
+        const nextExecutionTime = executionTime + TASK_FREQUENCY;
+        const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+
+        console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
+
+        const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
+        if (isTaskExecutedAgain) {
+            console.log('Task cancellation failed! It executes again.');
+            return;
+        }
+        console.log("Task canceled successfully! It didn't execute again.");
+        break;
     }
-
-    console.log('\n5. Cancel task ...');
-    const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
-    await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
-
-    const nextExecutionTime = executionTime + TASK_FREQUENCY;
-    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
-
-    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
-
-    const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
-    if (isTaskExecutedAgain) {
-        console.log('Task cancellation failed! It executes again.');
-        return;
+    default:
+        break;
     }
-    console.log("Task canceled successfully! It didn't execute again.");
 }
 
 main().catch(console.error).finally(() => {
