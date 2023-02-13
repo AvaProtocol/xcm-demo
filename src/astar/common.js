@@ -8,7 +8,7 @@ export const scheduleTask = async ({
     console.log('\na). Create a payload to store in Turing’s task ...');
 
     const task = parachainTaskExtrinsic || shibuyaHelper.api.tx.system.remarkWithEvent('Hello!!!');
-    const taskPayload = shibuyaHelper.createTaskPayload({
+    const taskPayload = await shibuyaHelper.createTaskPayload({
         task,
         parachainAddress,
         proxyTypeParachain,
@@ -16,7 +16,7 @@ export const scheduleTask = async ({
 
     console.log('\nb) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...');
 
-    const xcmpTask = turingHelper.createScheduleXcmpTask({
+    const xcmpTask = await turingHelper.createScheduleXcmpTask({
         turingAddress,
         parachainId: shibuyaHelper.config.paraId,
         taskPayload,
@@ -31,10 +31,10 @@ export const scheduleTask = async ({
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: turingHelper.config.paraId,
         encodedCall: encodedTaskViaProxy,
-        proxyAccount: proxyAccountId,
+        requireWeightAtMost,
         feePerSecond,
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
-        requireWeightAtMost,
+        proxyAccount: proxyAccountId,
     });
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
 

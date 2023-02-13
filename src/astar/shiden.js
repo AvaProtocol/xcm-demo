@@ -1,8 +1,8 @@
-import { TuringStaging, Rocstar } from '../config';
+import { Turing, Shiden } from '../config';
 import AstarAutoCompound from './AstarAutoCompound';
 
 const main = async () => {
-    const astarAutoCompound = new AstarAutoCompound(TuringStaging, Rocstar);
+    const astarAutoCompound = new AstarAutoCompound(Turing, Shiden);
     await astarAutoCompound.run();
 };
 

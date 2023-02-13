@@ -4,7 +4,6 @@ import { BN } from 'bn.js';
 import Keyring from '@polkadot/keyring';
 
 import { getProxies, getProxyAccount } from './utils';
-import { Shibuya } from '../config';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
@@ -38,7 +37,7 @@ class ShibuyaHelper {
     };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
+        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, instructionWeight, proxyAccount,
     }) => {
         // The instruction count of XCM message.
         // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
@@ -62,7 +61,7 @@ class ShibuyaHelper {
                                 fun: { Fungible: fungible },
                                 id: {
                                     Concrete: {
-                                        interior: { X1: { Parachain: Shibuya.paraId } },
+                                        interior: { X1: { Parachain: this.config.paraId } },
                                         parents: 1,
                                     },
                                 },
@@ -75,7 +74,7 @@ class ShibuyaHelper {
                                 fun: { Fungible: fungible },
                                 id: {
                                     Concrete: {
-                                        interior: { X1: { Parachain: Shibuya.paraId } },
+                                        interior: { X1: { Parachain: this.config.paraId } },
                                         parents: 1,
                                     },
                                 },
