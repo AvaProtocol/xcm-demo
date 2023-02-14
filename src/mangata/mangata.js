@@ -9,6 +9,7 @@ import TuringHelper from '../common/turingHelper';
 import MangataHelper from '../common/mangataHelper';
 import Account from '../common/account';
 import {
+    askScheduleAction, ScheduleActionType,
     calculateTimeout, delay, getDecimalBN, listenEvents, sendExtrinsic,
 } from '../common/utils';
 import { TuringDev, MangataDev } from '../config';
@@ -96,11 +97,17 @@ async function main() {
     const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const executionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+
+    const actionSelected = await askScheduleAction();
+
+    const schedule = actionSelected === ScheduleActionType.executeOnTheHour
+        ? { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: executionTime } }
+        : { Fixed: { executionTimes: [0] } };
+
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
     const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: executionTime } },
-        // { Fixed: { executionTimes: [0] } },
+        schedule,
         mangataHelper.config.paraId,
         0,
         encodedMangataProxyCall,
@@ -145,6 +152,10 @@ async function main() {
     const reservedPlanckDeltaBN = newLiquidityBalance.reserved.sub(liquidityBalance.reserved);
     const reservedDeltaBN = reservedPlanckDeltaBN.div(liquidityDecimalBN);
     console.log(`${account.name} has compounded ${reservedDeltaBN.toString()} more ${poolName} ...`);
+
+    if (actionSelected !== ScheduleActionType.executeOnTheHour) {
+        return;
+    }
 
     console.log('\n5. Cancel task ...');
     const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
