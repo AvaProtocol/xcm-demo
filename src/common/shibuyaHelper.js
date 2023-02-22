@@ -62,7 +62,7 @@ class ShibuyaHelper {
                                 fun: { Fungible: fungible },
                                 id: {
                                     Concrete: {
-                                        interior: { X1: { Parachain: Shibuya.paraId } },
+                                        interior: { X1: { Parachain: this.config.paraId } },
                                         parents: 1,
                                     },
                                 },
@@ -75,7 +75,7 @@ class ShibuyaHelper {
                                 fun: { Fungible: fungible },
                                 id: {
                                     Concrete: {
-                                        interior: { X1: { Parachain: Shibuya.paraId } },
+                                        interior: { X1: { Parachain: this.config.paraId } },
                                         parents: 1,
                                     },
                                 },

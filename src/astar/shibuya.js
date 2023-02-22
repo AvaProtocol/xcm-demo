@@ -2,14 +2,15 @@ import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import moment from 'moment';
-import TuringHelper from './common/turingHelper';
-import ShibuyaHelper from './common/shibuyaHelper';
+import TuringHelper from '../common/turingHelper';
+import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout,
-} from './common/utils';
-import { TuringStaging, Rocstar } from './config';
-import Account from './common/account';
+    sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout,
+} from '../common/utils';
+import { TuringDev, Shibuya } from '../config';
+import Account from '../common/account';
 
+// TODO: read this instruction value from Turing Staging
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
@@ -24,8 +25,8 @@ const scheduleTask = async ({
     console.log('\na). Create a payload to store in Turing’s task ...');
 
     // We are using a very simple system.remark extrinsic to demonstrate the payload here.
-    // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
-    const payload = shibuyaHelper.api.tx.system.remarkWithEvent('Hello!!!');
+    // The real payload on Shiden would be Shibuya’s utility.batch() call to claim staking rewards and restake
+    const payload = shibuyaHelper.api.tx.system.remarkWithEvent('Hello world!');
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
     const encodedCallData = payloadViaProxy.method.toHex();
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
@@ -43,10 +44,13 @@ const scheduleTask = async ({
     const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+
+    // TODO: add select prompt to let user decide whether to trigger immediately or at next hour
+    // Currently the task trigger immediately in dev environment
     const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
-        // { Fixed: { executionTimes: [0] } },
+        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
+        { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
         0,
         encodedCallData,
@@ -71,6 +75,7 @@ const scheduleTask = async ({
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
     });
+
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
 
     console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
@@ -89,10 +94,10 @@ const scheduleTask = async ({
 };
 
 const main = async () => {
-    const turingHelper = new TuringHelper(TuringStaging);
+    const turingHelper = new TuringHelper(TuringDev);
     await turingHelper.initialize();
 
-    const shibuyaHelper = new ShibuyaHelper(Rocstar);
+    const shibuyaHelper = new ShibuyaHelper(Shibuya);
     await shibuyaHelper.initialize();
 
     const turingChainName = turingHelper.config.key;
@@ -102,11 +107,14 @@ const main = async () => {
     console.log(`\nTuring chain key: ${turingChainName}`);
     console.log(`Parachain name: ${parachainName}, native token: ${JSON.stringify(parachainNativeToken)}\n`);
 
-    const json = await readMnemonicFromFile();
-    const keyPair = keyring.addFromJson(json);
-    keyPair.unlock(process.env.PASS_PHRASE);
+    const accountName = 'Alice';
 
+    console.log(`1. Reading token and balance of ${accountName} account ...`);
+
+    const keyPair = keyring.addFromUri(`//${accountName}`, undefined, 'sr25519');
     const account = new Account(keyPair);
+    account.name = accountName;
+
     await account.init([turingHelper, shibuyaHelper]);
     account.print();
 
@@ -117,7 +125,7 @@ const main = async () => {
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
     const paraTokenIdOnTuring = await turingHelper.getAssetIdByParaId(shibuyaHelper.config.paraId);
-    console.log('Rocstar ID on Turing: ', paraTokenIdOnTuring);
+    console.log('Shibuya ID on Turing: ', paraTokenIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
