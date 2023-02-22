@@ -23,10 +23,10 @@ const scheduleTask = async ({
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
-    // The real payload would be Shibuya’s utility.batch() call to claim staking rewards and stake
-    const payload = shibuyaHelper.api.tx.dappsStaking.claimStaker({
-        Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a',
-    });
+    // We are using a very simple system.remark extrinsic to demonstrate the payload here.
+    // The real payload on Shiden would be Shibuya’s utility.batch() call to claim staking rewards and restake
+    const payload = shibuyaHelper.api.tx.system.remarkWithEvent('Hello world!');
+
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
     const encodedCallData = payloadViaProxy.method.toHex();
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
@@ -44,10 +44,13 @@ const scheduleTask = async ({
     const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+
+    // TODO: add select prompt to let user decide whether to trigger immediately or at next hour
+    // Currently the task trigger immediately in dev environment
     const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
-        // { Fixed: { executionTimes: [0] } },
+        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
+        { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
         0,
         encodedCallData,
