@@ -24,7 +24,8 @@ const scheduleTask = async ({
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
-    // TODO: add utility.batch([claimStaker(), claimStaker(), claimStaker]) to test auto-claim 3 eras
+    // We are using a very simple system.remark extrinsic to demonstrate the payload here.
+    // The real payload on Shiden would be Shibuya’s utility.batch() call to claim staking rewards and restake
     const payload = shibuyaHelper.api.tx.system.remarkWithEvent('Hello world!');
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
     const encodedCallData = payloadViaProxy.method.toHex();
