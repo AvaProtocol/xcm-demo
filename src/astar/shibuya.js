@@ -152,7 +152,7 @@ const main = async () => {
 
     if (proxyBalance.free.lt(minBalance)) {
         console.log(`\nTopping up the proxy account on Shibuya with ${symbol} ...\n`);
-        const amount = new BN(1000, 10);
+        const amount = new BN(100, 10);
         const amountBN = amount.mul(decimalBN);
         const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, amountBN.toString());
         await sendExtrinsic(shibuyaHelper.api, topUpExtrinsic, keyPair);
@@ -185,7 +185,7 @@ const main = async () => {
 
     if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
         console.log(`\nTopping up the proxy account on ${turingChainName} via reserve transfer ...`);
-        const topUpAmount = new BN(1000, 10);
+        const topUpAmount = new BN(100, 10);
         const topUpAmountBN = topUpAmount.mul(decimalBN);
         const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(turingHelper.config.paraId, proxyAccountId, topUpAmountBN);
         await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
