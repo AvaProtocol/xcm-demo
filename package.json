@@ -21,6 +21,7 @@
     "@polkadot/util": "^10.1.7",
     "@polkadot/util-crypto": "^10.3.1",
     "bn.js": "^5.2.1",
+    "chalk-pipe": "^4.0.0",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.38"
