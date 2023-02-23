@@ -6,7 +6,7 @@ import moment from 'moment';
 import TuringHelper from '../common/turingHelper';
 import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout,
+    sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout, bnToFloat, delay,
 } from '../common/utils';
 import { TuringDev, Shibuya } from '../config';
 import Account from '../common/account';
@@ -147,18 +147,20 @@ const main = async () => {
     }
 
     const minBalance = new BN(MIN_BALANCE_IN_PROXY).mul(decimalBN);
-    const proxyBalance = await shibuyaHelper.getBalance(proxyOnParachain);
+    let proxyBalance = await shibuyaHelper.getBalance(proxyOnParachain);
 
     if (proxyBalance.free.lt(minBalance)) {
-        console.log(`\nb) Topping up the proxy account on Shibuya with ${symbol} ...\n`);
+        console.log(`\nTopping up the proxy account on Shibuya with ${symbol} ...\n`);
         const amount = new BN(1000, 10);
         const amountBN = amount.mul(decimalBN);
         const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, amountBN.toString());
         await sendExtrinsic(shibuyaHelper.api, topUpExtrinsic, keyPair);
-    } else {
-        const freeAmount = (new BN(proxyBalance.free)).div(decimalBN);
-        console.log(`\nb) Proxy’s balance is ${chalkPipe('green')(freeAmount.toString())} ${symbol}, no need to top it up.`);
+
+        // Retrieve the latest balance after top-up
+        proxyBalance = await shibuyaHelper.getBalance(proxyOnParachain);
     }
+
+    console.log(`\nb) Proxy’s balance on ${parachainName} is ${chalkPipe('green')(bnToFloat(proxyBalance.free, decimalBN))} ${symbol}.`);
 
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${shibuyaHelper.config.paraId})\n`);
@@ -178,18 +180,19 @@ const main = async () => {
 
     // Reserve transfer SBY to the proxy account on Turing
     const minBalanceOnTuring = new BN(MIN_BALANCE_IN_PROXY).mul(decimalBN);
-    const balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
+    let balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
 
     if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
-        console.log(`\nb) Topping up the proxy account on ${turingChainName} via reserve transfer ...`);
+        console.log(`\nTopping up the proxy account on ${turingChainName} via reserve transfer ...`);
         const topUpAmount = new BN(1000, 10);
         const topUpAmountBN = topUpAmount.mul(decimalBN);
         const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(turingHelper.config.paraId, proxyAccountId, topUpAmountBN);
         await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
-    } else {
-        const freeBalanceOnTuring = (new BN(balanceOnTuring.free)).div(decimalBN);
-        console.log(`\nb) Proxy’s balance is ${freeBalanceOnTuring.toString()} ${symbol}, no need to top it up with reserve transfer ...`);
+
+        balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
     }
+
+    console.log(`\nb) Proxy’s balance on ${turingChainName} is ${bnToFloat(balanceOnTuring.free, decimalBN)} ${symbol}.`);
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
@@ -208,15 +211,17 @@ const main = async () => {
         return;
     }
 
-    console.log('Task has been executed!');
+    console.log('\nTask has been executed! Waiting for 20 seconds before reading proxy balance.');
+
+    await delay(20000);
 
     // Calculating balance delta to show fee cost
     const endProxyBalance = await shibuyaHelper.getBalance(proxyOnParachain);
     const proxyBalanceDelta = (new BN(proxyBalance.free)).sub(new BN(endProxyBalance.free));
 
-    console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(new BN(endProxyBalance.free).div(decimalBN).toString())} ${symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(proxyBalanceDelta.div(decimalBN).toString())} ${symbol}.`);
+    console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, decimalBN))} ${symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, decimalBN))} ${symbol}.`);
 
-    console.log('\n5. Cancel task ...');
+    console.log('\n5. Cancel the task ...');
     const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
     await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
