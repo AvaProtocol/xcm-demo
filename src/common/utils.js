@@ -240,3 +240,19 @@ export const askScheduleAction = async () => {
     });
     return actionSelected;
 };
+
+/**
+ * Convert a BN object to float such as 0.0135
+ * @param {*} amountBN
+ * @param {*} decimalBN
+ * @param {*} digit the number of digits of the float; by default 4
+ * @returns a float number
+ */
+export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
+    const amplifier = 10 ** digit;
+    const digitBN = new BN(amplifier);
+
+    const resultBN = amountBN.mul(digitBN).div(decimalBN);
+
+    return resultBN.toNumber() / amplifier;
+};

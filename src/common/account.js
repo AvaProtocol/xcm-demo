@@ -66,7 +66,26 @@ class Account {
                         const decimalBN = getDecimalBN(decimals);
 
                         return {
-                            symbol: 'TUR',
+                            symbol,
+                            balance: balance.free.div(decimalBN).toNumber(),
+                            balanceBN: balance.free,
+                            reserved: balance.reserved.div(decimalBN).toNumber(),
+                            miscFrozen: balance.miscFrozen.div(decimalBN).toNumber(),
+                            feeFrozen: balance.feeFrozen.div(decimalBN).toNumber(),
+                        };
+                    });
+                });
+
+                const tokens = await Promise.all(tokenPromises);
+
+                chainAssets.tokens = tokens;
+            } else if (_.includes(['shibuya', 'rocstar', 'shiden'], config.key)) {
+                const tokenPromises = _.map(provider.config.assets, async (asset) => {
+                    const { symbol, decimals } = asset;
+                    return provider.getBalance(chainAssets.address, symbol).then((balance) => {
+                        const decimalBN = getDecimalBN(decimals);
+                        return {
+                            symbol,
                             balance: balance.free.div(decimalBN).toNumber(),
                             balanceBN: balance.free,
                             reserved: balance.reserved.div(decimalBN).toNumber(),
