@@ -260,5 +260,9 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
 
     const resultBN = amountBN.mul(digitBN).div(decimalBN);
 
+<<<<<<< HEAD
     return _.floor(resultBN.toNumber() / amplifier, 4);
+=======
+    return resultBN.toNumber() / amplifier;
+>>>>>>> 9af125e8 (Added proxy balance delta calculation after execution (#39))
 };

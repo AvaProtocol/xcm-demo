@@ -150,6 +150,7 @@ const main = async () => {
         // Retrieve the latest balance after top-up
         proxyBalance = await shibuyaHelper.getBalance(proxyOnParachain);
     }
+    console.log(`\nb) Proxy’s balance on ${parachainName} is ${chalkPipe('green')(bnToFloat(proxyBalance.free, decimalBN))} ${symbol}.`);
 
     const beginProxyBalance = bnToFloat(proxyBalance.free, decimalBN);
     const beginProxyBalanceColor = beginProxyBalance === 0 ? 'red' : 'green';
