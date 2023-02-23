@@ -219,6 +219,12 @@ export const readMnemonicFromFile = async () => {
     return JSON.parse(json);
 };
 
+export const readEthMnemonicFromFile = async () => {
+    const jsonPath = path.join(__dirname, '../../private', 'seed-eth.json');
+    const json = await fs.promises.readFile(jsonPath);
+    return JSON.parse(json);
+};
+
 export const calculateTimeout = (executionTime) => (executionTime - moment().valueOf() / 1000 + LISTEN_EVENT_DELAY) * 1000;
 
 export const askScheduleAction = async () => {

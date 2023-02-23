@@ -7,6 +7,7 @@
     "shibuya": "dotenv -e .env babel-node src/astar/shibuya.js",
     "rocstar": "dotenv -e .env babel-node src/astar/rocstar.js",
     "shiden": "dotenv -e .env babel-node src/astar/shiden.js",
+    "setup-moonbase-alpha": "dotenv -e .env babel-node src/moonbeam/setup-moonbase-alpha.js",
     "utils": "dotenv -e .env babel-node src/utils.js",
     "lint": "eslint --fix src/*"
   },
