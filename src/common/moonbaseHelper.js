@@ -1,5 +1,13 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import Keyring from '@polkadot/keyring';
+import Keyring, { decodeAddress } from '@polkadot/keyring';
+import { u8aToHex } from '@polkadot/util';
+import { BN } from 'bn.js';
+import { getProxies, getProxyAccount } from './utils';
+
+// frame_support::weights::constants::WEIGHT_PER_SECOND
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
+// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48
+const WEIGHT_PER_SECOND = 1000000000000;
 
 class MoonbaseHelper {
     constructor(config) {
@@ -14,6 +22,115 @@ class MoonbaseHelper {
         this.api = api;
         this.assets = this.config.assets;
         this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
+    };
+
+    getProxyAccount = (publicKey, paraId) => {
+        const location = {
+            parents: 1, // from source parachain to target parachain
+            interior: {
+                X2: [
+                    { Parachain: paraId },
+                    {
+                        AccountKey20: {
+                            network: { Any: '' },
+                            key: publicKey,
+                        },
+                    },
+                ],
+            },
+        };
+
+        const multilocation = this.api.createType('XcmV1MultiLocation', location);
+
+        const toHash = new Uint8Array([
+            ...new Uint8Array([32]),
+            ...new TextEncoder().encode('multiloc'),
+            ...multilocation.toU8a(),
+        ]);
+
+        const DescendOriginAddress32 = u8aToHex(this.api.registry.hash(toHash).slice(0, 32));
+
+        return DescendOriginAddress32;
+    };
+
+    getProxies = async (address) => getProxies(this.api, address);
+
+    getBalance = async (address) => {
+        const balance = (await this.api.query.system.account(address))?.data;
+        return balance;
+    };
+
+    createTransactExtrinsic = ({
+        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
+    }) => {
+        // The instruction count of XCM message.
+        // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
+        // So instructionCount should be V2.length + 1
+        const instructionCount = 6;
+        const totalInstructionWeight = instructionCount * instructionWeight;
+        const weightLimit = requireWeightAtMost + totalInstructionWeight;
+        console.log('feePerSecond: ', feePerSecond.toString());
+        const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
+        const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
+            {
+                V1: {
+                    parents: 1,
+                    interior: { X1: { Parachain: targetParaId } },
+                },
+            },
+            {
+                V2: [
+                    {
+                        WithdrawAsset: [
+                            {
+                                fun: { Fungible: fungible },
+                                id: {
+                                    Concrete: {
+                                        interior: { X1: { Parachain: this.config.paraId } },
+                                        parents: 1,
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        BuyExecution: {
+                            fees: {
+                                fun: { Fungible: fungible },
+                                id: {
+                                    Concrete: {
+                                        interior: { X1: { Parachain: this.config.paraId } },
+                                        parents: 1,
+                                    },
+                                },
+                            },
+                            weightLimit: { Limited: weightLimit },
+                        },
+                    },
+                    {
+                        Transact: {
+                            originType: 'SovereignAccount',
+                            requireWeightAtMost,
+                            call: { encoded: encodedCall },
+                        },
+                    },
+                    {
+                        RefundSurplus: '',
+                    },
+                    {
+                        DepositAsset: {
+                            assets: { Wild: 'All' },
+                            maxAssets: 1,
+                            beneficiary: {
+                                parents: 1,
+                                interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccount } } },
+                            },
+                        },
+                    },
+                ],
+            },
+        );
+        return xcmpExtrinsic;
     };
 }
 

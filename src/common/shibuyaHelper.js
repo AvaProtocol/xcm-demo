@@ -46,7 +46,7 @@ class ShibuyaHelper {
         const instructionCount = 6;
         const totalInstructionWeight = instructionCount * instructionWeight;
         const weightLimit = requireWeightAtMost + totalInstructionWeight;
-        const fungible = new BN(weightLimit).mul(new BN(feePerSecond)).div(new BN(WEIGHT_PER_SECOND));
+        const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
             {
                 V1: {

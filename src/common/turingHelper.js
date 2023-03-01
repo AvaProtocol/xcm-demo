@@ -80,8 +80,8 @@ class TuringHelper {
     getProxies = async (address) => getProxies(this.api, address);
 
     getFeePerSecond = async (assetId) => {
-        const { additional: { feePerSecond } } = (await this.api.query.assetRegistry.metadata(assetId)).toJSON();
-        return feePerSecond;
+        const asset = (await this.api.query.assetRegistry.metadata(assetId)).unwrapOrDefault();
+        return asset.additional.feePerSecond.unwrapOrDefault();
     };
 
     /**
