@@ -1,8 +1,9 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import Keyring, { decodeAddress } from '@polkadot/keyring';
+import Keyring from '@polkadot/keyring';
 import { u8aToHex } from '@polkadot/util';
 import { BN } from 'bn.js';
-import { getProxies, getProxyAccount } from './utils';
+
+import { getProxies } from './utils';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
@@ -61,76 +62,44 @@ class MoonbaseHelper {
     };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
+        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, instructionWeight,
     }) => {
         // The instruction count of XCM message.
         // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
         // So instructionCount should be V2.length + 1
-        const instructionCount = 6;
+        console.log(`createTransactExtrinsic, targetParaId: ${targetParaId}, encodedCall: ${encodedCall}, feePerSecond: ${feePerSecond}, requireWeightAtMost: ${requireWeightAtMost}, instructionWeight: ${instructionWeight}`);
+        const instructionCount = 4;
         const totalInstructionWeight = instructionCount * instructionWeight;
         const weightLimit = requireWeightAtMost + totalInstructionWeight;
-        console.log('feePerSecond: ', feePerSecond.toString());
         const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
-        const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
+
+        const transactExtrinsic = this.api.tx.xcmTransactor.transactThroughSigned(
             {
                 V1: {
                     parents: 1,
-                    interior: { X1: { Parachain: targetParaId } },
+                    interior: {
+                        X1: { Parachain: 2114 },
+                    },
                 },
             },
             {
-                V2: [
-                    {
-                        WithdrawAsset: [
-                            {
-                                fun: { Fungible: fungible },
-                                id: {
-                                    Concrete: {
-                                        interior: { X1: { Parachain: this.config.paraId } },
-                                        parents: 1,
-                                    },
-                                },
-                            },
-                        ],
-                    },
-                    {
-                        BuyExecution: {
-                            fees: {
-                                fun: { Fungible: fungible },
-                                id: {
-                                    Concrete: {
-                                        interior: { X1: { Parachain: this.config.paraId } },
-                                        parents: 1,
-                                    },
-                                },
-                            },
-                            weightLimit: { Limited: weightLimit },
-                        },
-                    },
-                    {
-                        Transact: {
-                            originType: 'SovereignAccount',
-                            requireWeightAtMost,
-                            call: { encoded: encodedCall },
-                        },
-                    },
-                    {
-                        RefundSurplus: '',
-                    },
-                    {
-                        DepositAsset: {
-                            assets: { Wild: 'All' },
-                            maxAssets: 1,
-                            beneficiary: {
-                                parents: 1,
-                                interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccount } } },
-                            },
-                        },
-                    },
-                ],
+                currency: {
+                    AsCurrencyId: 'SelfReserve',
+                    // AsMultiLocation: {
+                    //     V1: {
+                    //         parents: 1,
+                    //         interior: {
+                    //             X1: { Parachain: targetParaId },
+                    //         },
+                    //     },
+                    // },
+                },
+                feeAmount: fungible,
             },
+            encodedCall,
+            { transactRequiredWeightAtMost: weightLimit },
         );
-        return xcmpExtrinsic;
+        return transactExtrinsic;
     };
 }
 
