@@ -278,3 +278,25 @@ Run the program to schedule automation and wait for cross-chain execution
 ```
 npm run rocstar
 ```
+
+## Moonbase Auto-restake Demo
+### Pre-requisites
+| Chain      | Version | Commit hash |
+| :---        |    :----:   |          ---: |
+| Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
+| OAK-blockchain   | [master](https://github.com/OAK-Foundation/OAK-blockchain/tree/master)     |	[8928515](https://github.com/OAK-Foundation/OAK-blockchain/commit/89285157f9d96061d29926ee2117fb92df4222d6)  |
+| Moonbeam | [runtime-2201](https://github.com/PureStake/moonbeam/releases/tag/runtime-2201)   | [483f51e](https://github.com/PureStake/moonbeam/commit/483f51e8c2574732c97634c20345433a74c93fd5)        |
+### Steps
+#### Local dev environment
+1. Launch OAK-blockchain, Rococo and Moonbase.
+
+	Launch zombie in OAK-blockchain project root with Moonbase and Turing.
+
+	```
+	zombie spawn zombienets/turing/moonbase.toml
+	```
+
+2. Run the program to schedule automation and wait for cross-chain execution
+   ```
+   npm run moonbase
+   ```
