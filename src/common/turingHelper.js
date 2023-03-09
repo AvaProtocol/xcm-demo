@@ -72,8 +72,8 @@ class TuringHelper {
         send();
     });
 
-    getProxyAccount = (address, paraId) => {
-        const accountId = getProxyAccount(this.api, paraId, address);
+    getProxyAccount = (address, paraId, options) => {
+        const accountId = getProxyAccount(this.api, paraId, address, options);
         return this.keyring.encodeAddress(accountId);
     };
 

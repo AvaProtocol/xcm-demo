@@ -20,6 +20,8 @@ const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 // const TASK_FREQUENCY = 3600;
 
+const WEIGHT_PER_SECOND = 1000000000000;
+
 const keyring = new Keyring({ type: 'sr25519' });
 
 const sendXcmFromMoonbase = async ({
@@ -39,15 +41,47 @@ const sendXcmFromMoonbase = async ({
 
     console.log(`\nc) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
-    const xcmpExtrinsic = parachainHelper.createTransactExtrinsic({
-        targetParaId: turingHelper.config.paraId,
-        encodedCall: encodedTaskViaProxy,
-        feePerSecond,
-        instructionWeight: TURING_INSTRUCTION_WEIGHT,
-        requireWeightAtMost,
-    });
+    // const xcmpExtrinsic = parachainHelper.createTransactExtrinsic({
+    //     targetParaId: turingHelper.config.paraId,
+    //     encodedCall: encodedTaskViaProxy,
+    //     feePerSecond,
+    //     instructionWeight: TURING_INSTRUCTION_WEIGHT,
+    //     requireWeightAtMost,
+    //     proxyAccountId,
+    // });
 
-    await sendExtrinsic(parachainHelper.api, xcmpExtrinsic, keyPair);
+    const instructionCount = 4;
+    const totalInstructionWeight = instructionCount * TURING_INSTRUCTION_WEIGHT;
+    const weightLimit = requireWeightAtMost + totalInstructionWeight;
+    const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND)).mul(new BN(10));
+    const transactRequiredWeightAtMost = requireWeightAtMost + TURING_INSTRUCTION_WEIGHT;
+    const overallWeight = (instructionCount - 1) * TURING_INSTRUCTION_WEIGHT;
+    console.log('transactRequiredWeightAtMost: ', transactRequiredWeightAtMost);
+    console.log('overallWeight: ', overallWeight);
+    console.log('fungible: ', fungible.toString());
+
+    const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
+        {
+            V1: {
+                parents: 1,
+                interior: {
+                    X1: { Parachain: 2114 },
+                },
+            },
+        },
+        {
+            currency: {
+                AsCurrencyId: 'SelfReserve',
+            },
+            feeAmount: fungible,
+        },
+        encodedTaskViaProxy,
+        { transactRequiredWeightAtMost, overallWeight },
+    );
+
+    console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
+
+    await sendExtrinsic(parachainHelper.api, transactExtrinsic, keyPair);
 };
 
 const main = async () => {
@@ -81,21 +115,10 @@ const main = async () => {
     await account.init([turingHelper]);
     account.print();
 
-    console.log('Set transcat info ...');
-    const transactInfoExtrinsic = moonbaseHelper.api.tx.xcmTransactor.setTransactInfo(
-        {
-            V1: {
-                parents: 1,
-                interior: {
-                    X1: { Parachain: turingHelper.config.paraId },
-                },
-            },
-        },
-        0,
-        5000000000,
-        0,
-    );
-    await sendExtrinsic(moonbaseHelper.api, transactInfoExtrinsic, alithKeyPair, { isSudo: true });
+    const turingAddress = account.getChainByName(turingChainName)?.address;
+    const proxyOnTuring = turingHelper.getProxyAccount(moonbaseKeyPair.address, moonbaseHelper.config.paraId, { addressType: 'Ethereum' });
+    console.log('proxyOnTuring: ', proxyOnTuring);
+    const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
 
     console.log('Transfer balance from Alith to Alice.');
     await sendExtrinsic(
@@ -107,14 +130,9 @@ const main = async () => {
     const parachainAddress = moonbaseKeyPair.address;
     console.log('moonbaseKeyPair.publicKey: ', u8aToHex(moonbaseKeyPair.publicKey));
 
-    const turingAddress = account.getChainByName(turingChainName)?.address;
-
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${moonbaseHelper.config.paraId})\n`);
     const proxyTypeTuring = 'Any';
-    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, moonbaseHelper.config.paraId);
-    console.log('proxyOnTuring: ', proxyOnTuring);
-    const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
     const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
 
@@ -188,7 +206,7 @@ const main = async () => {
     console.log(`\n3. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
     await sendXcmFromMoonbase({
-        turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: moonbaseKeyPair,
+        turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: moonbaseKeyPair, proxyAccountId,
     });
 };
 

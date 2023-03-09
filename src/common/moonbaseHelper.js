@@ -62,16 +62,18 @@ class MoonbaseHelper {
     };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, instructionWeight,
+        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, instructionWeight, proxyAccountId,
     }) => {
         // The instruction count of XCM message.
         // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
         // So instructionCount should be V2.length + 1
-        console.log(`createTransactExtrinsic, targetParaId: ${targetParaId}, encodedCall: ${encodedCall}, feePerSecond: ${feePerSecond}, requireWeightAtMost: ${requireWeightAtMost}, instructionWeight: ${instructionWeight}`);
+        console.log(`createTransactExtrinsic, targetParaId: ${targetParaId}, encodedCall: ${encodedCall}, feePerSecond: ${feePerSecond}, requireWeightAtMost: ${requireWeightAtMost}, instructionWeight: ${instructionWeight}, proxyAccountId: ${proxyAccountId}`);
         const instructionCount = 4;
         const totalInstructionWeight = instructionCount * instructionWeight;
         const weightLimit = requireWeightAtMost + totalInstructionWeight;
         const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
+        console.log(`fungible: ${fungible.toString()}`);
+        console.log(`weightLimit: ${weightLimit.toString()}`);
 
         const transactExtrinsic = this.api.tx.xcmTransactor.transactThroughSigned(
             {

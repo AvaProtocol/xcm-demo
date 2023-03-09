@@ -10,6 +10,7 @@
     "setup-moonbase-alpha": "dotenv -e .env babel-node src/moonbeam/setup-moonbase-alpha.js",
     "moonbase": "dotenv -e .env babel-node src/moonbeam/moonbase.js",
     "utils": "dotenv -e .env babel-node src/utils.js",
+    "test": "dotenv -e .env babel-node src/test.js",
     "lint": "eslint --fix src/*"
   },
   "dependencies": {
