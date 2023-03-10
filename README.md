@@ -300,3 +300,15 @@ npm run rocstar
    ```
    npm run moonbase
    ```
+
+#### Moonbase alpha environment
+1. Place seed.json(for Turing) and seed-eth.json(for Moonbase) in 'private' folder.
+
+2. Make sure you have 25 TUR in Turing for the staking fee required to add the proxy and the execution fee for automationTime.
+
+3. Make sure you have 5 DEV in Moonbase, we will transfer some to Turing's proxy account and pay the execution fee.
+
+4. Run the program to schedule automation and wait for cross-chain execution
+   ```
+   PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha
+   ```

@@ -160,12 +160,13 @@ const main = async () => {
     const decimalBN = getDecimalBN(parachainTokenDecimals);
 
     // Reserve transfer DEV to the proxy account on Turing
+    console.log('\nb) Reserve transfer DEV to the proxy account on Turing ...');
     const minBalanceOnTuring = new BN(MIN_BALANCE_IN_PROXY).mul(decimalBN);
     console.log('paraTokenIdOnTuring: ', paraTokenIdOnTuring);
-    const balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
-    console.log('balanceOnTuring.free: ', balanceOnTuring.free.toString());
+    const paraTokenbalanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
+    console.log('paraTokenbalanceOnTuring.free: ', paraTokenbalanceOnTuring.free.toString());
 
-    if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
+    if (paraTokenbalanceOnTuring.free.lt(minBalanceOnTuring)) {
         // Transfer DEV from Moonbase to Turing
         console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
@@ -206,13 +207,13 @@ const main = async () => {
         );
         await sendExtrinsic(moonbaseHelper.api, extrinsic, moonbaseKeyPair);
     } else {
-        const freeBalanceOnTuring = (new BN(balanceOnTuring.free)).div(decimalBN);
+        const freeBalanceOnTuring = (new BN(paraTokenbalanceOnTuring.free)).div(decimalBN);
         console.log(`\nb) Proxy’s balance is ${freeBalanceOnTuring.toString()}, no need to top it up with reserve transfer ...`);
     }
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
-    console.log(`\n3. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
+    console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
     await sendXcmFromMoonbase({
         turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: moonbaseKeyPair, proxyAccountId,
