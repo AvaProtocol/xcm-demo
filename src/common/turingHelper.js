@@ -72,16 +72,16 @@ class TuringHelper {
         send();
     });
 
-    getProxyAccount = (address, paraId) => {
-        const accountId = getProxyAccount(this.api, paraId, address);
+    getProxyAccount = (address, paraId, options) => {
+        const accountId = getProxyAccount(this.api, paraId, address, options);
         return this.keyring.encodeAddress(accountId);
     };
 
     getProxies = async (address) => getProxies(this.api, address);
 
     getFeePerSecond = async (assetId) => {
-        const { additional: { feePerSecond } } = (await this.api.query.assetRegistry.metadata(assetId)).toJSON();
-        return feePerSecond;
+        const asset = (await this.api.query.assetRegistry.metadata(assetId)).unwrapOrDefault();
+        return asset.additional.feePerSecond.unwrapOrDefault();
     };
 
     /**
