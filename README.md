@@ -327,6 +327,13 @@ npm run rocstar
 #### Moonbase alpha environment
 1. Place seed.json(for Turing) and seed-eth.json(for Moonbase) in 'private' folder.
 
+The seed.json file is exported from the polkadot.js browser plugin.
+
+The seed-eth.json file is downloaded after adding an account in the polkdot.js apps page of Moonbase.
+
+How to add Moonbase alpha account:
+https://docs.moonbeam.network/tokens/connect/polkadotjs/
+
 1. Make sure you have 25 TUR in Turing for the reserved fee required to add the proxy and the execution fee for automationTime.
 
 1. Make sure you have 5 DEV in Moonbase, we will transfer some to Turing's proxy account and pay the execution fee.
