@@ -14,13 +14,13 @@ import MoonbaseAlpha from './moonbase-alpha';
 
 import TuringDev from './turing-dev';
 import TuringStaging from './turing-staging';
-import TuringMoonbaseAlpha from './turing-moonbase-alpha';
+import TuringMoonbase from './turing-moonbase';
 import Turing from './turing';
 
 export {
     Rococo, RococoDev,
     MangataDev, MangataRococo, Mangata,
-    TuringDev, Turing, TuringStaging, TuringMoonbaseAlpha,
+    TuringDev, Turing, TuringStaging, TuringMoonbase,
     Shibuya, Rocstar, Shiden,
     MoonbaseDev, MoonbaseAlpha,
 };

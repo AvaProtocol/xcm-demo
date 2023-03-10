@@ -1,6 +1,6 @@
 # Box
 
-This is an Ethereum smart contract for testing.
+This is the Ethereum smart contracts for testing.
 
 Read about:
 https://docs.moonbeam.network/builders/build/eth-api/dev-env/hardhat/

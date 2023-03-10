@@ -296,19 +296,42 @@ npm run rocstar
 	zombie spawn zombienets/turing/moonbase.toml
 	```
 
-2. Run the program to schedule automation and wait for cross-chain execution
-   ```
-   npm run moonbase
-   ```
+1. Deploy the smart contract to Moonbase.
+
+	Please configure your wallet private key to the secrets.json file in the root directory.
+
+	```
+	{
+		"privateKey": "YOUR-WALLET-PRIVATE-KEY-HERE"
+	}
+	```
+
+	Run the command below to deploy the contract.
+
+	```
+	cd src/moonbeam/contracts
+	# Install dependencies
+	npm install
+	# Compile smart contract
+	npx hardhat compile
+	# Deploy smart contract to Moonbase
+	npx hardhat run scripts/deploy.js
+	cd ../../..
+	```
+
+1. Run the program to schedule automation and wait for cross-chain execution
+	```
+	npm run moonbase
+	```
 
 #### Moonbase alpha environment
 1. Place seed.json(for Turing) and seed-eth.json(for Moonbase) in 'private' folder.
 
-2. Make sure you have 25 TUR in Turing for the reserved fee required to add the proxy and the execution fee for automationTime.
+1. Make sure you have 25 TUR in Turing for the reserved fee required to add the proxy and the execution fee for automationTime.
 
-3. Make sure you have 5 DEV in Moonbase, we will transfer some to Turing's proxy account and pay the execution fee.
+1. Make sure you have 5 DEV in Moonbase, we will transfer some to Turing's proxy account and pay the execution fee.
 
-4. Run the program to schedule automation and wait for cross-chain execution
-   ```
-   PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha
-   ```
+1. Run the program to schedule automation and wait for cross-chain execution
+	```
+	PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha
+	```
