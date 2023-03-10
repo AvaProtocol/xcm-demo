@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
-// import moment from 'moment';
+import moment from 'moment';
 import { hexToU8a, u8aToHex } from '@polkadot/util';
 
 import Account from '../common/account';
@@ -29,26 +29,33 @@ const sendXcmFromMoonbase = async ({
     paraTokenIdOnTuring, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
-    const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
+    const secondsInHour = 3600;
+    const millisecondsInHour = 3600 * 1000;
+    const currentTimestamp = moment().valueOf();
+    const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
+    const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleDynamicDispatchTask(
+        providedId,
+        {
+            Fixed: {
+                executionTimes: [nextExecutionTime],
+            },
+        },
+        turingHelper.api.tx.system.remarkWithEvent('Hello!!!'),
+    );
+    console.log(`Task extrinsic encoded call data: ${taskExtrinsic.method.toHex()}`);
 
+    // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
     const taskViaProxy = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
     const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
 
-    console.log(`Encoded call data: ${encodedTaskViaProxy}`);
+    console.log(`Proxy task extrinsic encoded call data: ${encodedTaskViaProxy}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
 
-    console.log(`\nc) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
+    console.log(`\nb) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
-    // const xcmpExtrinsic = parachainHelper.createTransactExtrinsic({
-    //     targetParaId: turingHelper.config.paraId,
-    //     encodedCall: encodedTaskViaProxy,
-    //     feePerSecond,
-    //     instructionWeight: TURING_INSTRUCTION_WEIGHT,
-    //     requireWeightAtMost,
-    //     proxyAccountId,
-    // });
 
     const instructionCount = 4;
     const totalInstructionWeight = instructionCount * TURING_INSTRUCTION_WEIGHT;
@@ -56,7 +63,7 @@ const sendXcmFromMoonbase = async ({
     const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND)).mul(new BN(10));
     const transactRequiredWeightAtMost = requireWeightAtMost + TURING_INSTRUCTION_WEIGHT;
     // const overallWeight = (instructionCount - 1) * TURING_INSTRUCTION_WEIGHT;
-    const overallWeight = 5170208000;
+    const overallWeight = 8170208000;
     console.log('transactRequiredWeightAtMost: ', transactRequiredWeightAtMost);
     console.log('overallWeight: ', overallWeight);
     console.log('fungible: ', fungible.toString());
@@ -95,6 +102,7 @@ const main = async () => {
     const turingChainName = turingHelper.config.key;
     const parachainName = moonbaseHelper.config.key;
 
+    console.log('\n1. Setup accounts on Moonbase and Turing');
     const AlithAccount = {
         name: 'Alith',
         privateKey: '0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133',
@@ -121,7 +129,7 @@ const main = async () => {
     console.log('proxyOnTuring: ', proxyOnTuring);
     const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
 
-    console.log('Transfer balance from Alith to Alice.');
+    console.log('\nTransfer balance from Alith to Alice.');
     await sendExtrinsic(
         moonbaseHelper.api,
         moonbaseHelper.api.tx.balances.transfer(moonbaseKeyPair.address, '2000000000000000000000'),
@@ -159,7 +167,7 @@ const main = async () => {
 
     if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
         // Transfer DEV from Moonbase to Turing
-        console.log('Transfer DEV from Moonbase to Turing');
+        console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
                 V1: {
