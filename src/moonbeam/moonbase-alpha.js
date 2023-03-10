@@ -5,7 +5,7 @@ import moment from 'moment';
 import { u8aToHex } from '@polkadot/util';
 
 import Account from '../common/account';
-import { TuringMoonbaseAlpha, MoonbaseAlpha } from '../config';
+import { TuringMoonbase, MoonbaseAlpha } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
@@ -93,7 +93,7 @@ const sendXcmFromMoonbase = async ({
 };
 
 const main = async () => {
-    const turingHelper = new TuringHelper(TuringMoonbaseAlpha);
+    const turingHelper = new TuringHelper(TuringMoonbase);
     await turingHelper.initialize();
 
     const moonbaseHelper = new MoonbaseHelper(MoonbaseAlpha);
