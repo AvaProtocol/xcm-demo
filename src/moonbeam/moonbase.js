@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
-import moment from 'moment';
+// import moment from 'moment';
 import { hexToU8a, u8aToHex } from '@polkadot/util';
 
 import Account from '../common/account';
@@ -20,6 +20,9 @@ const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 // const TASK_FREQUENCY = 3600;
 
+const CONTRACT_ADDRESS = '0x970951a12f975e6762482aca81e57d5a2a4e73f4';
+const CONTRACT_INPUT = '0xd09de08a';
+
 const WEIGHT_PER_SECOND = 1000000000000;
 
 const keyring = new Keyring({ type: 'sr25519' });
@@ -27,23 +30,98 @@ const keyring = new Keyring({ type: 'sr25519' });
 const sendXcmFromMoonbase = async ({
     turingHelper, parachainHelper, turingAddress,
     paraTokenIdOnTuring, keyPair,
+    // turingKeyPair,
 }) => {
-    console.log('\na). Create a payload to store in Turing’s task ...');
-    const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
-    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-    const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleDynamicDispatchTask(
-        providedId,
+    console.log('\na). Create an ethereumXcm.transactThroughProxy extrinsic ...');
+    const parachainProxyCall = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
+        keyPair.address,
         {
-            Fixed: {
-                executionTimes: [nextExecutionTime],
+            V2: {
+                gasLimit: 71000,
+                action: { Call: CONTRACT_ADDRESS },
+                value: 0,
+                input: CONTRACT_INPUT,
             },
         },
-        turingHelper.api.tx.system.remarkWithEvent('Hello!!!'),
     );
-    console.log(`Task extrinsic encoded call data: ${taskExtrinsic.method.toHex()}`);
+    // const parachainProxyCallFees = await parachainProxyCall.paymentInfo(keyPair.address);
+
+    console.log('\na). Create a payload to store in Turing’s task ...');
+    // const secondsInHour = 3600;
+    // const millisecondsInHour = 3600 * 1000;
+    // const currentTimestamp = moment().valueOf();
+    // const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
+    const xcmCall = turingHelper.api.tx.polkadotXcm.send(
+        {
+            V1: {
+                parents: 1,
+                interior: {
+                    X1: { Parachain: parachainHelper.config.paraId },
+                },
+            },
+        },
+        {
+            V2: [
+                {
+                    WithdrawAsset: [
+                        {
+                            id: {
+                                Concrete: {
+                                    parents: 0,
+                                    interior: { X1: { PalletInstance: 3 } },
+                                },
+                            },
+                            fun: { Fungible: new BN('100000000000000000') },
+                        },
+                    ],
+                },
+                {
+                    BuyExecution: {
+                        fees: {
+                            id: {
+                                Concrete: {
+                                    parents: 0,
+                                    interior: { X1: { PalletInstance: 3 } },
+                                },
+                            },
+                            fun: { Fungible: new BN('100000000000000000') },
+                        },
+                        weightLimit: 'Unlimited',
+                    },
+                },
+                {
+                    Transact: {
+                        originType: 'SovereignAccount',
+                        requireWeightAtMost: new BN('4000000000'),
+                        call: { encoded: parachainProxyCall.method.toHex() },
+                    },
+                },
+            ],
+        },
+    );
+
+    console.log('xcmCall: ', xcmCall.method.toHex());
+
+    // const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleDynamicDispatchTask(
+    //     providedId,
+    //     // { Fixed: { executionTimes: [nextExecutionTime] } },
+    //     { Fixed: { executionTimes: [0] } },
+    //     xcmCall,
+    //     // turingHelper.api.tx.system.remarkWithEvent('Hello!!!'),
+    //     // turingHelper.api.tx.balances.transfer('69NiyRvjQtQEGcQesiZgTyzHndUeGXZAaHYNgBGQtzhUg6R7', '123'),
+    // );
+    const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
+        providedId,
+        // { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
+        { Fixed: { executionTimes: [0] } },
+        parachainHelper.config.paraId,
+        0,
+        parachainProxyCall.method.toHex(),
+        '4000000000',
+    );
+
+    // console.log(`Task extrinsic encoded call data: ${taskExtrinsic.method.toHex()}`);
 
     // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
     const taskViaProxy = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
@@ -211,12 +289,40 @@ const main = async () => {
         console.log(`\nb) Proxy’s balance is ${freeBalanceOnTuring.toString()}, no need to top it up with reserve transfer ...`);
     }
 
+    console.log('\n3. One-time proxy setup on Moonbase');
+    console.log(`\na) Add a proxy for Alice If there is none setup on Moonbase (paraId:${moonbaseHelper.config.paraId})\n`);
+    const proxyTypeMoonbase = 'Any';
+    const proxiesOnMoonbase = await moonbaseHelper.getProxies(moonbaseKeyPair.address);
+    const proxyMatchMoonbase = _.find(proxiesOnMoonbase, { delegate: proxyOnTuring, proxyType: proxyTypeMoonbase });
+    const proxyOnMoonbase = '0xc3f91ea5c873ee4f4be432f11c670e7102674b39';
+    // const paraTokenIdOnMoonbase = (await turingHelper.api.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X2: [{ Parachain: moonbaseHelper.config.paraId }, { PalletInstance: 3 }] } }))
+    //     .unwrapOrDefault()
+    //     .toNumber();
+
+    if (proxyMatchMoonbase) {
+        console.log(`Proxy address ${proxyOnMoonbase} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeMoonbase} already exists; skipping creation ...`);
+    } else {
+        console.log(`Add a proxy of ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeMoonbase} on Turing ...\n Proxy address: ${proxyOnMoonbase}\n`);
+        await sendExtrinsic(moonbaseHelper.api, moonbaseHelper.api.tx.proxy.addProxy(proxyOnMoonbase, proxyTypeMoonbase, 0), moonbaseKeyPair);
+    }
+
+    console.log('\nb) Topping up the proxy account on Moonbase with DEV ...\n');
+    const topUpExtrinsic = moonbaseHelper.api.tx.balances.transfer(proxyOnMoonbase, new BN('100000000000000000000'));
+    await sendExtrinsic(moonbaseHelper.api, topUpExtrinsic, moonbaseKeyPair);
+
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
     console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
     await sendXcmFromMoonbase({
-        turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: moonbaseKeyPair, proxyAccountId,
+        turingHelper,
+        parachainHelper: moonbaseHelper,
+        turingAddress,
+        parachainAddress,
+        paraTokenIdOnTuring,
+        keyPair: moonbaseKeyPair,
+        // turingKeyPair: keyPair,
+        proxyAccountId,
     });
 };
 
