@@ -3,7 +3,7 @@ import Keyring from '@polkadot/keyring';
 import { u8aToHex } from '@polkadot/util';
 import { BN } from 'bn.js';
 
-import { getProxies } from './utils';
+import { getProxies, getProxyAccount } from './utils';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
@@ -25,33 +25,9 @@ class MoonbaseHelper {
         this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
     };
 
-    getProxyAccount = (publicKey, paraId) => {
-        const location = {
-            parents: 1, // from source parachain to target parachain
-            interior: {
-                X2: [
-                    { Parachain: paraId },
-                    {
-                        AccountKey20: {
-                            network: { Any: '' },
-                            key: publicKey,
-                        },
-                    },
-                ],
-            },
-        };
-
-        const multilocation = this.api.createType('XcmV1MultiLocation', location);
-
-        const toHash = new Uint8Array([
-            ...new Uint8Array([32]),
-            ...new TextEncoder().encode('multiloc'),
-            ...multilocation.toU8a(),
-        ]);
-
-        const DescendOriginAddress32 = u8aToHex(this.api.registry.hash(toHash).slice(0, 32));
-
-        return DescendOriginAddress32;
+    getProxyAccount = (address, paraId, options) => {
+        const { accountKey20 } = getProxyAccount(this.api, paraId, address, options);
+        return accountKey20;
     };
 
     getProxies = async (address) => getProxies(this.api, address);

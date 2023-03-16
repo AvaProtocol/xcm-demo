@@ -30,7 +30,6 @@ const keyring = new Keyring({ type: 'sr25519' });
 const sendXcmFromMoonbase = async ({
     turingHelper, parachainHelper, turingAddress,
     paraTokenIdOnTuring, keyPair,
-    // turingKeyPair,
 }) => {
     console.log('\na). Create an ethereumXcm.transactThroughProxy extrinsic ...');
     const parachainProxyCall = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
@@ -46,71 +45,12 @@ const sendXcmFromMoonbase = async ({
     );
     // const parachainProxyCallFees = await parachainProxyCall.paymentInfo(keyPair.address);
 
-    console.log('\na). Create a payload to store in Turing’s task ...');
+    console.log('\nb). Create a payload to store in Turing’s task ...');
     // const secondsInHour = 3600;
     // const millisecondsInHour = 3600 * 1000;
     // const currentTimestamp = moment().valueOf();
     // const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-    const xcmCall = turingHelper.api.tx.polkadotXcm.send(
-        {
-            V1: {
-                parents: 1,
-                interior: {
-                    X1: { Parachain: parachainHelper.config.paraId },
-                },
-            },
-        },
-        {
-            V2: [
-                {
-                    WithdrawAsset: [
-                        {
-                            id: {
-                                Concrete: {
-                                    parents: 0,
-                                    interior: { X1: { PalletInstance: 3 } },
-                                },
-                            },
-                            fun: { Fungible: new BN('100000000000000000') },
-                        },
-                    ],
-                },
-                {
-                    BuyExecution: {
-                        fees: {
-                            id: {
-                                Concrete: {
-                                    parents: 0,
-                                    interior: { X1: { PalletInstance: 3 } },
-                                },
-                            },
-                            fun: { Fungible: new BN('100000000000000000') },
-                        },
-                        weightLimit: 'Unlimited',
-                    },
-                },
-                {
-                    Transact: {
-                        originType: 'SovereignAccount',
-                        requireWeightAtMost: new BN('4000000000'),
-                        call: { encoded: parachainProxyCall.method.toHex() },
-                    },
-                },
-            ],
-        },
-    );
-
-    console.log('xcmCall: ', xcmCall.method.toHex());
-
-    // const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleDynamicDispatchTask(
-    //     providedId,
-    //     // { Fixed: { executionTimes: [nextExecutionTime] } },
-    //     { Fixed: { executionTimes: [0] } },
-    //     xcmCall,
-    //     // turingHelper.api.tx.system.remarkWithEvent('Hello!!!'),
-    //     // turingHelper.api.tx.balances.transfer('69NiyRvjQtQEGcQesiZgTyzHndUeGXZAaHYNgBGQtzhUg6R7', '123'),
-    // );
     const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
         // { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
@@ -120,8 +60,7 @@ const sendXcmFromMoonbase = async ({
         parachainProxyCall.method.toHex(),
         '4000000000',
     );
-
-    // console.log(`Task extrinsic encoded call data: ${taskExtrinsic.method.toHex()}`);
+    console.log(`Task extrinsic encoded call data: ${taskExtrinsic.method.toHex()}`);
 
     // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
     const taskViaProxy = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
@@ -132,7 +71,7 @@ const sendXcmFromMoonbase = async ({
     console.log(`Proxy task extrinsic encoded call data: ${encodedTaskViaProxy}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
 
-    console.log(`\nb) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
+    console.log(`\nc) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
 
     const instructionCount = 4;
@@ -150,15 +89,11 @@ const sendXcmFromMoonbase = async ({
         {
             V1: {
                 parents: 1,
-                interior: {
-                    X1: { Parachain: 2114 },
-                },
+                interior: { X1: { Parachain: 2114 } },
             },
         },
         {
-            currency: {
-                AsCurrencyId: 'SelfReserve',
-            },
+            currency: { AsCurrencyId: 'SelfReserve' },
             feeAmount: fungible,
         },
         encodedTaskViaProxy,
@@ -291,13 +226,11 @@ const main = async () => {
 
     console.log('\n3. One-time proxy setup on Moonbase');
     console.log(`\na) Add a proxy for Alice If there is none setup on Moonbase (paraId:${moonbaseHelper.config.paraId})\n`);
+    const proxyOnMoonbase = moonbaseHelper.getProxyAccount(turingAddress, turingHelper.config.paraId);
+    console.log('proxyOnMoonbase: ', proxyOnMoonbase);
     const proxyTypeMoonbase = 'Any';
     const proxiesOnMoonbase = await moonbaseHelper.getProxies(moonbaseKeyPair.address);
-    const proxyMatchMoonbase = _.find(proxiesOnMoonbase, { delegate: proxyOnTuring, proxyType: proxyTypeMoonbase });
-    const proxyOnMoonbase = '0xc3f91ea5c873ee4f4be432f11c670e7102674b39';
-    // const paraTokenIdOnMoonbase = (await turingHelper.api.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X2: [{ Parachain: moonbaseHelper.config.paraId }, { PalletInstance: 3 }] } }))
-    //     .unwrapOrDefault()
-    //     .toNumber();
+    const proxyMatchMoonbase = _.find(proxiesOnMoonbase, { delegate: proxyOnMoonbase, proxyType: proxyTypeMoonbase });
 
     if (proxyMatchMoonbase) {
         console.log(`Proxy address ${proxyOnMoonbase} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeMoonbase} already exists; skipping creation ...`);
@@ -321,7 +254,6 @@ const main = async () => {
         parachainAddress,
         paraTokenIdOnTuring,
         keyPair: moonbaseKeyPair,
-        // turingKeyPair: keyPair,
         proxyAccountId,
     });
 };

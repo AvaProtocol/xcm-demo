@@ -52,8 +52,8 @@ class MangataHelper {
     }
 
     getProxyAccount = (address, paraId) => {
-        const accountId = getProxyAccount(this.api, paraId, address);
-        return this.keyring.encodeAddress(accountId);
+        const { accountId32 } = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId32);
     };
 
     addProxy = async (proxyAccount, proxyType, keyPair) => sendExtrinsic(this.api, this.api.tx.proxy.addProxy(proxyAccount, proxyType, 0), keyPair);

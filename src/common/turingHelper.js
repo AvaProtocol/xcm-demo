@@ -73,8 +73,8 @@ class TuringHelper {
     });
 
     getProxyAccount = (address, paraId, options) => {
-        const accountId = getProxyAccount(this.api, paraId, address, options);
-        return this.keyring.encodeAddress(accountId);
+        const { accountId32 } = getProxyAccount(this.api, paraId, address, options);
+        return this.keyring.encodeAddress(accountId32);
     };
 
     getProxies = async (address) => getProxies(this.api, address);
