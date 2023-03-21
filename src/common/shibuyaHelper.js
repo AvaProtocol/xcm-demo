@@ -26,8 +26,8 @@ class ShibuyaHelper {
     getApi = () => this.api;
 
     getProxyAccount = (address, paraId) => {
-        const accountId = getProxyAccount(this.api, paraId, address);
-        return this.keyring.encodeAddress(accountId);
+        const { accountId32 } = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId32);
     };
 
     getProxies = async (address) => getProxies(this.api, address);
