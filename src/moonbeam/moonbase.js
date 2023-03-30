@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
-// import moment from 'moment';
+import moment from 'moment';
 import { hexToU8a, u8aToHex } from '@polkadot/util';
 
 import Account from '../common/account';
@@ -18,7 +18,7 @@ import {
 // It is defined as a UnitWeightCost variable in runtime.
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
-// const TASK_FREQUENCY = 3600;
+const TASK_FREQUENCY = 3600;
 
 const CONTRACT_ADDRESS = '0x970951a12f975e6762482aca81e57d5a2a4e73f4';
 const CONTRACT_INPUT = '0xd09de08a';
@@ -46,24 +46,27 @@ const sendXcmFromMoonbase = async ({
     // const parachainProxyCallFees = await parachainProxyCall.paymentInfo(keyPair.address);
 
     console.log('\nb). Create a payload to store in Turing’s task ...');
-    // const secondsInHour = 3600;
-    // const millisecondsInHour = 3600 * 1000;
-    // const currentTimestamp = moment().valueOf();
-    // const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+    const secondsInHour = 3600;
+    const millisecondsInHour = 3600 * 1000;
+    const currentTimestamp = moment().valueOf();
+    const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+    // const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-    const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
+    const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
         // { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
         { Fixed: { executionTimes: [0] } },
+        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
         parachainHelper.config.paraId,
         0,
         parachainProxyCall.method.toHex(),
         '4000000000',
+        turingAddress,
+        5,
     );
-    console.log(`Task extrinsic encoded call data: ${taskExtrinsic.method.toHex()}`);
+    console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
 
     // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
-    const taskViaProxy = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
     const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
