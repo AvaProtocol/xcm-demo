@@ -5,7 +5,7 @@ import moment from 'moment';
 import { hexToU8a, u8aToHex } from '@polkadot/util';
 
 import Account from '../common/account';
-import { TuringDev, MoonbaseDev } from '../config';
+import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
@@ -119,7 +119,7 @@ const main = async () => {
     const turingHelper = new TuringHelper(TuringDev);
     await turingHelper.initialize();
 
-    const moonbaseHelper = new MoonbaseHelper(MoonbaseDev);
+    const moonbaseHelper = new MoonbaseHelper(MoonbaseLocal);
     await moonbaseHelper.initialize();
 
     const turingChainName = turingHelper.config.key;
@@ -134,10 +134,12 @@ const main = async () => {
     const alithKeyPair = keyring.addFromSeed(hexToU8a(AlithAccount.privateKey), undefined, 'ethereum');
 
     const accountName = 'Alice';
+
     const parachainAccount = {
         name: accountName,
         privateKey: '0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a',
     };
+
     const moonbaseKeyPair = keyring.addFromSeed(hexToU8a(parachainAccount.privateKey), undefined, 'ethereum');
 
     const keyPair = keyring.addFromUri(`//${accountName}`, undefined, 'sr25519');
