@@ -3,13 +3,13 @@ import chalkPipe from 'chalk-pipe';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import moment from 'moment';
-import TuringHelper from './common/turingHelper';
-import ShibuyaHelper from './common/shibuyaHelper';
+import TuringHelper from '../common/turingHelper';
+import ShibuyaHelper from '../common/shibuyaHelper';
 import {
     sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat,
-} from './common/utils';
-import { TuringStaging, Rocstar } from './config';
-import Account from './common/account';
+} from '../common/utils';
+import { TuringStaging, Rocstar } from '../config';
+import Account from '../common/account';
 
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
@@ -49,7 +49,8 @@ const scheduleTask = async ({
         { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
         // { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
-        0,
+        4,
+        { V1: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
         encodedCallData,
         encodedCallWeight,
     );

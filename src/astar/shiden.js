@@ -50,7 +50,8 @@ const scheduleTask = async ({
         { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
         // { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
-        0,
+        4,
+        { V1: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
         encodedCallData,
         encodedCallWeight,
     );
