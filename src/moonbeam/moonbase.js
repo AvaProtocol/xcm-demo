@@ -58,11 +58,18 @@ const sendXcmFromMoonbase = async ({
         { Fixed: { executionTimes: [0] } },
         // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
         parachainHelper.config.paraId,
-        0,
+        5,
+        {
+            V1:
+            {
+                parents: 1,
+                interior:
+                { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] },
+            },
+        },
         parachainProxyCall.method.toHex(),
         '4000000000',
         turingAddress,
-        5,
     );
     console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
 
