@@ -110,6 +110,7 @@ async function main() {
         schedule,
         mangataHelper.config.paraId,
         0,
+        { V1: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
         encodedMangataProxyCall,
         parseInt(mangataProxyCallFees.weight.refTime, 10),
     );
