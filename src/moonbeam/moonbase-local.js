@@ -9,7 +9,7 @@ import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, getDecimalBN,
+    sendExtrinsic, getDecimalBN, bnToFloat,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -17,7 +17,6 @@ import {
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
-const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;
 
 const CONTRACT_ADDRESS = '0x970951a12f975e6762482aca81e57d5a2a4e73f4';
@@ -26,6 +25,18 @@ const CONTRACT_INPUT = '0xd09de08a';
 const WEIGHT_PER_SECOND = 1000000000000;
 
 const keyring = new Keyring({ type: 'sr25519' });
+
+// Alith is the default sodo wallet on Moonbase Local
+const MoonbaseAlith = {
+    name: 'Alith',
+    privateKey: '0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133',
+};
+
+// Alice is the default sodo wallet on Turing Dev
+const TuringAlice = {
+    name: 'Alice',
+    privateKey: '0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a',
+};
 
 const sendXcmFromMoonbase = async ({
     turingHelper, parachainHelper, turingAddress,
@@ -122,77 +133,69 @@ const main = async () => {
     const moonbaseHelper = new MoonbaseHelper(MoonbaseLocal);
     await moonbaseHelper.initialize();
 
-    const turingChainName = turingHelper.config.key;
-    const parachainName = moonbaseHelper.config.key;
+    const turingChainName = turingHelper.config.name;
+    const parachainName = moonbaseHelper.config.name;
+    const parachainToken = _.first(moonbaseHelper.config.assets);
+    const decimalBN = getDecimalBN(parachainToken.decimals);
 
-    console.log('\n1. Setup accounts on Moonbase and Turing');
-    const AlithAccount = {
-        name: 'Alith',
-        privateKey: '0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133',
-    };
+    console.log(`\n1. Setup accounts on ${parachainName} and ${turingChainName}`);
 
-    const alithKeyPair = keyring.addFromSeed(hexToU8a(AlithAccount.privateKey), undefined, 'ethereum');
+    const alithKeyPair = keyring.addFromSeed(hexToU8a(MoonbaseAlith.privateKey), undefined, 'ethereum');
+    const aliceKeyPair = keyring.addFromSeed(hexToU8a(TuringAlice.privateKey), undefined, 'ethereum');
 
-    const accountName = 'Alice';
+    console.log(`Reading token and balance of Alice account on ${turingChainName} ...`);
+    const keyPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
+    keyPair.meta.name = 'Alice';
 
-    const parachainAccount = {
-        name: accountName,
-        privateKey: '0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a',
-    };
-
-    const moonbaseKeyPair = keyring.addFromSeed(hexToU8a(parachainAccount.privateKey), undefined, 'ethereum');
-
-    const keyPair = keyring.addFromUri(`//${accountName}`, undefined, 'sr25519');
+    // TODO: Account should contain Address32, Address20 and its proxy address
     const account = new Account(keyPair);
-    account.name = accountName;
-
     await account.init([turingHelper]);
     account.print();
 
-    const turingAddress = account.getChainByName(turingChainName)?.address;
-    const proxyOnTuring = turingHelper.getProxyAccount(moonbaseKeyPair.address, moonbaseHelper.config.paraId, { addressType: 'Ethereum' });
-    console.log('proxyOnTuring: ', proxyOnTuring);
-    const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
+    const turingAddress = account.getChainByName(turingHelper.config.key)?.address;
+    const turingAddressETH = aliceKeyPair.address;
+    console.log('Turing wallet’s Ethereum address:', turingAddressETH);
 
-    console.log('\nTransfer balance from Alith to Alice.');
+    const topUpAmount = (new BN(1000).mul(decimalBN)).toString();
+
+    // TODO: add balance check and skip this transfer if balance is not lower than topUpAmount
+    console.log(`\nTransfer ${parachainToken.symbol} from Alith to Alice on ${parachainName}, if Alice’s balance is low. `);
     await sendExtrinsic(
         moonbaseHelper.api,
-        moonbaseHelper.api.tx.balances.transfer(moonbaseKeyPair.address, '2000000000000000000000'),
+        moonbaseHelper.api.tx.balances.transfer(aliceKeyPair.address, topUpAmount),
         alithKeyPair,
     );
 
-    const parachainAddress = moonbaseKeyPair.address;
-    console.log('moonbaseKeyPair.publicKey: ', u8aToHex(moonbaseKeyPair.publicKey));
-
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${moonbaseHelper.config.paraId})\n`);
+    const proxyOnTuring = turingHelper.getProxyAccount(aliceKeyPair.address, moonbaseHelper.config.paraId, { addressType: 'Ethereum' });
+    const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
+
     const proxyTypeTuring = 'Any';
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
     const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
 
+    if (proxyMatchTuring) {
+        console.log(`Proxy address ${proxyOnTuring} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeTuring} already exists; skipping creation ...`);
+    } else {
+        console.log(`Add a proxy for ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeTuring} on Turing ...\nProxy address: ${proxyOnTuring}\n`);
+        await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, proxyTypeTuring, 0), keyPair);
+    }
+
+    // Reserve transfer DEV to the proxy account on Turing
+    console.log(`\nb) Reserve transfer ${parachainToken.symbol} to the proxy account on Turing ...`);
+    const minBalanceOnTuring = new BN(100).mul(decimalBN);
+
+    // TODO: 1. the location of Moonbase token should be defined in src/config/moonbase-local
+    //      2. wrap this locationToAssetId call to turingHelper.locationToAssetId(location)
     const paraTokenIdOnTuring = (await turingHelper.api.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X2: [{ Parachain: moonbaseHelper.config.paraId }, { PalletInstance: 3 }] } }))
         .unwrapOrDefault()
         .toNumber();
 
-    if (proxyMatchTuring) {
-        console.log(`Proxy address ${proxyOnTuring} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeTuring} already exists; skipping creation ...`);
-    } else {
-        console.log(`Add a proxy of ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeTuring} on Turing ...\n Proxy address: ${proxyOnTuring}\n`);
-        await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, proxyTypeTuring, 0), keyPair);
-    }
+    const proxyOnTuringBalance = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
 
-    const parachainTokenDecimals = 18;
-    const decimalBN = getDecimalBN(parachainTokenDecimals);
-
-    // Reserve transfer DEV to the proxy account on Turing
-    console.log('\nb) Reserve transfer DEV to the proxy account on Turing ...');
-    const minBalanceOnTuring = new BN(MIN_BALANCE_IN_PROXY).mul(decimalBN);
-    console.log('paraTokenIdOnTuring: ', paraTokenIdOnTuring);
-    const paraTokenbalanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
-    console.log('paraTokenbalanceOnTuring.free: ', paraTokenbalanceOnTuring.free.toString());
-
-    if (paraTokenbalanceOnTuring.free.lt(minBalanceOnTuring)) {
-        // Transfer DEV from Moonbase to Turing
+    // Transfer DEV from Moonbase to Turing
+    if (proxyOnTuringBalance.free.lt(minBalanceOnTuring)) {
         console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
@@ -206,7 +209,7 @@ const main = async () => {
                         },
                     },
                     fun: {
-                        Fungible: '1000000000000000000000',
+                        Fungible: topUpAmount,
                     },
                 },
             },
@@ -230,10 +233,10 @@ const main = async () => {
             },
             'Unlimited',
         );
-        await sendExtrinsic(moonbaseHelper.api, extrinsic, moonbaseKeyPair);
+        await sendExtrinsic(moonbaseHelper.api, extrinsic, aliceKeyPair);
     } else {
-        const freeBalanceOnTuring = (new BN(paraTokenbalanceOnTuring.free)).div(decimalBN);
-        console.log(`\nb) Proxy’s balance is ${freeBalanceOnTuring.toString()}, no need to top it up with reserve transfer ...`);
+        const freeBalanceOnTuring = (new BN(proxyOnTuringBalance.free)).div(decimalBN);
+        console.log(`Proxy’s balance is ${freeBalanceOnTuring.toString()}, no need to top it up with reserve transfer ...`);
     }
 
     console.log('\n3. One-time proxy setup on Moonbase');
@@ -241,21 +244,21 @@ const main = async () => {
     const proxyOnMoonbase = moonbaseHelper.getProxyAccount(turingAddress, turingHelper.config.paraId);
     console.log('proxyOnMoonbase: ', proxyOnMoonbase);
     const proxyTypeMoonbase = 'Any';
-    const proxiesOnMoonbase = await moonbaseHelper.getProxies(moonbaseKeyPair.address);
+    const proxiesOnMoonbase = await moonbaseHelper.getProxies(aliceKeyPair.address);
     const proxyMatchMoonbase = _.find(proxiesOnMoonbase, { delegate: proxyOnMoonbase, proxyType: proxyTypeMoonbase });
 
     if (proxyMatchMoonbase) {
         console.log(`Proxy address ${proxyOnMoonbase} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeMoonbase} already exists; skipping creation ...`);
     } else {
-        console.log(`Add a proxy of ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeMoonbase} on Turing ...\n Proxy address: ${proxyOnMoonbase}\n`);
-        await sendExtrinsic(moonbaseHelper.api, moonbaseHelper.api.tx.proxy.addProxy(proxyOnMoonbase, proxyTypeMoonbase, 0), moonbaseKeyPair);
+        console.log(`Add a proxy of ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeMoonbase} on Turing ...\nProxy address: ${proxyOnMoonbase}\n`);
+        await sendExtrinsic(moonbaseHelper.api, moonbaseHelper.api.tx.proxy.addProxy(proxyOnMoonbase, proxyTypeMoonbase, 0), aliceKeyPair);
     }
 
-    console.log('\nb) Topping up the proxy account on Moonbase with DEV ...\n');
-    const topUpExtrinsic = moonbaseHelper.api.tx.balances.transfer(proxyOnMoonbase, new BN('100000000000000000000'));
-    await sendExtrinsic(moonbaseHelper.api, topUpExtrinsic, moonbaseKeyPair);
+    console.log(`\nb) Topping up the proxy account on ${parachainName} with ${parachainToken.symbol} ...\n`);
+    const topUpExtrinsic = moonbaseHelper.api.tx.balances.transfer(proxyOnMoonbase, topUpAmount);
+    await sendExtrinsic(moonbaseHelper.api, topUpExtrinsic, aliceKeyPair);
 
-    console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
+    console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${turingAddressETH}`);
 
     console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
@@ -263,11 +266,13 @@ const main = async () => {
         turingHelper,
         parachainHelper: moonbaseHelper,
         turingAddress,
-        parachainAddress,
+        turingAddressETH,
         paraTokenIdOnTuring,
-        keyPair: moonbaseKeyPair,
+        keyPair: aliceKeyPair,
         proxyAccountId,
     });
+
+    // TODO: need to add event verification of the ethereum execution
 };
 
 main().catch(console.error).finally(() => {
