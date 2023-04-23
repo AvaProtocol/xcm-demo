@@ -12,7 +12,7 @@
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |
+| Polkadot      | [0.9.36](https://github.com/paritytech/polkadot/releases/tag/v0.9.36)       |
 | OAK-blockchain   | [1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)     |
 | Mangata | [0.29.0](https://github.com/mangata-finance/mangata-node/releases/tag/v0.29.0)   |
 ### Steps
