@@ -5,17 +5,9 @@ This is the Ethereum smart contracts for testing.
 Read about:
 https://docs.moonbeam.network/builders/build/eth-api/dev-env/hardhat/
 
-## Configuration
-
-Please configure your private key to the secrets.json file in the root directory.
-
-```
-{
-	"privateKey": "YOUR-PRIVATE-KEY-HERE"
-}
-```
-
 ## Deploy
+
+The default sudo wallet of Moonbase Local Alith is used to deploy a smart contract. Run the below commands to deploy a smart contract to Moonbase Local.
 
 ```
 npm install
