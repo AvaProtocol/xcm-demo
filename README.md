@@ -316,17 +316,17 @@ The local environment of Moonbeam is named Moonbase Local in its chain config.
 The default staging environment of Moonbeam is Moonbase Alpha, since Moonbeam doesn’t have a parachain set up on Rococo.
 
 1. First, we will need to set up wallets for the transactions in this demo.
-   1. Assuming you have a wallet created and imported to both Moonbase Turing and Moonbase Alpha’s polkadot.js dashboard.
-   2. Export a json file from Moonbase Turing‘s dashboard, name it `seed.json` and place it in the ./private folder.
+   1. Assuming you have a wallet created and imported to both Turing Moonbase and Moonbase Alpha’s polkadot.js dashboard.
+   2. Export a json file from Turing Moonbase‘s dashboard, name it `seed.json` and place it in the ./private folder.
    3. Export a json file from Moonbase Alpha’s dashboard, name it `seed-eth.json` and place it in the ./private folder. Please note that the account exported should be an Ethereum account.  
 
   > How to add a polkadot account to Moonbase Alpha: https://docs.moonbeam.network/tokens/connect/polkadotjs/
 
-1. Make sure your wallet is topped up with 25 TUR on Moonbase Turing for fees required to set up a proxy wallet and task execution.
+1. Make sure your wallet is topped up with 25 TUR on Turing Moonbase for fees required to set up a proxy wallet and task execution.
 
 2. Make sure your wallet is topped up with 5 DEV on Moonbase Alpha for fees required to set up a proxy wallet and execute task scheduling.
 
-3. Run the below command to kick off the demo. The <PASS_PHRASE> is your password to unlock the wallet on Moonbase Turing, and the <PASS_PHRASE_ETH> is your password to unlock the ethereum wallet on Moonbase Alpha.
+3. Run the below command to kick off the demo. The <PASS_PHRASE> is your password to unlock the wallet on Turing Moonbase, and the <PASS_PHRASE_ETH> is your password to unlock the ethereum wallet on Moonbase Alpha.
 	```
 	PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha
 	```
