@@ -14,3 +14,5 @@ npm install
 npx hardhat compile
 npx hardhat run scripts/deploy.js
 ```
+
+The commands, if successful, will print out the newly deployed smart contract. Take the Incrementer contract’s Ethereum address, and set the value to CONTRACT_ADDRESS in the beginning of src/moonbeam/moonbase-local.js. You do not need to change the value CONTRACT_INPUT;

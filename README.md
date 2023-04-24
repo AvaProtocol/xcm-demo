@@ -312,6 +312,11 @@ The local environment of Moonbeam is named Moonbase Local in its chain config.
     npx hardhat run scripts/deploy.js   # Deploy smart contract to Moonbase
     ```
 
+    The commands, if successful, will print out the newly deployed smart contract. Take the Incrementer contract’s Ethereum address, and set the value to CONTRACT_ADDRESS in the beginning of src/moonbeam/moonbase-local.js. You do not need to change the value CONTRACT_INPUT;
+    ```
+    Incrementer deployed to:  0x711F8F079b0BB4D16bd8C5D049358d31a1694755
+    ```
+
 #### Moonbase Alpha environment
 The default staging environment of Moonbeam is Moonbase Alpha, since Moonbeam doesn’t have a parachain set up on Rococo.
 
