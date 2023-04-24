@@ -12,9 +12,9 @@
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
-| OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.8.0)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
-| Mangata | [0.27.1](https://github.com/mangata-finance/mangata-node/releases/tag/v0.27.1)   | [f545791](https://github.com/OAK-Foundation/mangata-node/tree/ac60aeb51ea2c3545fc60c8b90f6bc65077ba10c)(a fork of 0.27.1 which added Alice as Sudo to create pools and mint tokens for setup)        |
+| Polkadot      | [0.9.36](https://github.com/paritytech/polkadot/releases/tag/v0.9.36)       |
+| OAK-blockchain   | [1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)     |
+| Mangata | [0.29.0](https://github.com/mangata-finance/mangata-node/releases/tag/v0.29.0)   |
 ### Steps
 #### Local dev environment
 
@@ -165,9 +165,9 @@ Task: {
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
-| OAK-blockchain   | [1.8.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-2aecbd94ab4bcde05657)     |	[d04462](https://github.com/OAK-Foundation/OAK-blockchain/pull/328/commits/d044a62825746e6dd8b7593a6c7dfb9eefcac308)  |
-| Astar | x   | [523c067](https://github.com/AstarNetwork/Astar/commit/523c06798a08189a3ea20f790b83cd4ae602c579)        |
+| Polkadot      | [v0.9.39](https://github.com/paritytech/polkadot/releases/tag/v0.9.39)      |
+| OAK-blockchain   | [v1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)   |
+| Astar | [v5.0.1](https://github.com/AstarNetwork/Astar/releases/tag/v5.0.1) |
 ### Steps
 #### Local dev environment
 1. Launch OAK-blockchain, Rococo and Shibuya.
