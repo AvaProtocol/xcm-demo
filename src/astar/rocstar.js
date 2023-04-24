@@ -44,7 +44,7 @@ const scheduleTask = async ({
     const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
-    const taskExtrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTask(
+    const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
         { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
         // { Fixed: { executionTimes: [0] } },
@@ -55,7 +55,6 @@ const scheduleTask = async ({
         encodedCallWeight,
     );
 
-    const taskViaProxy = turingHelper.api.tx.proxy.proxy(turingAddress, 'Any', taskExtrinsic);
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
     const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
