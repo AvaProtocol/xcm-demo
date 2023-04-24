@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
-import moment from 'moment';
+// import moment from 'moment';
 import { hexToU8a, u8aToHex } from '@polkadot/util';
 
 import Account from '../common/account';
@@ -18,7 +18,7 @@ import {
 // It is defined as a UnitWeightCost variable in runtime.
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
-const TASK_FREQUENCY = 3600;
+// const TASK_FREQUENCY = 3600;
 
 const CONTRACT_ADDRESS = '0x970951a12f975e6762482aca81e57d5a2a4e73f4';
 const CONTRACT_INPUT = '0xd09de08a';
@@ -46,10 +46,10 @@ const sendXcmFromMoonbase = async ({
     // const parachainProxyCallFees = await parachainProxyCall.paymentInfo(keyPair.address);
 
     console.log('\nb). Create a payload to store in Turing’s task ...');
-    const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+    // const secondsInHour = 3600;
+    // const millisecondsInHour = 3600 * 1000;
+    // const currentTimestamp = moment().valueOf();
+    // const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     // const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
@@ -58,7 +58,7 @@ const sendXcmFromMoonbase = async ({
         { Fixed: { executionTimes: [0] } },
         // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
         parachainHelper.config.paraId,
-        5,
+        paraTokenIdOnTuring,
         {
             V1:
             {
@@ -97,7 +97,7 @@ const sendXcmFromMoonbase = async ({
 
     const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
         {
-            V1: {
+            V2: {
                 parents: 1,
                 interior: { X1: { Parachain: 2114 } },
             },
@@ -107,7 +107,16 @@ const sendXcmFromMoonbase = async ({
             feeAmount: fungible,
         },
         encodedTaskViaProxy,
-        { transactRequiredWeightAtMost, overallWeight },
+        {
+            transactRequiredWeightAtMost: {
+                refTime: transactRequiredWeightAtMost,
+                proofSize: 0,
+            },
+            overallWeight: {
+                refTime: overallWeight,
+                proofSize: 0,
+            },
+        },
     );
 
     console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
@@ -194,7 +203,7 @@ const main = async () => {
         console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
-                V1: {
+                V2: {
                     id: {
                         Concrete: {
                             parents: 0,
@@ -209,7 +218,7 @@ const main = async () => {
                 },
             },
             {
-                V1: {
+                V2: {
                     parents: 1,
                     interior: {
                         X2: [
