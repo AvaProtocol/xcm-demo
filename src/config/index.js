@@ -9,7 +9,7 @@ import Shibuya from './shibuya';
 import Rocstar from './rocstar';
 import Shiden from './shiden';
 
-import MoonbaseDev from './moonbase-dev';
+import MoonbaseLocal from './moonbase-local';
 import MoonbaseAlpha from './moonbase-alpha';
 
 import TuringDev from './turing-dev';
@@ -22,5 +22,5 @@ export {
     MangataDev, MangataRococo, Mangata,
     TuringDev, Turing, TuringStaging, TuringMoonbase,
     Shibuya, Rocstar, Shiden,
-    MoonbaseDev, MoonbaseAlpha,
+    MoonbaseLocal, MoonbaseAlpha,
 };
