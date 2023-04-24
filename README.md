@@ -283,7 +283,7 @@ npm run rocstar
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
+| Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
 | OAK-blockchain   | [v1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)     |
 | Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
 ### Steps
