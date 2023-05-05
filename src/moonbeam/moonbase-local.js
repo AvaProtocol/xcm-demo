@@ -71,7 +71,7 @@ const sendXcmFromMoonbase = async ({
         parachainHelper.config.paraId,
         5,
         {
-            V1:
+            V2:
             {
                 parents: 1,
                 interior:
@@ -87,7 +87,7 @@ const sendXcmFromMoonbase = async ({
     // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
+    const requireWeightAtMost = parseInt(taskViaProxyFees.weight.refTime, 10);
 
     console.log(`Proxy task extrinsic encoded call data: ${encodedTaskViaProxy}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
@@ -108,7 +108,7 @@ const sendXcmFromMoonbase = async ({
 
     const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
         {
-            V1: {
+            V2: {
                 parents: 1,
                 interior: { X1: { Parachain: 2114 } },
             },
@@ -118,7 +118,16 @@ const sendXcmFromMoonbase = async ({
             feeAmount: fungible,
         },
         encodedTaskViaProxy,
-        { transactRequiredWeightAtMost, overallWeight },
+        {
+            transactRequiredWeightAtMost: {
+                refTime: transactRequiredWeightAtMost,
+                proofSize: 0,
+            },
+            overallWeight: {
+                refTime: overallWeight,
+                proofSize: 0,
+            },
+        },
     );
 
     console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
@@ -199,7 +208,7 @@ const main = async () => {
         console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
-                V1: {
+                V2: {
                     id: {
                         Concrete: {
                             parents: 0,
@@ -214,7 +223,7 @@ const main = async () => {
                 },
             },
             {
-                V1: {
+                V2: {
                     parents: 1,
                     interior: {
                         X2: [
