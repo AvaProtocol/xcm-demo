@@ -165,7 +165,7 @@ const main = async () => {
     const turingAddressETH = aliceKeyPair.address;
     console.log('Turing wallet’s Ethereum address:', turingAddressETH);
 
-    const topUpAmount = (new BN(1000).mul(decimalBN)).toString();
+    const topUpAmount = (new BN(1000000).mul(decimalBN)).toString();
 
     // TODO: add balance check and skip this transfer if balance is not lower than topUpAmount
     console.log(`\nTransfer ${parachainToken.symbol} from Alith to Alice on ${parachainName}, if Alice’s balance is low. `);
@@ -204,6 +204,7 @@ const main = async () => {
     const proxyOnTuringBalance = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
 
     // Transfer DEV from Moonbase to Turing
+    const topUpAmountToTuring = (new BN(1000).mul(decimalBN)).toString();
     if (proxyOnTuringBalance.free.lt(minBalanceOnTuring)) {
         console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
@@ -218,7 +219,7 @@ const main = async () => {
                         },
                     },
                     fun: {
-                        Fungible: topUpAmount,
+                        Fungible: topUpAmountToTuring,
                     },
                 },
             },
@@ -264,7 +265,8 @@ const main = async () => {
     }
 
     console.log(`\nb) Topping up the proxy account on ${parachainName} with ${parachainToken.symbol} ...\n`);
-    const topUpExtrinsic = moonbaseHelper.api.tx.balances.transfer(proxyOnMoonbase, topUpAmount);
+    const topUpAmountToProxy = (new BN(1000).mul(decimalBN)).toString();
+    const topUpExtrinsic = moonbaseHelper.api.tx.balances.transfer(proxyOnMoonbase, topUpAmountToProxy);
     await sendExtrinsic(moonbaseHelper.api, topUpExtrinsic, aliceKeyPair);
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${turingAddressETH}`);
