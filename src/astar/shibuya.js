@@ -226,23 +226,23 @@ const main = async () => {
 
     console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, decimalBN))} ${symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, decimalBN))} ${symbol}.`);
 
-    // console.log('\n5. Cancel the task ...');
-    // const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
-    // await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
+    console.log('\n5. Cancel the task ...');
+    const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
+    await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
-    // const nextExecutionTime = executionTime + TASK_FREQUENCY;
-    // const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+    const nextExecutionTime = executionTime + TASK_FREQUENCY;
+    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
 
-    // console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
+    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
 
-    // const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
+    const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
 
-    // if (isTaskExecutedAgain) {
-    //     console.log('Task cancellation failed! It executes again.');
-    //     return;
-    // }
+    if (isTaskExecutedAgain) {
+        console.log('Task cancellation failed! It executes again.');
+        return;
+    }
 
-    // console.log("Task canceled successfully! It didn't execute again.");
+    console.log("Task canceled successfully! It didn't execute again.");
 };
 
 main().catch(console.error).finally(() => {
