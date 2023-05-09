@@ -152,7 +152,7 @@ const main = async () => {
 
     if (proxyBalance.free.lt(minBalance)) {
         console.log(`\nTopping up the proxy account on Shibuya with ${symbol} ...\n`);
-        const amount = new BN(1000, 10);
+        const amount = new BN(MIN_BALANCE_IN_PROXY * 2, 10);
         const amountBN = amount.mul(decimalBN);
         const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, amountBN.toString());
         await sendExtrinsic(shibuyaHelper.api, topUpExtrinsic, keyPair);
@@ -161,7 +161,9 @@ const main = async () => {
         proxyBalance = await shibuyaHelper.getBalance(proxyOnParachain);
     }
 
-    console.log(`\nb) Proxy’s balance on ${parachainName} is ${chalkPipe('green')(bnToFloat(proxyBalance.free, decimalBN))} ${symbol}.`);
+    const beginProxyBalance = bnToFloat(proxyBalance.free, decimalBN);
+    const beginProxyBalanceColor = beginProxyBalance === 0 ? 'red' : 'green';
+    console.log(`\nb) Proxy’s balance on ${parachainName} is ${chalkPipe(beginProxyBalanceColor)(beginProxyBalance)} ${symbol}.`);
 
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${shibuyaHelper.config.paraId})\n`);
@@ -185,7 +187,7 @@ const main = async () => {
 
     if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
         console.log(`\nTopping up the proxy account on ${turingChainName} via reserve transfer ...`);
-        const topUpAmount = new BN(1000, 10);
+        const topUpAmount = new BN(MIN_BALANCE_IN_PROXY * 2, 10);
         const topUpAmountBN = topUpAmount.mul(decimalBN);
         const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(turingHelper.config.paraId, proxyAccountId, topUpAmountBN);
         await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
@@ -193,7 +195,9 @@ const main = async () => {
         balanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
     }
 
-    console.log(`\nb) Proxy’s balance on ${turingChainName} is ${bnToFloat(balanceOnTuring.free, decimalBN)} ${symbol}.`);
+    const beginBalanceTuring = bnToFloat(balanceOnTuring.free, decimalBN);
+    const beginBalanceTuringColor = beginBalanceTuring === 0 ? 'red' : 'green';
+    console.log(`\nb) Proxy’s balance on ${turingChainName} is ${chalkPipe(beginBalanceTuringColor)(beginBalanceTuring)} ${symbol}.`);
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
@@ -237,6 +241,7 @@ const main = async () => {
         console.log('Task cancellation failed! It executes again.');
         return;
     }
+
     console.log("Task canceled successfully! It didn't execute again.");
 };
 
