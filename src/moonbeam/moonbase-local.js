@@ -9,7 +9,7 @@ import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, getDecimalBN, bnToFloat,
+    sendExtrinsic, getDecimalBN, bnToFloat, listenEvents,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -23,6 +23,8 @@ const CONTRACT_ADDRESS = '0x970951a12f975e6762482aca81e57d5a2a4e73f4';
 const CONTRACT_INPUT = '0xd09de08a';
 
 const WEIGHT_PER_SECOND = 1000000000000;
+
+const millisecondsInHour = 3600 * 1000;
 
 const keyring = new Keyring({ type: 'sr25519' });
 
@@ -58,7 +60,6 @@ const sendXcmFromMoonbase = async ({
 
     console.log('\nb). Create a payload to store in Turing’s task ...');
     const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     // const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
@@ -133,6 +134,11 @@ const sendXcmFromMoonbase = async ({
     console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
 
     await sendExtrinsic(parachainHelper.api, transactExtrinsic, keyPair);
+
+    // Get a TaskId from Turing rpc
+    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
+
+    return { providedId, taskId };
 };
 
 const main = async () => {
@@ -273,7 +279,7 @@ const main = async () => {
 
     console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
-    await sendXcmFromMoonbase({
+    const { providedId, taskId } = await sendXcmFromMoonbase({
         turingHelper,
         parachainHelper: moonbaseHelper,
         turingAddress,
@@ -283,7 +289,19 @@ const main = async () => {
         proxyAccountId,
     });
 
-    // TODO: need to add event verification of the ethereum execution
+    // Listen XCM events on Mangata side
+    const additionalWaitingTime = 5 * 60 * 1000;
+    const currentTimestamp = moment().valueOf();
+    const executionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) + millisecondsInHour;
+    console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(executionTime).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    const timeout = executionTime - currentTimestamp + additionalWaitingTime;
+    const isTaskExecuted = await listenEvents(moonbaseHelper.api, 'ethereum', 'Executed', timeout);
+    if (!isTaskExecuted) {
+        console.log('Timeout! Task was not executed.');
+        return;
+    }
+
+    console.log('Task has been executed!');
 };
 
 main().catch(console.error).finally(() => {
