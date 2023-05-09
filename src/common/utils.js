@@ -107,7 +107,8 @@ export function formatNumberThousands(num) {
     return `${decimalStr}${period}${floatStr}`;
 }
 
-export const getProxyAccount = (api, sourceParaId, address, { addressType } = { addressType: 'Substrate'}) => {
+export const getProxyAccount = (api, sourceParaId, address, { addressType, multiLocationType } = { addressType: 'Substrate' }) => {
+    const locationType = multiLocationType || 'XcmV2MultiLocation';
     const network = 'Any';
     const account = addressType === 'Ethereum'
         ? { AccountKey20: { network, key: address } }
@@ -123,7 +124,7 @@ export const getProxyAccount = (api, sourceParaId, address, { addressType } = { 
         },
     };
 
-    const multilocation = api.createType('XcmV1MultiLocation', location);
+    const multilocation = api.createType(locationType, location);
 
     const toHash = new Uint8Array([
         ...new Uint8Array([32]),
@@ -131,9 +132,10 @@ export const getProxyAccount = (api, sourceParaId, address, { addressType } = { 
         ...multilocation.toU8a(),
     ]);
 
-    const DescendOriginAddress32 = u8aToHex(api.registry.hash(toHash).slice(0, 32));
-
-    return DescendOriginAddress32;
+    return {
+        accountId32: u8aToHex(api.registry.hash(toHash).slice(0, 32)),
+        accountKey20: u8aToHex(api.registry.hash(toHash).slice(0, 20)),
+    };
 };
 
 /**

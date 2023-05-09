@@ -279,66 +279,59 @@ Run the program to schedule automation and wait for cross-chain execution
 npm run rocstar
 ```
 
-## Moonbase Auto-restake Demo
+## Moonbeam EVM smart contract automation
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.29](https://github.com/paritytech/polkadot/releases/tag/v0.9.29)       |		[94078b4](https://github.com/paritytech/polkadot/commit/94078b44fb6c9767bf60ffcaaa3be40681be5a76)  |
-| OAK-blockchain   | [master](https://github.com/OAK-Foundation/OAK-blockchain/tree/master)     |	[8928515](https://github.com/OAK-Foundation/OAK-blockchain/commit/89285157f9d96061d29926ee2117fb92df4222d6)  |
-| Moonbeam | [runtime-2201](https://github.com/PureStake/moonbeam/releases/tag/runtime-2201)   | [483f51e](https://github.com/PureStake/moonbeam/commit/483f51e8c2574732c97634c20345433a74c93fd5)        |
+| Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
+| OAK-blockchain   | [v1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)     |
+| Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
 ### Steps
 #### Local dev environment
-1. Launch OAK-blockchain, Rococo and Moonbase.
+The local environment of Moonbeam is named Moonbase Local in its chain config.
 
-	Launch zombie in OAK-blockchain project root with Moonbase and Turing.
-
-	```
-	zombie spawn zombienets/turing/moonbase.toml
-	```
-
-1. Deploy the smart contract to Moonbase.
-
-	Please configure your wallet private key to the secrets.json file in the root directory.
+1. Launch Rococo Local, Turing Dev and Moonbase Local with zombienet. The zombienet config file is located at [OAK-blockchain repo](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/zombienets/turing/moonbase.toml). Assuming you are at OAK-blockchain’s root folder, run the below command to spin up the networks.
 
 	```
-	{
-		"privateKey": "YOUR-WALLET-PRIVATE-KEY-HERE"
-	}
+	zombienet spawn zombienets/turing/moonbase.toml
 	```
 
-	Run the command below to deploy the contract.
-
-	```
-	cd src/moonbeam/contracts
-	# Install dependencies
-	npm install
-	# Compile smart contract
-	npx hardhat compile
-	# Deploy smart contract to Moonbase
-	npx hardhat run scripts/deploy.js
-	cd ../../..
-	```
-
-1. Run the program to schedule automation and wait for cross-chain execution
+2. Run this program to schedule automation and wait for cross-chain execution
 	```
 	npm run moonbase
 	```
 
-#### Moonbase alpha environment
-1. Place seed.json(for Turing) and seed-eth.json(for Moonbase) in 'private' folder.
+3. The above step outlines the process of XCM automation with Moonbase Local. Upon completing the program, an 'ethereum.executed' event from Moonbase Local will be emitted. However, the event will exit with an EvmCoreErrorExitReason, which occurs because a smart contract has not been deployed yet. To successfully demonstrate smart contract automation, please follow the subsequent steps to set up a test smart contract.
 
-The seed.json file is exported from the polkadot.js browser plugin.
+    The default sudo wallet of Moonbase Local Alith is used to deploy a smart contract. Run the below commands to deploy a smart contract to Moonbase Local.
 
-The seed-eth.json file is downloaded after adding an account in the polkdot.js apps page of Moonbase.
+    ```
+    cd src/moonbeam/contracts
+    npm install
+    npx hardhat compile   # Compile smart contract
+    npx hardhat run scripts/deploy.js   # Deploy smart contract to Moonbase
+    ```
 
-How to add Moonbase alpha account:
-https://docs.moonbeam.network/tokens/connect/polkadotjs/
+    The commands, if successful, will print out the newly deployed smart contract. Take the Incrementer contract’s Ethereum address, and set the value to CONTRACT_ADDRESS in the beginning of src/moonbeam/moonbase-local.js. You do not need to change the value CONTRACT_INPUT;
+    ```
+    Incrementer deployed to:  0x711F8F079b0BB4D16bd8C5D049358d31a1694755
+    ```
 
-1. Make sure you have 25 TUR in Turing for the reserved fee required to add the proxy and the execution fee for automationTime.
+#### Moonbase Alpha environment
+The default staging environment of Moonbeam is Moonbase Alpha, since Moonbeam doesn’t have a parachain set up on Rococo.
 
-1. Make sure you have 5 DEV in Moonbase, we will transfer some to Turing's proxy account and pay the execution fee.
+1. First, we will need to set up wallets for the transactions in this demo.
+   1. Assuming you have a wallet created and imported to both Turing Moonbase and Moonbase Alpha’s polkadot.js dashboard.
+   2. Export a json file from Turing Moonbase‘s dashboard, name it `seed.json` and place it in the ./private folder.
+   3. Export a json file from Moonbase Alpha’s dashboard, name it `seed-eth.json` and place it in the ./private folder. Please note that the account exported should be an Ethereum account.  
 
-1. Run the program to schedule automation and wait for cross-chain execution
+  > How to add a polkadot account to Moonbase Alpha: https://docs.moonbeam.network/tokens/connect/polkadotjs/
+
+1. Make sure your wallet is topped up with 25 TUR on Turing Moonbase for fees required to set up a proxy wallet and task execution.
+
+2. Make sure your wallet is topped up with 5 DEV on Moonbase Alpha for fees required to set up a proxy wallet and execute task scheduling.
+
+3. Run the below command to kick off the demo. The <PASS_PHRASE> is your password to unlock the wallet on Turing Moonbase, and the <PASS_PHRASE_ETH> is your password to unlock the ethereum wallet on Moonbase Alpha.
 	```
 	PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha
 	```

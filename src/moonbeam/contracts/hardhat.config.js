@@ -1,8 +1,8 @@
-// 1. Import the Ethers plugin required to interact with the contract
+// Import the Ethers plugin required to interact with the contract
 require('@nomiclabs/hardhat-ethers');
 
-// 2. Import your private key from your pre-funded Moonbase Alpha testing account
-const { privateKey } = require('./secrets.json');
+// Alith’s private key. Alith is one of the default sudo wallet on Moonbase Local.
+const PRIVATE_KEY = '0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133';
 
 module.exports = {
     solidity: '0.8.18',
@@ -10,7 +10,7 @@ module.exports = {
         'moonbase-local': {
             url: 'http://127.0.0.1:9949',
             chainId: 1280,
-            accounts: [privateKey],
+            accounts: [PRIVATE_KEY],
         },
     },
     defaultNetwork: 'moonbase-local',

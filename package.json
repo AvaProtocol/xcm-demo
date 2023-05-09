@@ -8,7 +8,8 @@
     "rocstar": "dotenv -e .env babel-node src/astar/rocstar.js",
     "shiden": "dotenv -e .env babel-node src/astar/shiden.js",
     "moonbase-alpha": "dotenv -e .env babel-node src/moonbeam/moonbase-alpha.js",
-    "moonbase": "dotenv -e .env babel-node src/moonbeam/moonbase.js",
+    "moonbase-local": "dotenv -e .env babel-node src/moonbeam/moonbase-local.js",
+    "test-moonbase-contract": "dotenv -e .env babel-node src/moonbeam/test-moonbase-contract/index.js",
     "utils": "dotenv -e .env babel-node src/utils.js",
     "lint": "eslint --fix src/*"
   },
@@ -16,8 +17,8 @@
     "@inquirer/confirm": "^0.0.19-alpha.0",
     "@inquirer/select": "^0.0.18-alpha.0",
     "@mangata-finance/sdk": "^1.14.2",
-    "@oak-network/api-augment": "^1.8.0-rc.4",
-    "@oak-network/types": "^1.8.0-rc.4",
+    "@oak-network/api-augment": "^1.8.1-rc.1",
+    "@oak-network/types": "^1.8.1-rc.1",
     "@polkadot/api": "^9.3.3",
     "@polkadot/keyring": "^10.3.1",
     "@polkadot/util": "^10.1.7",
@@ -26,7 +27,8 @@
     "chalk-pipe": "^4.0.0",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
-    "moment-timezone": "^0.5.38"
+    "moment-timezone": "^0.5.38",
+    "web3": "^1.8.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",
