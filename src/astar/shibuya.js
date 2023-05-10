@@ -31,7 +31,7 @@ const scheduleTask = async ({
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
     const encodedCallData = payloadViaProxy.method.toHex();
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
-    const encodedCallWeight = parseInt(payloadViaProxyFees.weight.refTime, 10);
+    const encodedCallWeight = payloadViaProxyFees.weight;
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);
 
