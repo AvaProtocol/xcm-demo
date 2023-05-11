@@ -9,7 +9,7 @@ import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, getDecimalBN, bnToFloat, listenEvents,
+    sendExtrinsic, getDecimalBN, bnToFloat, listenEvents, generateProvidedId, getHourlyTimestamp,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -40,13 +40,9 @@ const TuringAlice = {
     privateKey: '0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a',
 };
 
-const sendXcmFromMoonbase = async ({
-    turingHelper, parachainHelper, turingAddress,
-    paraTokenIdOnTuring, keyPair,
-}) => {
-    console.log('\na). Create an ethereumXcm.transactThroughProxy extrinsic ...');
-    const parachainProxyCall = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
-        keyPair.address,
+const createEthereumXcmTransactThroughProxyExtrinsic = (parachainHelper, transactAs) => {
+    const extrinsic = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
+        transactAs,
         {
             V2: {
                 gasLimit: 71000,
@@ -56,45 +52,42 @@ const sendXcmFromMoonbase = async ({
             },
         },
     );
-    // const parachainProxyCallFees = await parachainProxyCall.paymentInfo(keyPair.address);
+    return extrinsic;
+};
 
-    console.log('\nb). Create a payload to store in Turing’s task ...');
-    const secondsInHour = 3600;
-    const currentTimestamp = moment().valueOf();
-    const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
-    // const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
-    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-    const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
+const createAutomationTaskExtrinsic = ({
+    turingHelper, providedId, parachainId, paraTokenIdOnTuring, payloadExtrinsic, schedule, scheduleAs,
+}) => {
+    const payloadExtrinsicWeight = { refTime: '4000000000', proofSize: 0 };
+    const extrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
-        // { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
-        { Fixed: { executionTimes: [0] } },
-        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
-        parachainHelper.config.paraId,
-        5,
+        schedule,
+        parachainId,
+        paraTokenIdOnTuring,
         {
-            V2:
-            {
+            V2: {
                 parents: 1,
-                interior:
-                { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] },
+                interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] },
             },
         },
-        parachainProxyCall.method.toHex(),
-        '4000000000',
-        turingAddress,
+        payloadExtrinsic.method.toHex(),
+        payloadExtrinsicWeight,
+        scheduleAs,
     );
-    console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
+    console.log(`Task extrinsic encoded call data: ${extrinsic.method.toHex()}`);
+    return extrinsic;
+};
 
-    // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
-    const encodedTaskViaProxy = taskViaProxy.method.toHex();
-    const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight.refTime, 10);
+const scheduleTaskFromMoonbase = async ({
+    parachainHelper, taskExtrinsic, taskExtrinsicPaymentInfo, feePerSecond, keyPair,
+}) => {
+    const encodedTaskExtrinsic = taskExtrinsic.method.toHex();
+    const requireWeightAtMost = parseInt(taskExtrinsicPaymentInfo.weight.refTime, 10);
 
-    console.log(`Proxy task extrinsic encoded call data: ${encodedTaskViaProxy}`);
+    console.log(`Proxy task extrinsic encoded call data: ${encodedTaskExtrinsic}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
 
-    console.log(`\nc) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
+    // console.log(`\nc) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
 
     const instructionCount = 4;
     const totalInstructionWeight = instructionCount * TURING_INSTRUCTION_WEIGHT;
@@ -118,7 +111,7 @@ const sendXcmFromMoonbase = async ({
             currency: { AsCurrencyId: 'SelfReserve' },
             feeAmount: fungible,
         },
-        encodedTaskViaProxy,
+        encodedTaskExtrinsic,
         {
             transactRequiredWeightAtMost: {
                 refTime: transactRequiredWeightAtMost,
@@ -134,11 +127,6 @@ const sendXcmFromMoonbase = async ({
     console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
 
     await sendExtrinsic(parachainHelper.api, transactExtrinsic, keyPair);
-
-    // Get a TaskId from Turing rpc
-    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
-
-    return { providedId, taskId };
 };
 
 const main = async () => {
@@ -279,22 +267,38 @@ const main = async () => {
 
     console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
-    const { providedId, taskId } = await sendXcmFromMoonbase({
+    console.log('\na). Create a payload extrinsic to store in Turing’s task ...');
+    const payloadExtrinsic = createEthereumXcmTransactThroughProxyExtrinsic(moonbaseHelper, aliceKeyPair.address);
+
+    console.log('\nb). Create an automation time task with the payload extrinsic ...');
+    const providedId = generateProvidedId();
+    const timestampNextHour = getHourlyTimestamp(1);
+    const taskExtrinsic = createAutomationTaskExtrinsic({
         turingHelper,
-        parachainHelper: moonbaseHelper,
-        turingAddress,
-        turingAddressETH,
+        providedId,
+        schedule: { Fixed: { executionTimes: [0] } },
+        parachainId: moonbaseHelper.config.paraId,
         paraTokenIdOnTuring,
-        keyPair: aliceKeyPair,
-        proxyAccountId,
+        payloadExtrinsic,
+        scheduleAs: turingAddress,
     });
 
-    // Listen XCM events on Mangata side
+    console.log('\nc). Schedule the task from moonbase ...');
+    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
+    const taskExtrinsicPaymentInfo = await taskExtrinsic.paymentInfo(turingAddress);
+    await scheduleTaskFromMoonbase({
+        parachainHelper: moonbaseHelper,
+        taskExtrinsic,
+        taskExtrinsicPaymentInfo,
+        feePerSecond,
+        keyPair: aliceKeyPair,
+    });
+    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
+
+    // Listen XCM events on Moonbase side
     const additionalWaitingTime = 5 * 60 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const executionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) + millisecondsInHour;
-    console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(executionTime).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
-    const timeout = executionTime - currentTimestamp + additionalWaitingTime;
+    console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    const timeout = timestampNextHour - moment().valueOf() + additionalWaitingTime;
     const isTaskExecuted = await listenEvents(moonbaseHelper.api, 'ethereum', 'Executed', timeout);
     if (!isTaskExecuted) {
         console.log('Timeout! Task was not executed.');

@@ -262,3 +262,7 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
 
     return _.floor(resultBN.toNumber() / amplifier, digit);
 };
+
+export const generateProvidedId = () => `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
+
+export const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf();
