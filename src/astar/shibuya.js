@@ -168,7 +168,7 @@ const main = async () => {
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${shibuyaHelper.config.paraId})\n`);
     const proxyTypeTuring = 'Any';
-    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, shibuyaHelper.config.paraId, { network: 'Rococo', multiLocationType: 'XcmV3MultiLocation' });
+    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, shibuyaHelper.config.paraId, { network: 'Rococo', locationType: 'XcmV3MultiLocation' });
 
     const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
