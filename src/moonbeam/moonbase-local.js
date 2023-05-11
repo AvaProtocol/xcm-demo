@@ -79,7 +79,10 @@ const sendXcmFromMoonbase = async ({
             },
         },
         parachainProxyCall.method.toHex(),
-        '4000000000',
+        {
+            refTime: '4000000000',
+            proofSize: 0,
+        },
         turingAddress,
     );
     console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
