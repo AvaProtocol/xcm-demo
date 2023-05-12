@@ -107,9 +107,7 @@ export function formatNumberThousands(num) {
     return `${decimalStr}${period}${floatStr}`;
 }
 
-export const getProxyAccount = (api, sourceParaId, address, { addressType, multiLocationType } = { addressType: 'Substrate' }) => {
-    const locationType = multiLocationType || 'XcmV2MultiLocation';
-    const network = 'Any';
+export const getProxyAccount = (api, sourceParaId, address, { addressType = 'Substrate', locationType = 'XcmV2MultiLocation', network = 'Any' } = {}) => {
     const account = addressType === 'Ethereum'
         ? { AccountKey20: { network, key: address } }
         : { AccountId32: { network, id: u8aToHex(decodeAddress(address)) } }; // An Int array presentation of the address’ ss58 public key

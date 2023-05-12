@@ -26,8 +26,8 @@ class ShibuyaHelper {
     getApi = () => this.api;
 
     getProxyAccount = (address, paraId) => {
-        const accountId = getProxyAccount(this.api, paraId, address);
-        return this.keyring.encodeAddress(accountId);
+        const { accountId32 } = getProxyAccount(this.api, paraId, address);
+        return this.keyring.encodeAddress(accountId32);
     };
 
     getProxies = async (address) => getProxies(this.api, address);
@@ -45,11 +45,14 @@ class ShibuyaHelper {
         // So instructionCount should be V2.length + 1
         const instructionCount = 6;
         const totalInstructionWeight = instructionCount * instructionWeight;
+        console.log('requireWeightAtMost: ', requireWeightAtMost);
+        console.log('totalInstructionWeight: ', totalInstructionWeight);
+        console.log('targetParaId: ', targetParaId);
         const weightLimit = requireWeightAtMost + totalInstructionWeight;
         const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
             {
-                V1: {
+                V2: {
                     parents: 1,
                     interior: { X1: { Parachain: targetParaId } },
                 },
@@ -112,19 +115,19 @@ class ShibuyaHelper {
     createReserveTransferAssetsExtrinsic = (targetParaId, proxyAccount, amount) => {
         const extrinsic = this.api.tx.polkadotXcm.reserveTransferAssets(
             {
-                V1: {
+                V2: {
                     parents: 1,
                     interior: { X1: { Parachain: targetParaId } },
                 },
             },
             {
-                V1: {
+                V2: {
                     interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccount } } },
                     parents: 0,
                 },
             },
             {
-                V1: [
+                V2: [
                     {
                         fun: { Fungible: amount },
                         id: {
