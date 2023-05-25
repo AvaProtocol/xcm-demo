@@ -18,7 +18,7 @@ import {
 // It is defined as a UnitWeightCost variable in runtime.
 const TURING_INSTRUCTION_WEIGHT = 1000000000;
 // const MIN_BALANCE_IN_PROXY = 0.1 * 1e18; // The proxy accounts are to be topped up if its balance fails below this number
-const TASK_FREQUENCY = 3600;
+// const TASK_FREQUENCY = 3600;
 
 const WEIGHT_PER_SECOND = 1000000000000;
 
@@ -46,20 +46,24 @@ const sendXcmFromMoonbase = async ({
     const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
-    // const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
+    const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
+    const payloadExtrinsicWeight = { refTime: '4000000000', proofSize: 0 };
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
-        // { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
+        { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
         // { Fixed: { executionTimes: [0] } },
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
+        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
         parachainHelper.config.paraId,
         paraTokenIdOnTuring,
         {
-            V1: { parents: 1, interior: { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] } },
+            V2: {
+                parents: 1,
+                interior: { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] },
+            },
         },
         parachainProxyCall.method.toHex(),
-        '4000000000',
+        payloadExtrinsicWeight,
         turingAddress,
     );
     console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
@@ -67,7 +71,7 @@ const sendXcmFromMoonbase = async ({
     // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
+    const requireWeightAtMost = parseInt(taskViaProxyFees.weight.refTime, 10);
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
