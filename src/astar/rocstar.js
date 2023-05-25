@@ -6,7 +6,7 @@ import moment from 'moment';
 import TuringHelper from '../common/turingHelper';
 import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat,
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat, delay,
 } from '../common/utils';
 import { TuringStaging, Rocstar } from '../config';
 import Account from '../common/account';
@@ -29,7 +29,7 @@ const scheduleTask = async ({
     const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
     const encodedCallData = payloadViaProxy.method.toHex();
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
-    const encodedCallWeight = parseInt(payloadViaProxyFees.weight.refTime, 10);
+    const encodedCallWeight = payloadViaProxyFees.weight;
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);
 
@@ -49,14 +49,15 @@ const scheduleTask = async ({
         // { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
         paraTokenIdOnTuring,
-        { V1: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
+        { V2: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
         encodedCallData,
         encodedCallWeight,
+        turingAddress,
     );
 
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
+    const requireWeightAtMost = parseInt(taskViaProxyFees.weight.refTime, 10);
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
     console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
@@ -159,7 +160,8 @@ const main = async () => {
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${shibuyaHelper.config.paraId})\n`);
     const proxyTypeTuring = 'Any';
-    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, shibuyaHelper.config.paraId);
+    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, shibuyaHelper.config.paraId, { network: 'Rococo', locationType: 'XcmV3MultiLocation' });
+
     const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
     const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
