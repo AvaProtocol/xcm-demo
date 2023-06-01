@@ -94,7 +94,7 @@ class MangataHelper {
     };
 
     async updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight, keyPair) {
-        const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
+        const promotePoolExtrinsic = this.api.tx.proofOfStake.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
         await sendExtrinsic(this.api, promotePoolExtrinsic, keyPair, { isSudo: true });
     }
 

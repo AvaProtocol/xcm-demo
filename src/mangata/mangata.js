@@ -69,8 +69,8 @@ async function main() {
 
     // TODO: determining liquidityTokenId by symbol name cannot handle duplicate symbols. It’s better we retrieve pools and find the correct pool
     const pools = await mangataHelper.getPools({ isPromoted: true });
-    const { liquidityTokenId } = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
-
+    // const { liquidityTokenId } = _.find(pools, (pool) => pool.firstTokenId === mangataHelper.getTokenIdBySymbol(mangataNativeToken.symbol) && pool.secondTokenId === mangataHelper.getTokenIdBySymbol(turingNativeToken.symbol));
+    const liquidityTokenId = '8';
     const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
     console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
@@ -110,9 +110,9 @@ async function main() {
         schedule,
         mangataHelper.config.paraId,
         0,
-        { V1: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
+        { V2: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
         encodedMangataProxyCall,
-        parseInt(mangataProxyCallFees.weight.refTime, 10),
+        mangataProxyCallFees.weight,
     );
 
     console.log('xcmpCall: ', xcmpCall);
