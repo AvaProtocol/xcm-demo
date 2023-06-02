@@ -210,7 +210,7 @@ class MangataHelper {
      * @param {boolean} param0.isPromoted Only list promoted pools if true; this value has to be specified
      * @returns
      */
-    getPools = async ({ isPromoted }) => {
+    getPools = async ({ isPromoted } = {}) => {
         const pools = await this.mangata.getPools();
         const that = this;
 
