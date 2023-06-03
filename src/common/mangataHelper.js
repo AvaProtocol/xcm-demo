@@ -94,7 +94,7 @@ class MangataHelper {
     };
 
     async updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight, keyPair) {
-        const promotePoolExtrinsic = this.api.tx.xyk.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
+        const promotePoolExtrinsic = this.api.tx.proofOfStake.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
         await sendExtrinsic(this.api, promotePoolExtrinsic, keyPair, { isSudo: true });
     }
 
@@ -210,26 +210,23 @@ class MangataHelper {
      * @param {boolean} param0.isPromoted Only list promoted pools if true; this value has to be specified
      * @returns
      */
-    getPools = async ({ isPromoted }) => {
+    getPools = async ({ isPromoted } = {}) => {
         const pools = await this.mangata.getPools();
-        const that = this;
+        const filterdPools = isPromoted ? _.filter(pools, (item) => item.isPromoted) : pools;
+        return filterdPools;
+    };
 
-        const filterd = isPromoted ? _.filter(pools, (item) => item.isPromoted) : pools;
+    formatPool = (pool) => {
+        const firstToken = _.find(this.assets, { id: pool.firstTokenId });
+        const firstTokenAmountFloat = (new BN(pool.firstTokenAmount)).div(getDecimalBN(firstToken.decimals));
 
-        const formatted = _.map(filterd, (item) => {
-            const firstToken = _.find(that.assets, { id: item.firstTokenId });
-            const firstTokenAmountFloat = (new BN(item.firstTokenAmount)).div(getDecimalBN(firstToken.decimals));
+        const secondToken = _.find(this.assets, { id: pool.secondTokenId });
+        const secondTokenAmountFloat = (new BN(pool.secondTokenAmount)).div(getDecimalBN(secondToken.decimals));
 
-            const secondToken = _.find(that.assets, { id: item.secondTokenId });
-            const secondTokenAmountFloat = (new BN(item.secondTokenAmount)).div(getDecimalBN(secondToken.decimals));
-
-            return _.extend(item, {
-                firstTokenAmountFloat,
-                secondTokenAmountFloat,
-            });
+        return _.extend(pool, {
+            firstTokenAmountFloat,
+            secondTokenAmountFloat,
         });
-
-        return formatted;
     };
 
     transferTur = async (amount, address, paraId, keyPair) => {

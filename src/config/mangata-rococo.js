@@ -239,6 +239,30 @@ const assets = [
         symbol: 'MGR-IMBR',
         address: '',
     },
+    {
+        id: '35',
+        chainId: 0,
+        decimals: 6,
+        name: 'Rococo USDT',
+        symbol: 'USDR',
+        address: '',
+    },
+    {
+        id: '36',
+        chainId: 0,
+        decimals: 18,
+        name: 'Liquidity Pool Token',
+        symbol: 'MGR-BNC',
+        address: '',
+    },
+    {
+        id: '37',
+        chainId: 0,
+        decimals: 18,
+        name: 'Liquidity Pool Token',
+        symbol: 'MGR-BNC',
+        address: '',
+    },
 ];
 
 const pools = [
@@ -248,7 +272,7 @@ const pools = [
 const Config = {
     name: 'Mangata Rococo',
     key: 'mangata-rococo',
-    endpoint: 'wss://roccoco-testnet-collator-01.mangatafinance.cloud',
+    endpoint: 'wss://collator-01-ws-rococo.mangata.online',
     relayChain: 'rococo',
     paraId: 2110,
     ss58: 42,

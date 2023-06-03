@@ -85,9 +85,10 @@ class AutoCompound {
         const shouldMintLiquidity = await confirm({ message: `\nAccount balance check is completed and proxy is set up. Press ENTRE to mint ${poolName}.`, default: true });
 
         if (shouldMintLiquidity) {
-            const pools = await mangataHelper.getPools({ isPromoted: true });
+            const pools = await mangataHelper.getPools();
 
-            const pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
+            let pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
+            pool = mangataHelper.formatPool(pool);
             console.log(`Found a pool of ${poolName}`, pool);
 
             if (_.isUndefined(pool)) {
@@ -165,9 +166,9 @@ class AutoCompound {
                     { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
                     mangataHelper.config.paraId,
                     0,
-                    { V1: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
+                    { V2: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
                     encodedMangataProxyCall,
-                    parseInt(mangataProxyCallFees.weight.refTime, 10),
+                    mangataProxyCallFees.weight,
                 );
 
                 console.log('xcmpCall: ', xcmpCall);
