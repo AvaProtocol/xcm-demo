@@ -88,7 +88,7 @@ class AutoCompound {
             const pools = await mangataHelper.getPools();
 
             let pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
-            pool = mangataHelper.processPoolTokenAmountDecimals(pool);
+            pool = mangataHelper.formatPool(pool);
             console.log(`Found a pool of ${poolName}`, pool);
 
             if (_.isUndefined(pool)) {

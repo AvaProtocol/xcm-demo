@@ -216,7 +216,7 @@ class MangataHelper {
         return filterdPools;
     };
 
-    processPoolTokenAmountDecimals = (pool) => {
+    formatPool = (pool) => {
         const firstToken = _.find(this.assets, { id: pool.firstTokenId });
         const firstTokenAmountFloat = (new BN(pool.firstTokenAmount)).div(getDecimalBN(firstToken.decimals));
 
