@@ -12,9 +12,9 @@
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
-| OAK-blockchain   | [1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
-| Mangata | [0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
+| Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
+| OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
+| Mangata | [v0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
 ### Steps
 #### Local dev environment
 
@@ -175,15 +175,34 @@ Task: {
 }
 
 5. Keep Listening XCM events on mangata-rococo until 2023-06-05 14:00:00(1685998800) to verify that the task(taskId: 0x821644ec6636d29e22a29cef36473c566d0f53681198b58995dfcf48b09bfc9b, providerId: xcmp_automation_test_rf4ja) will be successfully executed ...
+	proxy:ProxyExecuted:: (phase={"applyExtrinsic":0})
+			Result<Null, SpRuntimeDispatchError>: Ok
+	proxy:ProxyExecuted:: (phase={"applyExtrinsic":0})
+			Result<Null, SpRuntimeDispatchError>: Ok
+Task has been executed!
+
+Waiting 20 seconds before reading new chain states ...
+
+After auto-compound, reserved MGR-TUR is: 1825745863799688808931 planck ...
+1st Account has compounded 684882028361671 planck more MGR-TUR ...
+
 ```
+
+**Results:**
+
+Schedule on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0x3dc83fcf8981e05fd5a9cb3e3e1974f3fc85ea6351edd8c6c2cdf556c141155b
+
+Trigger on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0x0d03ccf0df6859ff6d8bded0ab8389a08a35a5bf359bd7c7761f8735937a9ae2 -> Execution on Mangata Rococo: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fcollator-01-ws-rococo.mangata.online#/explorer/query/0x7f382298847bd6eaaa8c1541904366cdaefae64fa82ab004e18a42c8813f7c37
+
+MessageHash: 0x6f20ebf887af395f20f4e12e0289ac9938c0119152c18e1ebeca6af945122d3f
 
 ## Shibuya Auto-restake Demo
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
 | Polkadot      | [v0.9.39](https://github.com/paritytech/polkadot/releases/tag/v0.9.39)      |
-| OAK-blockchain   | [v1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)   |
-| Astar | [v5.0.1](https://github.com/AstarNetwork/Astar/releases/tag/v5.0.1) |
+| OAK-blockchain   | [1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)   |
+| Astar | [v5.9.0(shibuya/101)](https://github.com/AstarNetwork/Astar/releases/tag/v5.9.0) |
 ### Steps
 #### Local dev environment
 1. Launch OAK-blockchain, Rococo and Shibuya.
@@ -201,58 +220,97 @@ Task: {
    npm run shibuya
    ```
 
-Below are the console logs from `npm run shibuya`
+#### Rococo environment
+Run the program to schedule automation and wait for cross-chain execution
 ```
-$ dotenv -e .env babel-node src/shibuya.js
-2023-02-03 10:24:14        API/INIT: RPC methods not decorated: transaction_unstable_submitAndWatch, transaction_unstable_unwatch
+PASS_PHRASE=<PASS_PHRASE> npm run rocstar
+```
 
-User Alice’s Turing address: 6AwtFW6sYcQ8RcuAJeXdDKuFtUVXj4xW57ghjYQ5xyciT1yd, Shibuya address: ajYMsCKsEAhEvHpeA4XqsfiA9v1CdzZPrCfS6pEfeGHW9j8
+Below are the console logs from `PASS_PHRASE=<PASS_PHRASE> npm run rocstar`.
+```
+Turing chain key: turing-staging
+Parachain name: rocstar, native token: {"symbol":"RSTR","decimals":18}
 
-1. One-time proxy setup on Shibuya
+[
+  {
+    tokens: [
+      {
+        symbol: 'TUR',
+        balance: 10166,
+        balanceBN: <BN: 5c7624d7ef80>,
+        reserved: 20,
+        miscFrozen: 1000,
+        feeFrozen: 0
+      }
+    ],
+    chain: 'turing-staging',
+    address: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g'
+  },
+  {
+    tokens: [
+      {
+        symbol: 'RSTR',
+        balance: 398,
+        balanceBN: <BN: 159c3dd9213b7be78a>,
+        reserved: 1,
+        miscFrozen: 0,
+        feeFrozen: 0
+      }
+    ],
+    chain: 'rocstar',
+    address: 'WDckGMNZqWEE2vxmJ3ycVT12nMVujkMAdME2ExAYJK7FnQc'
+  }
+]
 
-a) Add a proxy for Alice on Shibuya If there is no proxy of Turing (paraId:2114) 
+User 1st Account turing-staging address: 66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g, rocstar address: WDckGMNZqWEE2vxmJ3ycVT12nMVujkMAdME2ExAYJK7FnQc
+Rocstar ID on Turing:  9
 
- Add a proxy of Turing (paraId:2114) for Alice on Shibuya ...
- Proxy address: 0xc3f91ea5c873ee4f4be432f11c670e7102674b3965de7e4dfc40a2aa59366568
+1. One-time proxy setup on rocstar ...
 
-status.type Ready
-status.type InBlock
-status.type Finalized
+a) Add a proxy for 1st Account If there is none setup on rocstar (paraId:2114) 
 
-b) Topping up the proxy account on Shibuya with SBY ...
+Proxy address XFSy2e499YrXt2grAUaBNBW7YSfdRUuA3i6yTH561TcZnvY for paraId: 2114 and proxyType: Any already exists; skipping creation ...
 
-status.type Ready
-status.type InBlock
-status.type Finalized
+b) Proxy’s balance on rocstar is 100 RSTR.
+
+b) Proxy’s balance on rocstar is 100 RSTR.
 
 2. One-time proxy setup on Turing
 
-a) Add a proxy for Alice on Turing If there is no proxy of Shibuya (paraId:2000)
+a) Add a proxy for Alice If there is none setup on Turing (paraId:2006)
 
- Add a proxy of Shibuya (paraId:2000) for Alice on Turing ...
-Proxy address: 0xb28bad43ad8e66f54af980033b8c559bccf58633f55e48213fde8214a2faf159
+Add a proxy of rocstar (paraId:2006) and proxyType: Any on Turing ...
+ Proxy address: 6A1gAyhvknS97rKJmC8aC5jcKdkXBeE93A2xQdvuTxE3Y9W1
 
 status.type Ready
+status.type Broadcast
 status.type InBlock
 status.type Finalized
 
-b) Topping up the proxy account on Turing via reserve transfer SBY
+Topping up the proxy account on turing-staging via reserve transfer ...
 status.type Ready
+status.type Broadcast
 status.type InBlock
 status.type Finalized
 
-3. Execute an XCM from Shibuya to schedule a task on Turing ...
+b) Proxy’s balance on turing-staging is 0 RSTR.
+
+3. Execute an XCM from rocstar to schedule a task on turing-staging ...
 
 a). Create a payload to store in Turing’s task ...
-Encoded call data: 0x120000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01000a082048656c6c6f212121
-Encoded call weight: 191761979
+Encoded call data: 0x1200000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf47501000a073048656c6c6f20776f726c6421
+Encoded call weight: {"refTime":173833787,"proofSize":3716}
 
 b) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...
-Encoded call data: 0x200000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01003c026878636d705f6175746f6d6174696f6e5f746573745f713264797301b078dc6300000000100e000000000000d007000000000000c0120000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d01000a082048656c6c6f2121213b0e6e0b00000000
-requireWeightAtMost: 1014876000
+Encoded call data: 0x3c036878636d705f6175746f6d6174696f6e5f746573745f387030316b01d04c7e6400000000100e000000000000d60700000900000001010100591fd01200000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf47501000a073048656c6c6f20776f726c6421eef87129113a0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475
+requireWeightAtMost: 1332429446
 
-c) Execute the above an XCM from Shibuya to schedule a task on Turing ...
+c) Execute the above an XCM from Rocstar Testnet to schedule a task on Turing Staging ...
+requireWeightAtMost:  1332429446
+totalInstructionWeight:  6000000000
+targetParaId:  2114
 status.type Ready
+status.type Broadcast
 status.type InBlock
 status.type Finalized
 
@@ -273,34 +331,31 @@ At this point if the XCM succeeds, you should see the below events on both chain
   proxy.ProxyExecuted and xcmpQueue.Success - the above payload is received and executed.
 
 
-4. Keep Listening events from Shibuya until 2023-02-03 11:00:00(1675393200) to verify that the task(taskId: 0x38e7044d382608cfa6aa8816a909ed819d6c745c9187561551d06a2a92d8a080, providerId: xcmp_automation_test_q2dys) will be successfully executed ...
-        proxy:ProxyExecuted:: (phase={"applyExtrinsic":1})
-                        Result<Null, SpRuntimeDispatchError>: Ok
-Task has been executed!
+4. Keep Listening events on rocstar until 2023-06-05 14:00:00(1685998800) to verify that the task(taskId: 0x6e2da72aa52b482fa3cfc0e9ff7d300b7743d37c7698d5eb20bed95e03c8a100, providerId: xcmp_automation_test_8p01k) will be successfully executed ...
+	proxy:ProxyExecuted:: (phase={"applyExtrinsic":1})
+			Result<Null, SpRuntimeDispatchError>: Ok
+	proxy:ProxyExecuted:: (phase={"applyExtrinsic":1})
+			Result<Null, SpRuntimeDispatchError>: Ok
 
-5. Cancel task ...
-status.type Ready
-status.type InBlock
-status.type Finalized
+Task has been executed! Waiting for 20 seconds before reading proxy balance.
 
-6. Keep Listening events from Shibuya until 2023-02-03 12:00:00(1675396800) to verify that the task was successfully canceled ...
-Task canceled successfully! It didn't execute again.
-Reached the end of main() ...
-✨  Done in 5927.19s.
+After execution, Proxy’s balance is 99.9382 RSTR. The delta of proxy balance, or the XCM fee cost is 0.0617 RSTR.
 ```
 
-#### Rococo environment
-Run the program to schedule automation and wait for cross-chain execution
-```
-npm run rocstar
-```
+**Results:**
+
+Schedule on Rocstar: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frocstar.astar.network#/explorer/query/0x8336735feb6e72c675409840836946934ee9731dad78c6b04cdde54810e125ca -> Recipient on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0xb2e0d98aa1c3f38812c7195be44d5d7fa41be246d64cac63ce0d34e74bb764b2
+
+Trigger on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0x0d03ccf0df6859ff6d8bded0ab8389a08a35a5bf359bd7c7761f8735937a9ae2 -> Execution on Rocstar: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frocstar.astar.network#/explorer/query/0xdee7639ed6585dd71de78a25c5f809ba877732a3715d05cc39ad8d9043ed28e8
+
+MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
 
 ## Moonbeam EVM smart contract automation
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
-| OAK-blockchain   | [v1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)     |
+| OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
 | Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
 ### Steps
 #### Local dev environment
@@ -360,4 +415,87 @@ The default staging environment of Moonbeam is Moonbase Alpha, since Moonbeam do
 	```
 	PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha
 	```
+
+Below are the console logs from `PASS_PHRASE=<PASS_PHRASE> PASS_PHRASE_ETH=<PASS_PHRASE_ETH> npm run moonbase-alpha`.
+
+```
+1. Setup accounts on turing-moonbase and moonbase-alpha
+Parachain address:  0xc60e71bd0f2e6d8832Fea1a2d56091C48493C788
+Parachain balance: 1596684252552963865
+[
+  {
+    tokens: [],
+    chain: 'turing-moonbase',
+    address: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g'
+  }
+]
+paraTokenIdOnTuring:  1
+proxyOnTuring:  6Ayu5KXqm1c8CpbWUmJ54CLmrPHSQbKDAqi8JQLS2KuZ2gkE
+
+2. One-time proxy setup on Turing
+
+a) Add a proxy for Alice If there is none setup on Turing (paraId:1000)
+
+Proxy address 6Ayu5KXqm1c8CpbWUmJ54CLmrPHSQbKDAqi8JQLS2KuZ2gkE for paraId: 1000 and proxyType: Any already exists; skipping creation ...
+
+b) Reserve transfer DEV to the proxy account on Turing: 
+minBalanceOnTuring:  <BN: de0b6b3a7640000>
+paraTokenbalanceOnTuring.free:  1762675854400000000
+
+b) Proxy’s parachain token balance is 1762675854400000000 blanck, no need to top it up with reserve transfer ...
+
+3. One-time proxy setup on Moonbase
+
+a) Add a proxy for Alice If there is none setup on Moonbase (paraId:1000)
+
+parachainAddress: 0xc60e71bd0f2e6d8832Fea1a2d56091C48493C788, proxyOnMoonbase: 0x3a13d93eb4e2e2b7ed6d21bce1006acba19b4dbc
+proxiesOnMoonbase:  [
+  {
+    delegate: '0x3A13d93eB4e2e2b7ed6d21bCE1006AcbA19B4DBC',
+    proxyType: 'Any',
+    delay: 0
+  }
+]
+Add a proxy of moonbase-alpha (paraId:1000) and proxyType: Any on Turing ...
+ Proxy address: 0x3a13d93eb4e2e2b7ed6d21bce1006acba19b4dbc
+
+status.type Ready
+status.type Broadcast
+status.type InBlock
+proxy.Duplicate: Account is already a proxy.
+status.type Finalized
+proxy.Duplicate: Account is already a proxy.
+
+b) Topping up the proxy account on Moonbase with DEV ...
+
+
+Moonbase proxy account balance is 1000000000000000000 blanck, no need to top it up with reserve transfer ...
+
+User 1st Account turing-moonbase address: 66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g, moonbase-alpha address: 0xc60e71bd0f2e6d8832Fea1a2d56091C48493C788
+
+4. Execute an XCM from moonbase-alpha to turing-moonbase ...
+
+a). Create a payload to store in Turing’s task ...
+Task extrinsic encoded call data: 0x3c036878636d705f6175746f6d6174696f6e5f746573745f39726869640008d04c7e6400000000e05a7e6400000000e80300000100000001010200a10f0403c9012601c60e71bd0f2e6d8832fea1a2d56091c48493c78801581501000000000000000000000000000000000000000000000000000000000000a72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8000000000000000000000000000000000000000000000000000000000000000010d09de08a000300286bee000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475
+Encoded call data: 0x3c036878636d705f6175746f6d6174696f6e5f746573745f39726869640008d04c7e6400000000e05a7e6400000000e80300000100000001010200a10f0403c9012601c60e71bd0f2e6d8832fea1a2d56091c48493c78801581501000000000000000000000000000000000000000000000000000000000000a72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8000000000000000000000000000000000000000000000000000000000000000010d09de08a000300286bee000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475
+requireWeightAtMost: 1486889856
+
+b) Execute the above an XCM from Moonbase Alpha to schedule a task on Turing Moonbase ...
+transactRequiredWeightAtMost:  2486889856
+overallWeight:  8170208000
+fungible:  548688985600000000
+transactExtrinsic Encoded call data: 0x15040421060101010009210000010080dbaeb9559d07000000000000000065033c036878636d705f6175746f6d6174696f6e5f746573745f39726869640008d04c7e6400000000e05a7e6400000000e80300000100000001010200a10f0403c9012601c60e71bd0f2e6d8832fea1a2d56091c48493c78801581501000000000000000000000000000000000000000000000000000000000000a72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8000000000000000000000000000000000000000000000000000000000000000010d09de08a000300286bee000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf4750380ed3a94000107007bfbe60100
+status.type Ready
+status.type Broadcast
+status.type InBlock
+status.type Finalized
+```
+
+**Results:**
+
+Schedule on Moonbase Alpha: https://moonbase.subscan.io/extrinsic/4486793-5 -> Recipient on Turing Moonbase: http://167.99.226.24:3000/?rpc=ws%3A%2F%2F167.99.226.24%3A8846#/explorer/query/0x59c7e74b9c75bf7fdca104ad899702656ddd225cf4d01f6291bdb666d0862d82
+
+Trigger on Turing Moonbase: http://167.99.226.24:3000/?rpc=ws%3A%2F%2F167.99.226.24%3A8846#/explorer/query/0x3397f884b15fbc43c6241658894ede603e98daf91a3175055f1af1aadb394b2c -> Execution on Moonbase Alpha: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fwss.api.moonbase.moonbeam.network#/explorer/query/0x9b2a8fd0ffb8be910d604e39d742fea0e78efec02d9028da1971a3a815e577af
+
+MessageHash: 0x9a818c1110de617e3e5cce7ecb23c8920041aab5d8e56ba541ea02c63f5b6864
 	
