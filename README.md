@@ -12,15 +12,15 @@
 ### Pre-requisites
 | Chain      | Version | Commit hash |
 | :---        |    :----:   |          ---: |
-| Polkadot      | [0.9.36](https://github.com/paritytech/polkadot/releases/tag/v0.9.36)       |
-| OAK-blockchain   | [1.8.1](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/untagged-a25a340f7319d3b81a23)     |
-| Mangata | [0.29.0](https://github.com/mangata-finance/mangata-node/releases/tag/v0.29.0)   |
+| Polkadot      | [0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
+| OAK-blockchain   | [1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
+| Mangata | [0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
 ### Steps
 #### Local dev environment
 
 1. Launch OAK-blockchain, Rococo and Mangata.
 
-	- Compile OAK
+	- Compile oak-collator v1.9.0
 
 		https://github.com/OAK-Foundation/OAK-blockchain/
 
@@ -31,7 +31,7 @@
 
 	- Compile modified Mangata
 
-		https://github.com/OAK-Foundation/mangata-node/tree/mangata-demo
+		https://github.com/mangata-finance/mangata-node/tree/release/v0.30.0
 
 		```
 		cargo build --release --features mangata-rococo,fast-runtime
@@ -60,18 +60,16 @@
    ```
 
 #### Rococo environment
-Run the program to schedule automation and wait for cross-chain execution
+First, you need to prepare a wallet for the program to run on production environment. Simply export a json file from Mangata Rococo‘s dashboard, name it `seed.json` and place it in the `./private` folder.
+
+Then, run the below command with the pass phrase to unlock the seed.json in order to schedule automation and wait for execution.
 ```
-npm run mangata-rococo
+PASS_PHRASE=<pass_phrase> npm run mangata-rococo
 ```
 
 Below are the console logs from `npm run mangata-rococo`
 ```
-> dotenv -e .env babel-node src/mangata-rococo.js
-
 Initializing APIs of both chains ...
-Reading assets on Mangata chain ...
-
 Turing chain name: turing-staging, native token: {"symbol":"TUR","decimals":10}
 Mangata chain name: mangata-rococo, native token: {"id":"0","chainId":0,"decimals":18,"name":"Mangata","symbol":"MGR","address":""}
 
@@ -81,10 +79,10 @@ Mangata chain name: mangata-rococo, native token: {"id":"0","chainId":0,"decimal
     tokens: [
       {
         symbol: 'TUR',
-        balance: 9959,
-        balanceBN: <BN: 5a94b62ee41b>,
-        reserved: 0,
-        miscFrozen: 0,
+        balance: 10187,
+        balanceBN: <BN: 5ca85fcf64ae>,
+        reserved: 20,
+        miscFrozen: 1000,
         feeFrozen: 0
       }
     ],
@@ -93,72 +91,90 @@ Mangata chain name: mangata-rococo, native token: {"id":"0","chainId":0,"decimal
   },
   {
     tokens: [
-      { symbol: 'MGR', balance: 3876, reserved: 5029, frozen: 0 },
-      { symbol: 'TUR', balance: 3706597, reserved: 0, frozen: 0 }
+      {
+        symbol: 'MGR',
+        id: '0',
+        decimals: 18,
+        balance: 9953621,
+        reserved: 5029,
+        frozen: 0
+      },
+      {
+        symbol: 'TUR',
+        id: '7',
+        decimals: 10,
+        balance: 3614268,
+        reserved: 0,
+        frozen: 0
+      }
     ],
     chain: 'mangata-rococo',
     address: '5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk'
   }
 ]
 
-1. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...
+2. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...
 Found proxy of 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk on Mangata, and will skip the addition ...  {
   delegate: '5DNrXjfyMuukK3zrMs2T9i2E2VjYfCnA8rCxjk5DDeTeyhtM',
   proxyType: 'AutoCompound',
   delay: 0
 }
-? 
+
 Account balance check is completed and proxy is set up. Press ENTRE to mint MGR-TUR. yes
 Found a pool of MGR-TUR {
   firstTokenId: '0',
   secondTokenId: '7',
-  firstTokenAmount: <BN: 84b58a5affcc8d4f722665>,
-  secondTokenAmount: <BN: 4fee923d9c8c71>,
+  firstTokenAmount: <BN: 87059378c54472fe212d2b>,
+  secondTokenAmount: <BN: 4ef251c4f52ea1>,
   liquidityTokenId: '10',
-  firstTokenRatio: <BN: 85bd4e6>,
-  secondTokenRatio: <BN: 170a7d5084214117463838a3>,
-  isPromoted: true,
-  firstTokenAmountFloat: 160435508,
-  secondTokenAmountFloat: 2249883
+  firstTokenRatio: <BN: 81d4100>,
+  secondTokenRatio: <BN: 17bc2ecb00abbf4e0731373b>,
+  isPromoted: false,
+  firstTokenAmountFloat: <BN: 9bab655>,
+  secondTokenAmountFloat: <BN: 21e844>
 }
 Checking how much reward available in MGR-TUR pool, tokenId: 10 ...
-Claimable reward in MGR-TUR:  0
-Before auto-compound, 1st Account reserved "MGR-TUR": 184 ...
-? 
+Claimable reward in MGR-TUR:  74
+Before auto-compound, 1st Account reserved "MGR-TUR": 1825 ...
+
 Do you want to continue to schedule auto-compound. Press ENTRE to continue. yes
 
-1. Start to schedule an auto-compound call via XCM ...
-encodedMangataProxyCall:  0x3700000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf47501000d060a00000064000000
+4. Start to schedule an auto-compound call via XCM ...
+encodedMangataProxyCall:  0x0500000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf47501000d080a00000064000000
 mangataProxyCallFees:  {
-  weight: { refTime: '2,787,380,000', proofSize: '0' },
+  weight: { refTime: '2,905,398,711', proofSize: '3,716' },
   class: 'Normal',
-  partialFee: '26.7640 MGAT'
+  partialFee: '27.0780 MGAT'
 }
 
 a) Create the call for scheduleXcmpTask 
 xcmpCall:  Submittable { initialU8aLength: undefined, registry: TypeRegistry {} }
 
 b) Query automationTime fee details 
-automationFeeDetails:  { executionFee: '1.4126 TUR', xcmpFee: '4.0721 TUR' }
-TaskId: 0x7a0e05402f236a2652ec907de6dd5464fce6de0f6a2d19be83c712bc433c6521
+automationFeeDetails:  { executionFee: '1.8671 TUR', xcmpFee: '9.5750 TUR' }
+TaskId: 0x821644ec6636d29e22a29cef36473c566d0f53681198b58995dfcf48b09bfc9b
 
 c) Sign and send scheduleXcmpTask call ...
 Status: Ready
 Status: Broadcast
-Successful with hash 0xe317de148ed78fb7ebf82566fba3ecc3cdc6ba8926e78e03395c9209a10adae2
+Successful with hash 0x3dc83fcf8981e05fd5a9cb3e3e1974f3fc85ea6351edd8c6c2cdf556c141155b
 Task: {
   ownerId: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g',
-  providedId: 'xcmp_automation_test_87407',
+  providedId: 'xcmp_automation_test_rf4ja',
   schedule: { Fixed: { executionTimes: [Array], executionsLeft: '2' } },
   action: {
     XCMP: {
       paraId: '2,110',
       currencyId: '0',
-      encodedCall: '0x3700000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf47501000d060a00000064000000',
-      encodedCallWeight: '2,787,380,000'
+      xcmAssetLocation: [Object],
+      encodedCall: '0x0500000c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf47501000d080a00000064000000',
+      encodedCallWeight: [Object],
+      scheduleAs: null
     }
   }
 }
+
+5. Keep Listening XCM events on mangata-rococo until 2023-06-05 14:00:00(1685998800) to verify that the task(taskId: 0x821644ec6636d29e22a29cef36473c566d0f53681198b58995dfcf48b09bfc9b, providerId: xcmp_automation_test_rf4ja) will be successfully executed ...
 ```
 
 ## Shibuya Auto-restake Demo
