@@ -9,7 +9,7 @@ import { TuringMoonbase, MoonbaseAlpha } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile,
+    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile, delay,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -272,6 +272,9 @@ const main = async () => {
     });
 
     const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(proxyOnTuring, providedId);
+
+    console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+    await delay(60000);
 
     // Check that the task has been successfully added to the task list
     console.log('\n5. Check that the task has been successfully added to the task list ...');
