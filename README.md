@@ -14,8 +14,8 @@
 | :---        |    :----:   | 
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
 | OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
-| Mangata | [v0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
-### Steps
+| Mangata-node | [v0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
+### Steps & Logs
 <details>
 <summary>Dev environment</summary>
 <br>
@@ -209,7 +209,9 @@ MessageHash: 0x6f20ebf887af395f20f4e12e0289ac9938c0119152c18e1ebeca6af945122d3f
 | Polkadot      | [v0.9.39](https://github.com/paritytech/polkadot/releases/tag/v0.9.39)      |
 | OAK-blockchain   | [1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)   |
 | Astar | [v5.9.0(shibuya/101)](https://github.com/AstarNetwork/Astar/releases/tag/v5.9.0) |
-### Steps
+
+### Steps & Logs
+
 <details>
 <summary>Shibuya environment(Dev)</summary>
 <br>
@@ -371,7 +373,9 @@ MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
 | OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
 | Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
-### Steps
+
+### Steps & Logs
+
 <details>
 <summary>Moonbase Local environment (dev)</summary>
 <br>
