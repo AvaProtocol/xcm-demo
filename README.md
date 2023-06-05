@@ -10,13 +10,15 @@
 
 ## Mangata Auto-compound Demo
 ### Pre-requisites
-| Chain      | Version | Commit hash |
-| :---        |    :----:   |          ---: |
+| Chain      | Version | 
+| :---        |    :----:   | 
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
 | OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
 | Mangata | [v0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
 ### Steps
-#### Local dev environment
+<details>
+<summary>Dev environment</summary>
+<br>
 
 1. Launch OAK-blockchain, Rococo and Mangata.
 
@@ -58,8 +60,11 @@
    ```
    npm run mangata
    ```
+</details>
 
-#### Rococo environment
+<details>
+<summary>Mangata Rococo environment(Rococo)</summary>
+<br>
 First, you need to prepare a wallet for the program to run on production environment. Simply export a json file from Mangata Rococo‘s dashboard, name it `seed.json` and place it in the `./private` folder.
 
 Then, run the below command with the pass phrase to unlock the seed.json in order to schedule automation and wait for execution.
@@ -195,16 +200,20 @@ Schedule on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0x3dc8
 Trigger on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0x0d03ccf0df6859ff6d8bded0ab8389a08a35a5bf359bd7c7761f8735937a9ae2 -> Execution on Mangata Rococo: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fcollator-01-ws-rococo.mangata.online#/explorer/query/0x7f382298847bd6eaaa8c1541904366cdaefae64fa82ab004e18a42c8813f7c37
 
 MessageHash: 0x6f20ebf887af395f20f4e12e0289ac9938c0119152c18e1ebeca6af945122d3f
+</details>
 
 ## Shibuya Auto-restake Demo
 ### Pre-requisites
-| Chain      | Version | Commit hash |
-| :---        |    :----:   |          ---: |
+| Chain      | Version | 
+| :---        |    :----:   | 
 | Polkadot      | [v0.9.39](https://github.com/paritytech/polkadot/releases/tag/v0.9.39)      |
 | OAK-blockchain   | [1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)   |
 | Astar | [v5.9.0(shibuya/101)](https://github.com/AstarNetwork/Astar/releases/tag/v5.9.0) |
 ### Steps
-#### Local dev environment
+<details>
+<summary>Shibuya environment(Dev)</summary>
+<br>
+
 1. Launch OAK-blockchain, Rococo and Shibuya.
 
 	Launch zombie in OAK-blockchain project root with Astar and modified OAK.
@@ -219,8 +228,12 @@ MessageHash: 0x6f20ebf887af395f20f4e12e0289ac9938c0119152c18e1ebeca6af945122d3f
    ```
    npm run shibuya
    ```
+</details>
 
-#### Rococo environment
+<details>
+<summary>Rocstar environment(Rococo)</summary>
+<br>
+
 Run the program to schedule automation and wait for cross-chain execution
 ```
 PASS_PHRASE=<PASS_PHRASE> npm run rocstar
@@ -349,16 +362,20 @@ Schedule on Rocstar: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frocstar.astar
 Trigger on Turing Staging: https://polkadot.js.org/apps/#/explorer/query/0x0d03ccf0df6859ff6d8bded0ab8389a08a35a5bf359bd7c7761f8735937a9ae2 -> Execution on Rocstar: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frocstar.astar.network#/explorer/query/0xdee7639ed6585dd71de78a25c5f809ba877732a3715d05cc39ad8d9043ed28e8
 
 MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
+</details>
 
 ## Moonbeam EVM smart contract automation
 ### Pre-requisites
-| Chain      | Version | Commit hash |
-| :---        |    :----:   |          ---: |
+| Chain      | Version | 
+| :---        |    :----:   | 
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
 | OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
 | Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
 ### Steps
-#### Local dev environment
+<details>
+<summary>Moonbase Local environment (dev)</summary>
+<br>
+
 The local environment of Moonbeam is named Moonbase Local in its chain config.
 
 1. Launch Rococo Local, Turing Dev and Moonbase Local with zombienet. The zombienet config file is located at [OAK-blockchain repo](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/zombienets/turing/moonbase.toml). Assuming you are at OAK-blockchain’s root folder, run the below command to spin up the networks.
@@ -396,8 +413,12 @@ The local environment of Moonbeam is named Moonbase Local in its chain config.
     popd  // Return the current directory to the root folder of this project
     CONTRACT_ADDRESS=0x711F8F079b0BB4D16bd8C5D049358d31a1694755 npm run moonbase-local
     ```
+</details>
 
-#### Moonbase Alpha environment
+<details>
+<summary>Moonbase Alpha environment(Moonbase)</summary>
+<br>
+
 The default staging environment of Moonbeam is Moonbase Alpha, since Moonbeam doesn’t have a parachain set up on Rococo.
 
 1. First, we will need to set up wallets for the transactions in this demo.
@@ -498,4 +519,4 @@ Schedule on Moonbase Alpha: https://moonbase.subscan.io/extrinsic/4486793-5 -> R
 Trigger on Turing Moonbase: http://167.99.226.24:3000/?rpc=ws%3A%2F%2F167.99.226.24%3A8846#/explorer/query/0x3397f884b15fbc43c6241658894ede603e98daf91a3175055f1af1aadb394b2c -> Execution on Moonbase Alpha: https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fwss.api.moonbase.moonbeam.network#/explorer/query/0x9b2a8fd0ffb8be910d604e39d742fea0e78efec02d9028da1971a3a815e577af
 
 MessageHash: 0x9a818c1110de617e3e5cce7ecb23c8920041aab5d8e56ba541ea02c63f5b6864
-	
+</details>
