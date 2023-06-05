@@ -100,6 +100,21 @@ class TuringHelper {
             .toNumber();
         return assetId;
     };
+
+    /**
+     * Get task with account and taskId
+     * @param {*} address
+     * @param {*} taskId
+     * @returns
+     */
+    getAccountTask = async (address, taskId) => {
+        const accountId = this.keyring.decodeAddress(address);
+        const task = await this.api.query.automationTime.accountTasks(accountId, taskId);
+        if (task.isNone) {
+            throw new Error('Task not found');
+        }
+        return task.unwrap();
+    };
 }
 
 export default TuringHelper;

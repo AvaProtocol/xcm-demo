@@ -293,11 +293,16 @@ const main = async () => {
         feePerSecond,
         keyPair: aliceKeyPair,
     });
-    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
+    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(proxyOnTuring, providedId);
+
+    // Check that the task has been successfully added to the task list
+    console.log('\n5. Check that the task has been successfully added to the task list ...');
+    const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
+    console.log('The task has been successfully added to the task list, task: ', task.toHuman());
 
     // Listen XCM events on Moonbase side
     const additionalWaitingTime = 5 * 60 * 1000;
-    console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    console.log(`\n6. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
     const timeout = timestampNextHour - moment().valueOf() + additionalWaitingTime;
     const isTaskExecuted = await listenEvents(moonbaseHelper.api, 'ethereum', 'Executed', timeout);
     if (!isTaskExecuted) {

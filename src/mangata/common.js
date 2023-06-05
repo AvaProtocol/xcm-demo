@@ -186,8 +186,13 @@ class AutoCompound {
                 console.log('\nc) Sign and send scheduleXcmpTask call ...');
                 await turingHelper.sendXcmExtrinsic(xcmpCall, account.pair, taskId);
 
+                // Check that the task has been successfully added to the task list
+                console.log('\n5. Check that the task has been successfully added to the task list ...');
+                const task = await turingHelper.getAccountTask(turingAddress, taskId);
+                console.log('The task has been successfully added to the task list, task: ', task.toHuman());
+
                 // Listen XCM events on Mangata side
-                console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+                console.log(`\n6. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
                 await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted');
 
                 const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
@@ -208,13 +213,13 @@ class AutoCompound {
 
                 console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
 
-                console.log('\n5. Cancel task ...');
+                console.log('\n7. Cancel task ...');
                 const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
                 await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
                 const twoHoursExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
 
-                console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
+                console.log(`\n8. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
 
                 const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', twoHoursExecutionTimeout);
                 if (isTaskExecutedAgain) {

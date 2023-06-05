@@ -121,6 +121,8 @@ const sendXcmFromMoonbase = async ({
     console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
 
     await sendExtrinsic(parachainHelper.api, transactExtrinsic, keyPair);
+
+    return providedId;
 };
 
 const main = async () => {
@@ -265,9 +267,16 @@ const main = async () => {
 
     console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
-    await sendXcmFromMoonbase({
+    const providedId = await sendXcmFromMoonbase({
         turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: parachainKeyPair, proxyAccountId,
     });
+
+    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(proxyOnTuring, providedId);
+
+    // Check that the task has been successfully added to the task list
+    console.log('\n5. Check that the task has been successfully added to the task list ...');
+    const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
+    console.log('The task has been successfully added to the task list, task: ', task.toHuman());
 };
 
 main().catch(console.error).finally(() => {

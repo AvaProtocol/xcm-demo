@@ -20,7 +20,7 @@ const TASK_FREQUENCY = 3600;
 const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyOnTuring, paraTokenIdOnTuring, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
@@ -68,7 +68,7 @@ const scheduleTask = async ({
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: turingHelper.config.paraId,
         encodedCall: encodedTaskViaProxy,
-        proxyAccount: proxyAccountId,
+        proxyAccount: shibuyaHelper.keyring.decodeAddress(proxyOnTuring),
         feePerSecond,
         instructionWeight: TURING_INSTRUCTION_WEIGHT,
         requireWeightAtMost,
@@ -84,7 +84,7 @@ const scheduleTask = async ({
   3. Shibuya\n
   proxy.ProxyExecuted and xcmpQueue.Success - the above payload is received and executed.\n`);
 
-    const taskIdCodec = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
+    const taskIdCodec = await turingHelper.api.rpc.automationTime.generateTaskId(proxyOnTuring, providedId);
     const taskId = taskIdCodec.toString();
 
     return { providedId, taskId, executionTime: nextExecutionTime };
@@ -185,7 +185,7 @@ const main = async () => {
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyOnTuring, paraTokenIdOnTuring, keyPair,
     });
 
     const { taskId, providedId, executionTime } = result;
@@ -205,10 +205,15 @@ const main = async () => {
     const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
     await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
+    // Check that the task has been successfully added to the task list
+    console.log('\n6. Check that the task has been successfully added to the task list ...');
+    const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
+    console.log('The task has been successfully added to the task list, task: ', task.toHuman());
+
     const nextExecutionTime = executionTime + TASK_FREQUENCY;
     const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
 
-    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
+    console.log(`\n7. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
 
     const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
 
