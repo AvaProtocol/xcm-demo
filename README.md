@@ -314,7 +314,7 @@ The local environment of Moonbeam is named Moonbase Local in its chain config.
 
 2. Run this program to schedule automation and wait for cross-chain execution
 	```
-	npm run moonbase
+	npm run moonbase-local
 	```
 
 3. The above step outlines the process of XCM automation with Moonbase Local. Upon completing the program, an 'ethereum.executed' event from Moonbase Local will be emitted. However, the event will exit with an EvmCoreErrorExitReason, which occurs because a smart contract has not been deployed yet. To successfully demonstrate smart contract automation, please follow the subsequent steps to set up a test smart contract.
@@ -322,15 +322,24 @@ The local environment of Moonbeam is named Moonbase Local in its chain config.
     The default sudo wallet of Moonbase Local Alith is used to deploy a smart contract. Run the below commands to deploy a smart contract to Moonbase Local.
 
     ```
-    cd src/moonbeam/contracts
+    pushd src/moonbeam/contracts
     npm install
     npx hardhat compile   # Compile smart contract
     npx hardhat run scripts/deploy.js   # Deploy smart contract to Moonbase
     ```
 
-    The commands, if successful, will print out the newly deployed smart contract. Take the Incrementer contract’s Ethereum address, and set the value to CONTRACT_ADDRESS in the beginning of src/moonbeam/moonbase-local.js. You do not need to change the value CONTRACT_INPUT;
+    The commands, if successful, will print out the newly deployed smart contract. Take the Incrementer contract’s Ethereum address, and environmental variable CONTRACT_ADDRESS value when running src/moonbeam/moonbase-local.js. You do not need to change the value CONTRACT_INPUT;
+
+    Deployment output
     ```
+    Deploying Incrementer...
     Incrementer deployed to:  0x711F8F079b0BB4D16bd8C5D049358d31a1694755
+    ```
+    
+    Then, run
+    ```
+    popd  // Return the current directory to the root folder of this project
+    CONTRACT_ADDRESS=0x711F8F079b0BB4D16bd8C5D049358d31a1694755 npm run moonbase-local
     ```
 
 #### Moonbase Alpha environment
