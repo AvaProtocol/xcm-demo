@@ -9,7 +9,7 @@ import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, getDecimalBN, bnToFloat, listenEvents, generateProvidedId, getHourlyTimestamp,
+    sendExtrinsic, getDecimalBN, bnToFloat, listenEvents, generateProvidedId, getHourlyTimestamp, delay, calculateTimeout,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -273,10 +273,11 @@ const main = async () => {
     console.log('\nb). Create an automation time task with the payload extrinsic ...');
     const providedId = generateProvidedId();
     const timestampNextHour = getHourlyTimestamp(1);
+    const schedule = { Fixed: { executionTimes: [timestampNextHour] } };
     const taskExtrinsic = createAutomationTaskExtrinsic({
         turingHelper,
         providedId,
-        schedule: { Fixed: { executionTimes: [0] } },
+        schedule,
         parachainId: moonbaseHelper.config.paraId,
         paraTokenIdOnTuring,
         payloadExtrinsic,
@@ -297,13 +298,18 @@ const main = async () => {
 
     // Check that the task has been successfully added to the task list
     console.log('\n5. Check that the task has been successfully added to the task list ...');
-    const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
-    console.log('The task has been successfully added to the task list, task: ', task.toHuman());
+    if (schedule.Fixed?.executionTimes[0] !== 0) {
+        console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+        await delay(60000);
+        const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
+        console.log('The task has been successfully added to the task list, task: ', task.toHuman());
+    } else {
+        console.log('Immediately execution, Skip checking.');
+    }
 
     // Listen XCM events on Moonbase side
-    const additionalWaitingTime = 5 * 60 * 1000;
-    console.log(`\n6. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
-    const timeout = timestampNextHour - moment().valueOf() + additionalWaitingTime;
+    console.log(`\n6. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    const timeout = calculateTimeout(timestampNextHour);
     const isTaskExecuted = await listenEvents(moonbaseHelper.api, 'ethereum', 'Executed', timeout);
     if (!isTaskExecuted) {
         console.log('Timeout! Task was not executed.');

@@ -131,8 +131,14 @@ async function main() {
 
     // Check that the task has been successfully added to the task list
     console.log('\n4. Check that the task has been successfully added to the task list ...');
-    const task = await turingHelper.getAccountTask(turingAddress, taskId);
-    console.log('The task has been successfully added to the task list, task: ', task.toHuman());
+    if (schedule.Fixed?.executionTimes[0] !== 0) {
+        console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+        await delay(60000);
+        const task = await turingHelper.getAccountTask(turingAddress, taskId);
+        console.log('The task has been successfully added to the task list, task: ', task.toHuman());
+    } else {
+        console.log('Immediately execution, Skip checking.');
+    }
 
     // Listen XCM events on Mangata side
     console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
@@ -162,21 +168,23 @@ async function main() {
         return;
     }
 
-    console.log('\n6. Cancel task ...');
-    const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
-    await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
+    if (schedule.Recurring || schedule.Fixed?.executionTimes.length > 1) {
+        console.log('\n6. Cancel task ...');
+        const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
+        await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
-    const nextExecutionTime = executionTime + TASK_FREQUENCY;
-    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+        const nextExecutionTime = executionTime + TASK_FREQUENCY;
+        const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
 
-    console.log(`\n7. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
+        console.log(`\n7. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
 
-    const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
-    if (isTaskExecutedAgain) {
-        console.log('Task cancellation failed! It executes again.');
-        return;
+        const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
+        if (isTaskExecutedAgain) {
+            console.log('Task cancellation failed! It executes again.');
+            return;
+        }
+        console.log("Task canceled successfully! It didn't execute again.");
     }
-    console.log("Task canceled successfully! It didn't execute again.");
 }
 
 main().catch(console.error).finally(() => {

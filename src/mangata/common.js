@@ -10,7 +10,7 @@ import TuringHelper from '../common/turingHelper';
 import MangataHelper from '../common/mangataHelper';
 import Account from '../common/account';
 import {
-    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic,
+    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic, getHourlyTimestamp,
 } from '../common/utils';
 
 // Create a keyring instance
@@ -155,12 +155,8 @@ class AutoCompound {
                 console.log('\na) Create the call for scheduleXcmpTask ');
                 const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
 
-                const secPerHour = 3600;
-                const msPerHour = 3600 * 1000;
-                const currentTimestamp = moment().valueOf();
-                const timestampNextHour = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + secPerHour;
-                const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + (secPerHour * 2);
-
+                const timestampNextHour = getHourlyTimestamp(1);
+                const timestampTwoHoursLater = getHourlyTimestamp(2);
                 const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
                     providedId,
                     { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
@@ -188,6 +184,8 @@ class AutoCompound {
 
                 // Check that the task has been successfully added to the task list
                 console.log('\n5. Check that the task has been successfully added to the task list ...');
+                console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+                await delay(60000);
                 const task = await turingHelper.getAccountTask(turingAddress, taskId);
                 console.log('The task has been successfully added to the task list, task: ', task.toHuman());
 

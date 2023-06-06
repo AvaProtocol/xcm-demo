@@ -5,7 +5,7 @@ import moment from 'moment';
 import TuringHelper from '../common/turingHelper';
 import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout,
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, delay,
 } from '../common/utils';
 import { Turing, Shiden } from '../config';
 import Account from '../common/account';
@@ -204,6 +204,9 @@ const main = async () => {
     console.log('\n5. Cancel task ...');
     const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
     await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
+
+    console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+    await delay(60000);
 
     // Check that the task has been successfully added to the task list
     console.log('\n6. Check that the task has been successfully added to the task list ...');

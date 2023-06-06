@@ -195,7 +195,7 @@ const main = async () => {
         console.log('Transfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
-                V1: {
+                V2: {
                     id: {
                         Concrete: {
                             parents: 0,
@@ -210,7 +210,7 @@ const main = async () => {
                 },
             },
             {
-                V1: {
+                V2: {
                     parents: 1,
                     interior: {
                         X2: [
@@ -273,11 +273,10 @@ const main = async () => {
 
     const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(proxyOnTuring, providedId);
 
-    console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
-    await delay(60000);
-
     // Check that the task has been successfully added to the task list
     console.log('\n5. Check that the task has been successfully added to the task list ...');
+    console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+    await delay(60000);
     const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
     console.log('The task has been successfully added to the task list, task: ', task.toHuman());
 };

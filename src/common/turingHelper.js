@@ -108,10 +108,12 @@ class TuringHelper {
      * @returns
      */
     getAccountTask = async (address, taskId) => {
+        console.log('getAccountTask, address: ', address);
+        console.log(`getAccountTask, taskId: ${taskId}`);
         const accountId = this.keyring.decodeAddress(address);
         const task = await this.api.query.automationTime.accountTasks(accountId, taskId);
         if (task.isNone) {
-            throw new Error('Task not found');
+            throw new Error("The task was not found in the account's task list.");
         }
         return task.unwrap();
     };

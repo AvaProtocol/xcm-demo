@@ -4,7 +4,6 @@ import { BN } from 'bn.js';
 import Keyring from '@polkadot/keyring';
 
 import { getProxies, getProxyAccount } from './utils';
-import { Shibuya } from '../config';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
@@ -112,7 +111,7 @@ class ShibuyaHelper {
         return xcmpExtrinsic;
     };
 
-    createReserveTransferAssetsExtrinsic = (targetParaId, proxyAccount, amount) => {
+    createReserveTransferAssetsExtrinsic = (targetParaId, proxyOnTuring, amount) => {
         const extrinsic = this.api.tx.polkadotXcm.reserveTransferAssets(
             {
                 V2: {
@@ -122,7 +121,7 @@ class ShibuyaHelper {
             },
             {
                 V2: {
-                    interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccount } } },
+                    interior: { X1: { AccountId32: { network: { Any: '' }, id: this.keyring.decodeAddress(proxyOnTuring) } } },
                     parents: 0,
                 },
             },

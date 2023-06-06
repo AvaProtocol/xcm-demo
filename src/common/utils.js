@@ -164,13 +164,6 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
     let unsub = null;
     let timeoutId = null;
 
-    if (timeout) {
-        timeoutId = setTimeout(() => {
-            unsub();
-            resolve(false);
-        }, timeout);
-    }
-
     const listenSystemEvents = async () => {
         unsub = await api.query.system.events((events) => {
             let foundEvent = false;
@@ -205,6 +198,14 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
     };
 
     listenSystemEvents().catch(console.log);
+
+    // Set timeout to stop event listening.
+    if (timeout) {
+        timeoutId = setTimeout(() => {
+            unsub();
+            resolve(false);
+        }, timeout);
+    }
 });
 
 /*
@@ -263,4 +264,4 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
 
 export const generateProvidedId = () => `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
 
-export const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf();
+export const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf() / 1000;

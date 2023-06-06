@@ -6,7 +6,7 @@ import moment from 'moment';
 import TuringHelper from '../common/turingHelper';
 import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat, delay,
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat, delay, getHourlyTimestamp,
 } from '../common/utils';
 import { TuringStaging, Rocstar } from '../config';
 import Account from '../common/account';
@@ -20,7 +20,7 @@ const TASK_FREQUENCY = 3600;
 const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyOnTuring, paraTokenIdOnTuring, keyPair,
+    turingHelper, shibuyaHelper, schedule, turingAddress, parachainAddress, proxyOnTuring, paraTokenIdOnTuring, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
     // We are using a very simple system.remark extrinsic to demonstrate the payload here.
@@ -39,14 +39,9 @@ const scheduleTask = async ({
     // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
 
-    const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
-        // { Fixed: { executionTimes: [0] } },
+        schedule,
         shibuyaHelper.config.paraId,
         paraTokenIdOnTuring,
         { V2: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
@@ -86,7 +81,7 @@ const scheduleTask = async ({
     const taskIdCodec = await turingHelper.api.rpc.automationTime.generateTaskId(proxyOnTuring, providedId);
     const taskId = taskIdCodec.toString();
 
-    return { providedId, taskId, executionTime: nextExecutionTime };
+    return { providedId, taskId };
 };
 
 const main = async () => {
@@ -192,20 +187,24 @@ const main = async () => {
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
+    const timestampNextHour = getHourlyTimestamp(1);
+    const schedule = { Fixed: [timestampNextHour] };
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyOnTuring, paraTokenIdOnTuring, keyPair,
+        turingHelper, shibuyaHelper, schedule, turingAddress, parachainAddress, proxyOnTuring, paraTokenIdOnTuring, keyPair,
     });
 
-    const { taskId, providedId, executionTime } = result;
+    const { taskId, providedId } = result;
 
     // Check that the task has been successfully added to the task list
     console.log('\n4. Check that the task has been successfully added to the task list ...');
-    const task = await turingHelper.getAccountTask(proxyOnTuring, taskId);
+    console.log('\nWait for 1 minute for the execution of the XCM message to schedule task on Turing ...');
+    await delay(60000);
+    const task = await turingHelper.getAccountTask(turingAddress, taskId);
     console.log('The task has been successfully added to the task list, task: ', task.toHuman());
 
-    const timeout = calculateTimeout(executionTime);
+    const timeout = calculateTimeout(timestampNextHour);
 
-    console.log(`\n5. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    console.log(`\n5. Keep Listening events on ${parachainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
     const isTaskExecuted = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', timeout);
 
     if (!isTaskExecuted) {
@@ -223,22 +222,24 @@ const main = async () => {
 
     console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, decimalBN))} ${symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, decimalBN))} ${symbol}.`);
 
-    console.log('\n6. Cancel the task ...');
-    const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
-    await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
+    if (schedule.Recurring || schedule.Fixed?.executionTimes.length > 1) {
+        console.log('\n6. Cancel the task ...');
+        const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
+        await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
 
-    const nextExecutionTime = executionTime + TASK_FREQUENCY;
-    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+        const nextExecutionTime = timestampNextHour + TASK_FREQUENCY;
+        const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
 
-    console.log(`\n7. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
+        console.log(`\n7. Keep Listening events on ${parachainName} until ${moment(nextExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextExecutionTime}) to verify that the task was successfully canceled ...`);
 
-    const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
+        const isTaskExecutedAgain = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
 
-    if (isTaskExecutedAgain) {
-        console.log('Task cancellation failed! It executes again.');
-        return;
+        if (isTaskExecutedAgain) {
+            console.log('Task cancellation failed! It executes again.');
+            return;
+        }
+        console.log("Task canceled successfully! It didn't execute again.");
     }
-    console.log("Task canceled successfully! It didn't execute again.");
 };
 
 main().catch(console.error).finally(() => {
