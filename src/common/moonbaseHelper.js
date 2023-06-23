@@ -53,25 +53,13 @@ class MoonbaseHelper {
 
         const transactExtrinsic = this.api.tx.xcmTransactor.transactThroughSigned(
             {
-                V1: {
+                V3: {
                     parents: 1,
-                    interior: {
-                        X1: { Parachain: 2114 },
-                    },
+                    interior: { X1: { Parachain: 2114 } },
                 },
             },
             {
-                currency: {
-                    AsCurrencyId: 'SelfReserve',
-                    // AsMultiLocation: {
-                    //     V1: {
-                    //         parents: 1,
-                    //         interior: {
-                    //             X1: { Parachain: targetParaId },
-                    //         },
-                    //     },
-                    // },
-                },
+                currency: { AsCurrencyId: 'SelfReserve' },
                 feeAmount: fungible,
             },
             encodedCall,

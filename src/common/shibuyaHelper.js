@@ -52,13 +52,13 @@ class ShibuyaHelper {
         const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
             {
-                V2: {
+                V3: {
                     parents: 1,
                     interior: { X1: { Parachain: targetParaId } },
                 },
             },
             {
-                V2: [
+                V3: [
                     {
                         WithdrawAsset: [
                             {
@@ -102,7 +102,7 @@ class ShibuyaHelper {
                             maxAssets: 1,
                             beneficiary: {
                                 parents: 1,
-                                interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccount } } },
+                                interior: { X1: { AccountId32: { network: null, id: proxyAccount } } },
                             },
                         },
                     },
@@ -115,19 +115,19 @@ class ShibuyaHelper {
     createReserveTransferAssetsExtrinsic = (targetParaId, proxyAccount, amount) => {
         const extrinsic = this.api.tx.polkadotXcm.reserveTransferAssets(
             {
-                V2: {
+                V3: {
                     parents: 1,
                     interior: { X1: { Parachain: targetParaId } },
                 },
             },
             {
-                V2: {
-                    interior: { X1: { AccountId32: { network: { Any: '' }, id: proxyAccount } } },
+                V3: {
+                    interior: { X1: { AccountId32: { network: null, id: proxyAccount } } },
                     parents: 0,
                 },
             },
             {
-                V2: [
+                V3: [
                     {
                         fun: { Fungible: amount },
                         id: {

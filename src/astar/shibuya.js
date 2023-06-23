@@ -54,7 +54,7 @@ const scheduleTask = async ({
         { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
         paraTokenIdOnTuring,
-        { V2: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
+        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
         encodedCallData,
         encodedCallWeight,
         turingAddress,

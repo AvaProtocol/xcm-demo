@@ -33,7 +33,7 @@ const sendXcmFromMoonbase = async ({
     const parachainProxyCall = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
         keyPair.address,
         {
-            V2: {
+            V3: {
                 gasLimit: 71000,
                 action: { Call: CONTRACT_ADDRESS },
                 value: 0,
@@ -57,7 +57,7 @@ const sendXcmFromMoonbase = async ({
         parachainHelper.config.paraId,
         paraTokenIdOnTuring,
         {
-            V2: {
+            V3: {
                 parents: 1,
                 interior: { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] },
             },
@@ -92,7 +92,7 @@ const sendXcmFromMoonbase = async ({
 
     const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
         {
-            V2: {
+            V3: {
                 parents: 1,
                 interior: {
                     X1: { Parachain: 2114 },
@@ -193,7 +193,7 @@ const main = async () => {
         console.log('Transfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
-                V1: {
+                V3: {
                     id: {
                         Concrete: {
                             parents: 0,
@@ -208,19 +208,12 @@ const main = async () => {
                 },
             },
             {
-                V1: {
+                V3: {
                     parents: 1,
                     interior: {
                         X2: [
-                            {
-                                Parachain: turingHelper.config.paraId,
-                            },
-                            {
-                                AccountId32: {
-                                    network: 'Any',
-                                    id: u8aToHex(proxyAccountId),
-                                },
-                            },
+                            { Parachain: turingHelper.config.paraId },
+                            { AccountId32: { network: null, id: u8aToHex(proxyAccountId) } },
                         ],
                     },
                 },
