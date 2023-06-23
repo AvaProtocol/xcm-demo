@@ -65,7 +65,7 @@ const createAutomationTaskExtrinsic = ({
         parachainId,
         paraTokenIdOnTuring,
         {
-            V2: {
+            V3: {
                 parents: 1,
                 interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] },
             },
@@ -102,7 +102,7 @@ const scheduleTaskFromMoonbase = async ({
 
     const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
         {
-            V2: {
+            V3: {
                 parents: 1,
                 interior: { X1: { Parachain: 2114 } },
             },
@@ -203,7 +203,7 @@ const main = async () => {
         console.log('\nTransfer DEV from Moonbase to Turing');
         const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
             {
-                V2: {
+                V3: {
                     id: {
                         Concrete: {
                             parents: 0,
@@ -218,7 +218,7 @@ const main = async () => {
                 },
             },
             {
-                V2: {
+                V3: {
                     parents: 1,
                     interior: {
                         X2: [
@@ -227,7 +227,7 @@ const main = async () => {
                             },
                             {
                                 AccountId32: {
-                                    network: 'Any',
+                                    network: null,
                                     id: u8aToHex(proxyAccountId),
                                 },
                             },

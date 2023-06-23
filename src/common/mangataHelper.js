@@ -236,17 +236,12 @@ class MangataHelper {
         const currencyId = this.getTokenIdBySymbol('TUR');
 
         const dest = {
-            V1: {
+            V3: {
                 parents: 1,
                 interior: {
                     X2: [
                         { Parachain: paraId },
-                        {
-                            AccountId32: {
-                                network: 'Any',
-                                id: publicKeyHex,
-                            },
-                        },
+                        { AccountId32: { network: null, id: publicKeyHex } },
                     ],
                 },
             },
