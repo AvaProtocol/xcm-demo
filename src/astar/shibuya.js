@@ -32,6 +32,9 @@ const scheduleTask = async ({
     const encodedCallData = payloadViaProxy.method.toHex();
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
     const encodedCallWeight = payloadViaProxyFees.weight;
+    const overallWeight = shibuyaHelper.calculateXcmTransactOverallWeight(encodedCallWeight);
+    const fee = shibuyaHelper.weightToFee(overallWeight);
+
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);
 
@@ -50,13 +53,13 @@ const scheduleTask = async ({
     // Currently the task trigger immediately in dev environment
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
-        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
         { Fixed: { executionTimes: [0] } },
-        shibuyaHelper.config.paraId,
-        paraTokenIdOnTuring,
         { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
+        paraTokenIdOnTuring,
+        { asset_location: { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } }, amount: fee },
         encodedCallData,
         encodedCallWeight,
+        overallWeight,
         turingAddress,
     );
 

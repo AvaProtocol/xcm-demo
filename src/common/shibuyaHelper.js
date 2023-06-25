@@ -3,7 +3,7 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { BN } from 'bn.js';
 import Keyring from '@polkadot/keyring';
 
-import { getProxies, getProxyAccount } from './utils';
+import { WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount } from './utils';
 import { Shibuya } from '../config';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
@@ -154,6 +154,10 @@ class ShibuyaHelper {
         const token = _.find(this.assets, { symbol });
         return token.decimals;
     }
+
+    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
+
+    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
 }
 
 export default ShibuyaHelper;
