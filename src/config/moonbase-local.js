@@ -1,3 +1,5 @@
+import BN from 'bn.js';
+
 const assets = [
     {
         id: '0',
@@ -17,6 +19,8 @@ const Config = {
     paraId: 1000,
     ss58: 1287,
     assets,
+    instructionWeight: { refTime: new BN(250000000), proofSize: new BN(0) },
+    feePerSecond: new BN('10000000000000000000'),
 };
 
 export default Config;

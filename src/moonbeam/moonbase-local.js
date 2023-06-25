@@ -56,24 +56,20 @@ const createEthereumXcmTransactThroughProxyExtrinsic = (parachainHelper, transac
 };
 
 const createAutomationTaskExtrinsic = ({
-    turingHelper, providedId, parachainId, paraTokenIdOnTuring, payloadExtrinsic, schedule, scheduleAs,
+    turingHelper, providedId, schedule, parachainId, paraTokenIdOnTuring, payloadExtrinsic, payloadExtrinsicWeight, overallWeight, fee, scheduleAs,
 }) => {
-    const payloadExtrinsicWeight = { refTime: '4000000000', proofSize: 0 };
     const extrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
         schedule,
-        parachainId,
+        { V3: { parents: 1, interior: { X1: { Parachain: parachainId } } } },
         paraTokenIdOnTuring,
-        {
-            V3: {
-                parents: 1,
-                interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] },
-            },
-        },
+        { asset_location: { V3: { parents: 1, interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] } } }, amount: fee },
         payloadExtrinsic.method.toHex(),
         payloadExtrinsicWeight,
+        overallWeight,
         scheduleAs,
     );
+
     console.log(`Task extrinsic encoded call data: ${extrinsic.method.toHex()}`);
     return extrinsic;
 };
@@ -273,6 +269,11 @@ const main = async () => {
     console.log('\nb). Create an automation time task with the payload extrinsic ...');
     const providedId = generateProvidedId();
     const timestampNextHour = getHourlyTimestamp(1);
+
+    const payloadExtrinsicWeight = (await payloadExtrinsic.paymentInfo(aliceKeyPair.address)).weight;
+    const overallWeight = moonbaseHelper.calculateXcmTransactOverallWeight(payloadExtrinsicWeight);
+    const fee = moonbaseHelper.weightToFee(overallWeight);
+
     const taskExtrinsic = createAutomationTaskExtrinsic({
         turingHelper,
         providedId,
@@ -280,6 +281,9 @@ const main = async () => {
         parachainId: moonbaseHelper.config.paraId,
         paraTokenIdOnTuring,
         payloadExtrinsic,
+        payloadExtrinsicWeight,
+        overallWeight,
+        fee,
         scheduleAs: turingAddress,
     });
 

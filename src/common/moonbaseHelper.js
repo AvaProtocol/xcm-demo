@@ -3,7 +3,7 @@ import Keyring from '@polkadot/keyring';
 import { u8aToHex } from '@polkadot/util';
 import { BN } from 'bn.js';
 
-import { getProxies, getProxyAccount } from './utils';
+import { WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount } from './utils';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
@@ -67,6 +67,10 @@ class MoonbaseHelper {
         );
         return transactExtrinsic;
     };
+
+    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
+
+    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
 }
 
 export default MoonbaseHelper;
