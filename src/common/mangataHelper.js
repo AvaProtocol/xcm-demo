@@ -4,7 +4,9 @@ import _ from 'lodash';
 import { Mangata } from '@mangata-finance/sdk';
 import Keyring from '@polkadot/keyring';
 
-import { sendExtrinsic, getProxyAccount, getDecimalBN } from './utils';
+import {
+    sendExtrinsic, getProxyAccount, getDecimalBN, calculateXcmOverallWeight, WEIGHT_REF_TIME_PER_SECOND,
+} from './utils';
 
 class MangataHelper {
     constructor(config) {
@@ -342,6 +344,10 @@ class MangataHelper {
             return events;
         });
     };
+
+    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
+
+    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
 }
 
 export default MangataHelper;

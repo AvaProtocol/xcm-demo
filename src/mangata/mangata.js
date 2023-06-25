@@ -104,17 +104,22 @@ async function main() {
         : { Fixed: { executionTimes: [0] } };
 
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
+
+    const overallWeight = mangataHelper.calculateXcmTransactOverallWeight(mangataProxyCallFees.weight);
+    const fee = mangataHelper.weightToFee(overallWeight);
+
     const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
         schedule,
-        mangataHelper.config.paraId,
-        0,
         { V3: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
+        0,
+        { asset_location: { V3: { parents: 0, interior: 'Here' } }, amount: fee },
         encodedMangataProxyCall,
         mangataProxyCallFees.weight,
+        overallWeight,
     );
 
-    console.log('xcmpCall: ', xcmpCall);
+    console.log('xcmpCall: ', xcmpCall.method.toHex());
 
     // Query automationTime fee
     console.log('\n2. Query automationTime fee details ');
@@ -127,7 +132,8 @@ async function main() {
 
     // Send extrinsic
     console.log('\n3. Sign and send scheduleXcmpTask call ...');
-    await turingHelper.sendXcmExtrinsic(xcmpCall, account.pair, taskId);
+    // await turingHelper.sendXcmExtrinsic(xcmpCall, account.pair, taskId);
+    await sendExtrinsic(turingHelper.api, xcmpCall, account.pair);
 
     // Listen XCM events on Mangata side
     console.log(`\n4. Keep Listening XCM events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
