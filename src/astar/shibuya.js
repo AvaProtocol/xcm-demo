@@ -65,20 +65,19 @@ const scheduleTask = async ({
 
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight.refTime, 10);
+    const transactCallWeight = taskViaProxyFees.weight;
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
-    console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
+    console.log(`requireWeightAtMost: ${transactCallWeight.toHuman()}`);
 
     console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: turingHelper.config.paraId,
         encodedCall: encodedTaskViaProxy,
         proxyAccount: proxyAccountId,
-        feePerSecond,
-        instructionWeight: TURING_INSTRUCTION_WEIGHT,
-        requireWeightAtMost,
+        transactCallWeight,
+        overallWeight: turingHelper.calculateXcmTransactOverallWeight(transactCallWeight),
+        fee: shibuyaHelper.weightToFee(overallWeight),
     });
 
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);

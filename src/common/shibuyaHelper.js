@@ -38,18 +38,8 @@ class ShibuyaHelper {
     };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, proxyAccount, instructionWeight,
+        targetParaId, encodedCall, proxyAccount, transactCallWeight, overallWeight, fee,
     }) => {
-        // The instruction count of XCM message.
-        // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
-        // So instructionCount should be V2.length + 1
-        const instructionCount = 6;
-        const totalInstructionWeight = instructionCount * instructionWeight;
-        console.log('requireWeightAtMost: ', requireWeightAtMost);
-        console.log('totalInstructionWeight: ', totalInstructionWeight);
-        console.log('targetParaId: ', targetParaId);
-        const weightLimit = requireWeightAtMost + totalInstructionWeight;
-        const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
         const xcmpExtrinsic = this.api.tx.polkadotXcm.send(
             {
                 V3: {
@@ -62,7 +52,7 @@ class ShibuyaHelper {
                     {
                         WithdrawAsset: [
                             {
-                                fun: { Fungible: fungible },
+                                fun: { Fungible: fee },
                                 id: {
                                     Concrete: {
                                         interior: { X1: { Parachain: this.config.paraId } },
@@ -75,7 +65,7 @@ class ShibuyaHelper {
                     {
                         BuyExecution: {
                             fees: {
-                                fun: { Fungible: fungible },
+                                fun: { Fungible: fee },
                                 id: {
                                     Concrete: {
                                         interior: { X1: { Parachain: this.config.paraId } },
@@ -83,13 +73,13 @@ class ShibuyaHelper {
                                     },
                                 },
                             },
-                            weightLimit: { Limited: weightLimit },
+                            weightLimit: { Limited: overallWeight },
                         },
                     },
                     {
                         Transact: {
-                            originType: 'SovereignAccount',
-                            requireWeightAtMost,
+                            originKind: 'SovereignAccount',
+                            requireWeightAtMost: transactCallWeight,
                             call: { encoded: encodedCall },
                         },
                     },
