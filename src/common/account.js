@@ -111,7 +111,7 @@ class Account {
      * @param {boolean} ignoreZeroBalance true by default to hide zero balances
      */
     print(ignoreZeroBalance = true) {
-        let result = _.cloneDeep(this.assets);
+        let result = this.assets;
 
         if (ignoreZeroBalance) {
             result = _.map(result, (chain) => {
