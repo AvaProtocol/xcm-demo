@@ -4,6 +4,22 @@ const assets = [
     {
         symbol: 'TUR',
         decimals: 10,
+        feePerSecond: new BN('416000000000'),
+    },
+    {
+        symbol: 'DEV',
+        decimals: 18,
+        feePerSecond: new BN('10000000000000000000'),
+    },
+    {
+        symbol: 'MGR',
+        decimals: 18,
+        feePerSecond: new BN('416000000000'),
+    },
+    {
+        symbol: 'SBY',
+        decimals: 18,
+        feePerSecond: new BN('516000000000'),
     },
 ];
 
@@ -16,7 +32,6 @@ const Config = {
     ss58: 51,
     assets,
     instructionWeight: { refTime: new BN(1_000_000_000), proofSize: new BN(0) },
-    feePerSecond: new BN('10000000000000000000'),
 };
 
 export default Config;

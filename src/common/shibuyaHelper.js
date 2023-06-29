@@ -147,7 +147,10 @@ class ShibuyaHelper {
 
     calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
 
-    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    weightToFee = (weight, symbol) => {
+        const { feePerSecond } = _.find(this.assets, { symbol });
+        return weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    };
 }
 
 export default ShibuyaHelper;

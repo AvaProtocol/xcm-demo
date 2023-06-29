@@ -1,9 +1,11 @@
+import _ from 'lodash';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import Keyring from '@polkadot/keyring';
-import { u8aToHex } from '@polkadot/util';
 import { BN } from 'bn.js';
 
-import { WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount } from './utils';
+import {
+    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount,
+} from './utils';
 
 // frame_support::weights::constants::WEIGHT_PER_SECOND
 // https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
@@ -38,39 +40,35 @@ class MoonbaseHelper {
     };
 
     createTransactExtrinsic = ({
-        targetParaId, encodedCall, feePerSecond, requireWeightAtMost, instructionWeight, proxyAccountId,
+        targetParaId, encodedCall, callWeight, overallWeight, fee,
     }) => {
-        // The instruction count of XCM message.
-        // Because polkadotXcm.send will insert the DescendOrigin instruction at the head of the instructions list.
-        // So instructionCount should be V2.length + 1
-        console.log(`createTransactExtrinsic, targetParaId: ${targetParaId}, encodedCall: ${encodedCall}, feePerSecond: ${feePerSecond}, requireWeightAtMost: ${requireWeightAtMost}, instructionWeight: ${instructionWeight}, proxyAccountId: ${proxyAccountId}`);
-        const instructionCount = 4;
-        const totalInstructionWeight = instructionCount * instructionWeight;
-        const weightLimit = requireWeightAtMost + totalInstructionWeight;
-        const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND));
-        console.log(`fungible: ${fungible.toString()}`);
-        console.log(`weightLimit: ${weightLimit.toString()}`);
-
         const transactExtrinsic = this.api.tx.xcmTransactor.transactThroughSigned(
             {
                 V3: {
                     parents: 1,
-                    interior: { X1: { Parachain: 2114 } },
+                    interior: { X1: { Parachain: targetParaId } },
                 },
             },
             {
                 currency: { AsCurrencyId: 'SelfReserve' },
-                feeAmount: fungible,
+                feeAmount: fee,
             },
             encodedCall,
-            { transactRequiredWeightAtMost: weightLimit },
+            {
+                transactRequiredWeightAtMost: callWeight,
+                overallWeight,
+            },
         );
+
         return transactExtrinsic;
     };
 
-    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
+    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 4);
 
-    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    weightToFee = (weight, symbol) => {
+        const { feePerSecond } = _.find(this.assets, { symbol });
+        return weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    };
 }
 
 export default MoonbaseHelper;

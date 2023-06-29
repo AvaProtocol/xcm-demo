@@ -106,7 +106,12 @@ class TuringHelper {
 
     calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
 
-    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    weightToFee = (weight, symbol) => {
+        const { feePerSecond } = _.find(this.assets, { symbol });
+        console.log(`weight: (${weight.refTime.toString()}, ${weight.proofSize.toString()})`);
+        const result = weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+        return result;
+    };
 }
 
 export default TuringHelper;

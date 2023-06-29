@@ -176,7 +176,7 @@ class AutoCompound {
                 // Query automationTime fee
                 console.log('\nb) Query automationTime fee details ');
                 const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-                console.log('automationFeeDetails: ', { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
+                console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), xcmpFee: xcmpFee.toString() });
 
                 // Get a TaskId from Turing rpc
                 const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);

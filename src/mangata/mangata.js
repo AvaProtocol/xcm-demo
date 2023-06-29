@@ -104,10 +104,8 @@ async function main() {
         : { Fixed: { executionTimes: [0] } };
 
     const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-
     const overallWeight = mangataHelper.calculateXcmTransactOverallWeight(mangataProxyCallFees.weight);
-    const fee = mangataHelper.weightToFee(overallWeight);
-
+    const fee = mangataHelper.weightToFee(overallWeight, 'TUR');
     const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         providedId,
         schedule,
@@ -124,7 +122,7 @@ async function main() {
     // Query automationTime fee
     console.log('\n2. Query automationTime fee details ');
     const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-    console.log('automationFeeDetails: ', { executionFee: executionFee.toHuman(), xcmpFee: xcmpFee.toHuman() });
+    console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), xcmpFee: xcmpFee.toString() });
 
     // Get a TaskId from Turing rpc
     const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);

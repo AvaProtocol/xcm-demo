@@ -4,6 +4,7 @@ const assets = [
     {
         symbol: 'SBY',
         decimals: 18,
+        feePerSecond: new BN('10000000000000000000'),
     },
 ];
 
@@ -16,7 +17,6 @@ const Config = {
     ss58: 5,
     assets,
     instructionWeight: { refTime: new BN(1_000_000_000), proofSize: new BN(1024) },
-    feePerSecond: new BN('10000000000000000000'),
 };
 
 export default Config;

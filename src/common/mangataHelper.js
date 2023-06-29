@@ -33,7 +33,11 @@ class MangataHelper {
 
     updateAssets = async () => {
         const assetsResp = await this.mangata.getAssetsInfo();
-        this.assets = _.values(_.filter(assetsResp, (asset) => !_.isEmpty(asset.symbol)));
+        const assets = _.values(_.filter(assetsResp, (asset) => !_.isEmpty(asset.symbol)));
+        this.assets = _.map(assets, (asset) => {
+            const localAsset = _.find(this.config.assets, { symbol: asset.symbol });
+            return localAsset ? { ...asset, ...localAsset } : asset;
+        });
         console.log('Assets on Mangata chain: ', this.assets);
     };
 
@@ -347,7 +351,10 @@ class MangataHelper {
 
     calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
 
-    weightToFee = (weight) => weight.refTime.mul(new BN(this.config.feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    weightToFee = (weight, symbol) => {
+        const { feePerSecond } = _.find(this.assets, { symbol });
+        return weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    };
 }
 
 export default MangataHelper;

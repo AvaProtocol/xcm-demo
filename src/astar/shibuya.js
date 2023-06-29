@@ -14,7 +14,6 @@ import Account from '../common/account';
 // TODO: read this instruction value from Turing Staging
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
-const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 150; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;
 
@@ -33,7 +32,7 @@ const scheduleTask = async ({
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
     const encodedCallWeight = payloadViaProxyFees.weight;
     const overallWeight = shibuyaHelper.calculateXcmTransactOverallWeight(encodedCallWeight);
-    const fee = shibuyaHelper.weightToFee(overallWeight);
+    const fee = shibuyaHelper.weightToFee(overallWeight, 'SBY');
 
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);
@@ -68,7 +67,7 @@ const scheduleTask = async ({
     const transactCallWeight = taskViaProxyFees.weight;
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
-    console.log(`requireWeightAtMost: ${transactCallWeight.toHuman()}`);
+    console.log('requireWeightAtMost: ', transactCallWeight.toHuman());
 
     console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
@@ -77,7 +76,7 @@ const scheduleTask = async ({
         proxyAccount: proxyAccountId,
         transactCallWeight,
         overallWeight: turingHelper.calculateXcmTransactOverallWeight(transactCallWeight),
-        fee: shibuyaHelper.weightToFee(overallWeight),
+        fee: turingHelper.weightToFee(overallWeight, 'SBY'),
     });
 
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
