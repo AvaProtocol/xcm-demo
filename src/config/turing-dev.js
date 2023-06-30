@@ -19,7 +19,7 @@ const assets = [
     {
         symbol: 'SBY',
         decimals: 18,
-        feePerSecond: new BN('516000000000'),
+        feePerSecond: new BN('416000000000'),
     },
 ];
 

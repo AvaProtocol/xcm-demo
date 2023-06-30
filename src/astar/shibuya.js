@@ -68,6 +68,7 @@ const scheduleTask = async ({
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
     console.log('requireWeightAtMost: ', transactCallWeight.toHuman());
+    const xcmOverallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
 
     console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
@@ -75,8 +76,8 @@ const scheduleTask = async ({
         encodedCall: encodedTaskViaProxy,
         proxyAccount: proxyAccountId,
         transactCallWeight,
-        overallWeight: turingHelper.calculateXcmTransactOverallWeight(transactCallWeight),
-        fee: turingHelper.weightToFee(overallWeight, 'SBY'),
+        overallWeight: xcmOverallWeight,
+        fee: turingHelper.weightToFee(xcmOverallWeight, 'SBY'),
     });
 
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
