@@ -1,5 +1,8 @@
 import BN from 'bn.js';
 
+const WEIGHT_REF_TIME = new BN('250000000');
+const WEIGHT_PROOF_SIZE = new BN('0');
+
 const assets = [
     {
         id: '0',
@@ -20,7 +23,7 @@ const Config = {
     paraId: 1000,
     ss58: 1287,
     assets,
-    instructionWeight: { refTime: new BN(250000000), proofSize: new BN(0) },
+    instructionWeight: { refTime: WEIGHT_REF_TIME, proofSize: WEIGHT_PROOF_SIZE },
 };
 
 export default Config;
