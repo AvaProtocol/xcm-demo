@@ -54,7 +54,7 @@ const scheduleTask = async ({
         providedId,
         { Fixed: { executionTimes: [0] } },
         { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
-        paraTokenIdOnTuring,
+        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
         { asset_location: { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } }, amount: fee },
         encodedCallData,
         encodedCallWeight,

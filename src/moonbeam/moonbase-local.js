@@ -50,13 +50,13 @@ const createEthereumXcmTransactThroughProxyExtrinsic = (parachainHelper, transac
 };
 
 const createAutomationTaskExtrinsic = ({
-    turingHelper, providedId, schedule, parachainId, paraTokenIdOnTuring, payloadExtrinsic, payloadExtrinsicWeight, overallWeight, fee, scheduleAs,
+    turingHelper, providedId, schedule, parachainId, scheduleFee, payloadExtrinsic, payloadExtrinsicWeight, overallWeight, fee, scheduleAs,
 }) => {
     const extrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
         schedule,
         { V3: { parents: 1, interior: { X1: { Parachain: parachainId } } } },
-        paraTokenIdOnTuring,
+        scheduleFee,
         { asset_location: { V3: { parents: 1, interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] } } }, amount: fee },
         payloadExtrinsic.method.toHex(),
         payloadExtrinsicWeight,
@@ -249,7 +249,7 @@ const main = async () => {
         providedId,
         schedule: { Fixed: { executionTimes: [0] } },
         parachainId: moonbaseHelper.config.paraId,
-        paraTokenIdOnTuring,
+        scheduleFee: { V3: { parents: 1, interior: { X2: [{ Parachain: moonbaseHelper.config.paraId }, { PalletInstance: 3 }] } } },
         payloadExtrinsic,
         payloadExtrinsicWeight,
         overallWeight,

@@ -110,7 +110,7 @@ async function main() {
         providedId,
         schedule,
         { V3: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
-        0,
+        { V3: { parents: 0, interior: 'Here' } },
         { asset_location: { V3: { parents: 0, interior: 'Here' } }, amount: fee },
         encodedMangataProxyCall,
         mangataProxyCallFees.weight,

@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 
 const WEIGHT_REF_TIME = new BN(1_000_000_000);
-const WEIGHT_PROOF_SIZE = new BN(0);
+const WEIGHT_PROOF_SIZE = new BN(1024);
 
 const assets = [
     {
