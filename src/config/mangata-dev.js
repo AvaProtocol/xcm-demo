@@ -1,3 +1,8 @@
+import BN from 'bn.js';
+
+const WEIGHT_REF_TIME = new BN(150000000);
+const WEIGHT_PROOF_SIZE = new BN(0);
+
 const assets = [
     {
         id: '0',
@@ -22,6 +27,7 @@ const assets = [
         name: 'Turing native token',
         symbol: 'TUR',
         address: '',
+        feePerSecond: new BN('537600000000'),
     },
 ];
 
@@ -37,6 +43,7 @@ const Config = {
     ss58: 42,
     assets,
     pools,
+    instructionWeight: { refTime: WEIGHT_REF_TIME, proofSize: WEIGHT_PROOF_SIZE },
 };
 
 export default Config;

@@ -9,6 +9,9 @@ import select from '@inquirer/select';
 
 const LISTEN_EVENT_DELAY = 3 * 60;
 
+export const WEIGHT_REF_TIME_PER_SECOND = 1000000000000;
+export const WEIGHT_PROOF_SIZE_PER_MB = 1024 * 1024;
+
 export const ScheduleActionType = {
     executeImmediately: 'execute-immediately',
     executeOnTheHour: 'execute-on-the-hour',
@@ -264,3 +267,9 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
 export const generateProvidedId = () => `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
 
 export const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf();
+
+export const calculateXcmOverallWeight = (transactCallWeight, instructionWeight, instructionCount) => {
+    const totalInstructionWeight = { refTime: instructionWeight.refTime.mul(new BN(instructionCount)), proofSize: instructionWeight.proofSize.mul(new BN(instructionCount)) };
+    const totalWeight = { refTime: transactCallWeight.refTime.unwrap().add(totalInstructionWeight.refTime), proofSize: transactCallWeight.proofSize.unwrap().add(totalInstructionWeight.proofSize) };
+    return totalWeight;
+};

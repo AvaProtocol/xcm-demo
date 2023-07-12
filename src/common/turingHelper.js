@@ -1,9 +1,12 @@
+import BN from 'bn.js';
 import _ from 'lodash';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import Keyring from '@polkadot/keyring';
 
-import { getProxies, getProxyAccount } from './utils';
+import {
+    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount,
+} from './utils';
 
 class TuringHelper {
     constructor(config) {
@@ -99,6 +102,15 @@ class TuringHelper {
             .unwrapOrDefault()
             .toNumber();
         return assetId;
+    };
+
+    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
+
+    weightToFee = (weight, symbol) => {
+        const { feePerSecond } = _.find(this.assets, { symbol });
+        console.log(`weight: (${weight.refTime.toString()}, ${weight.proofSize.toString()})`);
+        const result = weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+        return result;
     };
 }
 

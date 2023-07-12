@@ -9,22 +9,16 @@ import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, getDecimalBN, bnToFloat, listenEvents, generateProvidedId, getHourlyTimestamp,
+    sendExtrinsic, getDecimalBN, listenEvents, generateProvidedId, getHourlyTimestamp,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
 // TODO: read this instruction value from Turing Staging
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
-const TURING_INSTRUCTION_WEIGHT = 1000000000;
-const TASK_FREQUENCY = 3600;
 
 const CONTRACT_ADDRESS = '0x970951a12f975e6762482aca81e57d5a2a4e73f4';
 const CONTRACT_INPUT = '0xd09de08a';
-
-const WEIGHT_PER_SECOND = 1000000000000;
-
-const millisecondsInHour = 3600 * 1000;
 
 const keyring = new Keyring({ type: 'sr25519' });
 
@@ -56,73 +50,45 @@ const createEthereumXcmTransactThroughProxyExtrinsic = (parachainHelper, transac
 };
 
 const createAutomationTaskExtrinsic = ({
-    turingHelper, providedId, parachainId, paraTokenIdOnTuring, payloadExtrinsic, schedule, scheduleAs,
+    turingHelper, providedId, schedule, parachainId, scheduleFee, payloadExtrinsic, payloadExtrinsicWeight, overallWeight, fee, scheduleAs,
 }) => {
-    const payloadExtrinsicWeight = { refTime: '4000000000', proofSize: 0 };
     const extrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         providedId,
         schedule,
-        parachainId,
-        paraTokenIdOnTuring,
-        {
-            V3: {
-                parents: 1,
-                interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] },
-            },
-        },
+        { V3: { parents: 1, interior: { X1: { Parachain: parachainId } } } },
+        scheduleFee,
+        { asset_location: { V3: { parents: 1, interior: { X2: [{ Parachain: parachainId }, { PalletInstance: 3 }] } } }, amount: fee },
         payloadExtrinsic.method.toHex(),
         payloadExtrinsicWeight,
+        overallWeight,
         scheduleAs,
     );
+
     console.log(`Task extrinsic encoded call data: ${extrinsic.method.toHex()}`);
     return extrinsic;
 };
 
 const scheduleTaskFromMoonbase = async ({
-    parachainHelper, taskExtrinsic, taskExtrinsicPaymentInfo, feePerSecond, keyPair,
+    turingHelper, parachainHelper, taskExtrinsic, taskExtrinsicPaymentInfo, keyPair,
 }) => {
     const encodedTaskExtrinsic = taskExtrinsic.method.toHex();
-    const requireWeightAtMost = parseInt(taskExtrinsicPaymentInfo.weight.refTime, 10);
+    const transactCallWeight = taskExtrinsicPaymentInfo.weight;
 
     console.log(`Proxy task extrinsic encoded call data: ${encodedTaskExtrinsic}`);
-    console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
+    console.log('transactCallWeight: ', transactCallWeight.toHuman());
 
-    // console.log(`\nc) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
+    const overallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
+    const fee = turingHelper.weightToFee(overallWeight, 'DEV');
 
-    const instructionCount = 4;
-    const totalInstructionWeight = instructionCount * TURING_INSTRUCTION_WEIGHT;
-    const weightLimit = requireWeightAtMost + totalInstructionWeight;
-    const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND)).mul(new BN(10));
-    const transactRequiredWeightAtMost = requireWeightAtMost + TURING_INSTRUCTION_WEIGHT;
-    // const overallWeight = (instructionCount - 1) * TURING_INSTRUCTION_WEIGHT;
-    const overallWeight = 8170208000;
-    console.log('transactRequiredWeightAtMost: ', transactRequiredWeightAtMost);
-    console.log('overallWeight: ', overallWeight);
-    console.log('fungible: ', fungible.toString());
+    console.log(`\nExecute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
 
-    const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
-        {
-            V3: {
-                parents: 1,
-                interior: { X1: { Parachain: 2114 } },
-            },
-        },
-        {
-            currency: { AsCurrencyId: 'SelfReserve' },
-            feeAmount: fungible,
-        },
-        encodedTaskExtrinsic,
-        {
-            transactRequiredWeightAtMost: {
-                refTime: transactRequiredWeightAtMost,
-                proofSize: 0,
-            },
-            overallWeight: {
-                refTime: overallWeight,
-                proofSize: 0,
-            },
-        },
-    );
+    const transactExtrinsic = await parachainHelper.createTransactExtrinsic({
+        targetParaId: turingHelper.config.paraId,
+        encodedCall: encodedTaskExtrinsic,
+        callWeight: transactCallWeight,
+        overallWeight,
+        fee,
+    });
 
     console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
 
@@ -273,13 +239,21 @@ const main = async () => {
     console.log('\nb). Create an automation time task with the payload extrinsic ...');
     const providedId = generateProvidedId();
     const timestampNextHour = getHourlyTimestamp(1);
+
+    const payloadExtrinsicWeight = (await payloadExtrinsic.paymentInfo(aliceKeyPair.address)).weight;
+    const overallWeight = moonbaseHelper.calculateXcmTransactOverallWeight(payloadExtrinsicWeight);
+    const fee = moonbaseHelper.weightToFee(overallWeight, 'UNIT');
+
     const taskExtrinsic = createAutomationTaskExtrinsic({
         turingHelper,
         providedId,
         schedule: { Fixed: { executionTimes: [0] } },
         parachainId: moonbaseHelper.config.paraId,
-        paraTokenIdOnTuring,
+        scheduleFee: { V3: { parents: 1, interior: { X2: [{ Parachain: moonbaseHelper.config.paraId }, { PalletInstance: 3 }] } } },
         payloadExtrinsic,
+        payloadExtrinsicWeight,
+        overallWeight,
+        fee,
         scheduleAs: turingAddress,
     });
 
@@ -287,6 +261,7 @@ const main = async () => {
     const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
     const taskExtrinsicPaymentInfo = await taskExtrinsic.paymentInfo(turingAddress);
     await scheduleTaskFromMoonbase({
+        turingHelper,
         parachainHelper: moonbaseHelper,
         taskExtrinsic,
         taskExtrinsicPaymentInfo,
