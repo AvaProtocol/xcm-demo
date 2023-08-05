@@ -41,7 +41,7 @@ export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } 
                 });
 
             if (status.isFinalized) {
-                resolve(status.asFinalized.toString());
+                resolve({ events, blockHash: status.asFinalized.toString() });
             }
         }
     });
@@ -273,3 +273,6 @@ export const calculateXcmOverallWeight = (transactCallWeight, instructionWeight,
     const totalWeight = { refTime: transactCallWeight.refTime.unwrap().add(totalInstructionWeight.refTime), proofSize: transactCallWeight.proofSize.unwrap().add(totalInstructionWeight.proofSize) };
     return totalWeight;
 };
+
+export const findEvent = (events, section, method) => events.find((e) => e.event.section === section && e.event.method === method);
+export const getTaskIdInTaskScheduledEvent = (event) => Buffer.from(event.event.data.taskId).toString();
