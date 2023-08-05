@@ -27,7 +27,7 @@ const assets = [
         name: 'Turing native token',
         symbol: 'TUR',
         address: '',
-        feePerSecond: new BN('537600000000'),
+        feePerSecond: new BN('871400000000'),
     },
 ];
 

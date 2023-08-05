@@ -14,7 +14,7 @@
 | :---        |    :----:   | 
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
 | OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
-| Mangata-node | [v0.30.0](https://github.com/mangata-finance/mangata-node/pull/501)   |
+| Mangata-node | [v0.30.1](https://github.com/mangata-finance/mangata-node/releases/tag/v0.30.1)   |
 ### Steps & Logs
 <details>
 <summary>Dev environment</summary>
@@ -33,7 +33,7 @@
 
 	- Compile modified Mangata
 
-		https://github.com/mangata-finance/mangata-node/tree/release/v0.30.0
+		https://github.com/mangata-finance/mangata-node/releases/tag/v0.30.1
 
 		```
 		cargo build --release --features mangata-rococo,fast-runtime
@@ -371,7 +371,7 @@ MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
 | Chain      | Version | 
 | :---        |    :----:   | 
 | Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
-| OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
+| OAK-blockchain   | [v2.0.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v2.0.0)     |
 | Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
 
 ### Steps & Logs
