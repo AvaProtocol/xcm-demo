@@ -206,9 +206,9 @@ MessageHash: 0x6f20ebf887af395f20f4e12e0289ac9938c0119152c18e1ebeca6af945122d3f
 ### Pre-requisites
 | Chain      | Version | 
 | :---        |    :----:   | 
-| Polkadot      | [v0.9.39](https://github.com/paritytech/polkadot/releases/tag/v0.9.39)      |
-| OAK-blockchain   | [1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)   |
-| Astar | [v5.9.0(shibuya/101)](https://github.com/AstarNetwork/Astar/releases/tag/v5.9.0) |
+| Kusama      | [v0.9.43](https://github.com/paritytech/polkadot/releases/tag/v0.9.43)      |
+| Turing Network   | [2.0.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v2.0.0)   |
+| Shiden Network | [v5.10.0(shibuya/100)](https://github.com/AstarNetwork/Astar/releases/tag/v5.10.0) |
 
 ### Steps & Logs
 
@@ -218,12 +218,10 @@ MessageHash: 0x6f20ebf887af395f20f4e12e0289ac9938c0119152c18e1ebeca6af945122d3f
 
 1. Launch OAK-blockchain, Rococo and Shibuya.
 
-	Launch zombie in OAK-blockchain project root with Astar and modified OAK.
-	
-	https://github.com/OAK-Foundation/OAK-blockchain/tree/debug-shibuya
+	Run the zombienet command in OAK-blockchain’s root directory to spin up Shibuya and Turing Dev.
 
 	```
-	zombie spawn zombienets/turing/shibuya.toml
+	zombienet spawn zombienets/turing/shibuya.toml
 	```
 
 2. Run the program to schedule automation and wait for cross-chain execution
@@ -370,9 +368,9 @@ MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
 ### Pre-requisites
 | Chain      | Version | 
 | :---        |    :----:   | 
-| Polkadot      | [v0.9.38](https://github.com/paritytech/polkadot/releases/tag/v0.9.38)       |
-| OAK-blockchain   | [v1.9.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v1.9.0)     |
-| Moonbeam | [runtime-2302](https://github.com/PureStake/moonbeam/releases/tag/runtime-2302)   |
+| Kusama      | [v0.9.43](https://github.com/paritytech/polkadot/releases/tag/v0.9.43)      |
+| Turing Network   | [v2.0.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v2.0.0)     |
+| Moonriver | [runtime-2403](https://github.com/moonbeam-foundation/moonbeam/releases/tag/runtime-2403)   |
 
 ### Steps & Logs
 
