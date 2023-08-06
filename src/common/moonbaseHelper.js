@@ -1,16 +1,14 @@
 import _ from 'lodash';
+import { decodeAddress, blake2AsU8a } from '@polkadot/util-crypto';
+import { TypeRegistry } from '@polkadot/types';
+import { hexToU8a, u8aToHex } from '@polkadot/util';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import Keyring from '@polkadot/keyring';
 import { BN } from 'bn.js';
 
 import {
-    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount,
+    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies,
 } from './utils';
-
-// frame_support::weights::constants::WEIGHT_PER_SECOND
-// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
-// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48
-const WEIGHT_PER_SECOND = 1000000000000;
 
 class MoonbaseHelper {
     constructor(config) {
@@ -27,9 +25,19 @@ class MoonbaseHelper {
         this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
     };
 
-    getProxyAccount = (address, paraId, options) => {
-        const { accountKey20 } = getProxyAccount(this.api, paraId, address, options);
-        return accountKey20;
+    getProxyAccount = (address, paraId, { accountType = 'AccountId32' } = {}) => {
+        const decodedAddress = accountType === 'AccountKey20' ? hexToU8a(address) : decodeAddress(address);
+
+        // Calculate Hash Component
+        const registry = new TypeRegistry();
+        const toHash = new Uint8Array([
+            ...new TextEncoder().encode('SiblingChain'),
+            ...registry.createType('Compact<u32>', paraId).toU8a(),
+            ...registry.createType('Compact<u32>', accountType.length + (accountType === 'AccountKey20' ? 20 : 32)).toU8a(),
+            ...new TextEncoder().encode(accountType),
+            ...decodedAddress,
+        ]);
+        return u8aToHex(blake2AsU8a(toHash).slice(0, 32));
     };
 
     getProxies = async (address) => getProxies(this.api, address);
