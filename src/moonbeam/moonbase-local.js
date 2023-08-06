@@ -9,7 +9,7 @@ import { TuringDev, MoonbaseLocal } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, generateProvidedId, getHourlyTimestamp,
+    sendExtrinsic, getDecimalBN, listenEvents, getHourlyTimestamp, getTaskIdInTaskScheduledEvent,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -50,10 +50,9 @@ const createEthereumXcmTransactThroughProxyExtrinsic = (parachainHelper, transac
 };
 
 const createAutomationTaskExtrinsic = ({
-    turingHelper, providedId, schedule, parachainId, scheduleFee, payloadExtrinsic, payloadExtrinsicWeight, overallWeight, fee, scheduleAs,
+    turingHelper, schedule, parachainId, scheduleFee, payloadExtrinsic, payloadExtrinsicWeight, overallWeight, fee, scheduleAs,
 }) => {
     const extrinsic = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
-        providedId,
         schedule,
         { V3: { parents: 1, interior: { X1: { Parachain: parachainId } } } },
         scheduleFee,
@@ -237,7 +236,6 @@ const main = async () => {
     const payloadExtrinsic = createEthereumXcmTransactThroughProxyExtrinsic(moonbaseHelper, aliceKeyPair.address);
 
     console.log('\nb). Create an automation time task with the payload extrinsic ...');
-    const providedId = generateProvidedId();
     const timestampNextHour = getHourlyTimestamp(1);
 
     const payloadExtrinsicWeight = (await payloadExtrinsic.paymentInfo(aliceKeyPair.address)).weight;
@@ -246,7 +244,6 @@ const main = async () => {
 
     const taskExtrinsic = createAutomationTaskExtrinsic({
         turingHelper,
-        providedId,
         schedule: { Fixed: { executionTimes: [0] } },
         parachainId: moonbaseHelper.config.paraId,
         scheduleFee: { V3: { parents: 1, interior: { X2: [{ Parachain: moonbaseHelper.config.paraId }, { PalletInstance: 3 }] } } },
@@ -268,11 +265,15 @@ const main = async () => {
         feePerSecond,
         keyPair: aliceKeyPair,
     });
-    const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
+
+    // Listen TaskScheduled event on Turing chain
+    const taskScheduledEvent = await listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 60000);
+    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+    console.log('TaskId:', taskId);
 
     // Listen XCM events on Moonbase side
     const additionalWaitingTime = 5 * 60 * 1000;
-    console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    console.log(`\n5. Keep Listening XCM events on ${parachainName} until ${moment(timestampNextHour).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
     const timeout = timestampNextHour - moment().valueOf() + additionalWaitingTime;
     const isTaskExecuted = await listenEvents(moonbaseHelper.api, 'ethereum', 'Executed', timeout);
     if (!isTaskExecuted) {

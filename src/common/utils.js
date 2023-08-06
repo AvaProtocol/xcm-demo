@@ -170,7 +170,7 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
     if (timeout) {
         timeoutId = setTimeout(() => {
             unsub();
-            resolve(false);
+            resolve(null);
         }, timeout);
     }
 
@@ -201,7 +201,6 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                 }
-
                 resolve(foundEvent);
             }
         });
