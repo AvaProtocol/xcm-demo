@@ -176,33 +176,33 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
 
     const listenSystemEvents = async () => {
         unsub = await api.query.system.events((events) => {
-            let foundEvent = false;
-            // Loop through the Vec<EventRecord>
-            events.forEach((record) => {
-                // Extract the phase, event and the event types
-                const { event, phase } = record;
-                const { section: eventSection, method: eventMethod, typeDef: types } = event;
-
-                // console.log('section.method: ', `${section}.${method}`);
-                if (eventSection === section && eventMethod === method) {
-                    foundEvent = true;
-                    // Show what we are busy with
-                    console.log(`\t${section}:${method}:: (phase=${phase.toString()})`);
-                    // console.log(`\t\t${event.meta.documentation.toString()}`);
-
-                    // Loop through each of the parameters, displaying the type and data
-                    event.data.forEach((data, index) => {
-                        console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
-                    });
-                }
+            const foundEvent = _.find(events, ({ event }) => {
+                const { section: eventSection, method: eventMethod } = event;
+                return eventSection === section && eventMethod === method;
             });
 
             if (foundEvent) {
+                const {
+                    event: {
+                        section: eventSection, method: eventMethod, typeDef: types, data: eventData,
+                    }, phase,
+                } = foundEvent;
+
+                // Print out the name of the event found
+                console.log(`\t${eventSection}:${eventMethod}:: (phase=${phase.toString()})`);
+
+                // Loop through the conent of the event, displaying the type and data
+                eventData.forEach((data, index) => {
+                    console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+                });
+
                 unsub();
+
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                 }
-                resolve(true);
+
+                resolve(foundEvent);
             }
         });
     };

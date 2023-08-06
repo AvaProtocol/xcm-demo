@@ -83,10 +83,7 @@ const scheduleTask = async ({
   3. Shibuya\n
   proxy.ProxyExecuted and xcmpQueue.Success - the above payload is received and executed.\n`);
 
-    const taskIdCodec = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
-    const taskId = taskIdCodec.toString();
-
-    return { providedId, taskId, executionTime: nextExecutionTime };
+    return { executionTime: nextExecutionTime };
 };
 
 const main = async () => {
