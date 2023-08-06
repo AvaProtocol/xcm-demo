@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import _, { chain } from 'lodash';
 import util from 'util';
 import Keyring from '@polkadot/keyring';
 
@@ -89,8 +89,15 @@ class Account {
                             balance: balance.free.div(decimalBN).toNumber(),
                             balanceBN: balance.free,
                             reserved: balance.reserved.div(decimalBN).toNumber(),
-                            miscFrozen: balance.miscFrozen.div(decimalBN).toNumber(),
-                            feeFrozen: balance.feeFrozen.div(decimalBN).toNumber(),
+                            // TODO: Rocstar doesn’t have standard balance parameters such as miscFrozen and feeFrozen, so we need to create a balance config for every chain
+                            //  Rocstar balance:
+                            //  'free' => <BN: ac48862eac548f3ad>,
+                            // 'reserved' => <BN: 12751bf40f450000>,
+                            // 'frozen' => <BN: 0>,
+                            // 'flags' => <BN: 80000000000000000000000000000000>,
+                            //
+                            // miscFrozen: balance.miscFrozen.div(decimalBN).toNumber(),
+                            // feeFrozen: balance.feeFrozen.div(decimalBN).toNumber(),
                         };
                     });
                 });
