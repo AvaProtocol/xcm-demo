@@ -1,4 +1,4 @@
-import _, { chain } from 'lodash';
+import _ from 'lodash';
 import util from 'util';
 import Keyring from '@polkadot/keyring';
 
