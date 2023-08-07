@@ -9,7 +9,7 @@ import { TuringMoonbase, MoonbaseAlpha } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile,
+    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile, listenEvents, getTaskIdInTaskScheduledEvent,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
 
@@ -47,10 +47,8 @@ const sendXcmFromMoonbase = async ({
     const currentTimestamp = moment().valueOf();
     const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
-    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
     const payloadExtrinsicWeight = { refTime: '4000000000', proofSize: 0 };
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
-        providedId,
         { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
         // { Fixed: { executionTimes: [0] } },
         // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
@@ -261,6 +259,12 @@ const main = async () => {
     await sendXcmFromMoonbase({
         turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: parachainKeyPair, proxyAccountId,
     });
+
+    // Listen TaskScheduled event on Turing chain
+    console.log('Listening to TaskScheduled event on Turing chain ...');
+    const taskScheduledEvent = await listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 60000);
+    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 };
 
 main().catch(console.error).finally(() => {
