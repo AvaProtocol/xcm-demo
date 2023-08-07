@@ -20,7 +20,7 @@ const TASK_FREQUENCY = 3600;
 const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 

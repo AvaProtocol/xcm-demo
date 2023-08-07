@@ -6,7 +6,7 @@ import moment from 'moment';
 import TuringHelper from '../common/turingHelper';
 import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat, delay,
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, bnToFloat, delay, getTaskIdInTaskScheduledEvent,
 } from '../common/utils';
 import { TuringStaging, Rocstar } from '../config';
 import Account from '../common/account';
@@ -37,14 +37,11 @@ const scheduleTask = async ({
 
     // Schedule an XCMP task from Turing’s timeAutomation pallet
     // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
-    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-
     const secondsInHour = 3600;
     const millisecondsInHour = 3600 * 1000;
     const currentTimestamp = moment().valueOf();
     const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
-        providedId,
         { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
         // { Fixed: { executionTimes: [0] } },
         shibuyaHelper.config.paraId,
@@ -83,7 +80,12 @@ const scheduleTask = async ({
   3. Shibuya\n
   proxy.ProxyExecuted and xcmpQueue.Success - the above payload is received and executed.\n`);
 
-    return { executionTime: nextExecutionTime };
+    console.log('Listening to TaskScheduled event on Turing chain ...');
+    const taskScheduledEvent = await listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 20000);
+    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+    console.log(`Found the event and retrieved TaskId, ${taskId}`);
+
+    return { taskId, executionTime: nextExecutionTime };
 };
 
 const main = async () => {
@@ -194,10 +196,10 @@ const main = async () => {
         turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
     });
 
-    const { taskId, providedId, executionTime } = result;
+    const { taskId, executionTime } = result;
     const timeout = calculateTimeout(executionTime);
 
-    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
     const isTaskExecuted = await listenEvents(shibuyaHelper.api, 'proxy', 'ProxyExecuted', timeout);
 
     if (!isTaskExecuted) {
