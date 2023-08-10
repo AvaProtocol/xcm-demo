@@ -32,7 +32,7 @@ const scheduleTask = async ({
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
     const encodedCallWeight = payloadViaProxyFees.weight;
     const overallWeight = shibuyaHelper.calculateXcmTransactOverallWeight(encodedCallWeight);
-    const fee = shibuyaHelper.weightToFee(overallWeight, 'SBY');
+    const fee = await shibuyaHelper.api.call.transactionPaymentApi.queryWeightToFee(overallWeight);
 
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);

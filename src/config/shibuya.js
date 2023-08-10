@@ -1,13 +1,12 @@
 import BN from 'bn.js';
 
 const WEIGHT_REF_TIME = new BN(1_000_000_000);
-const WEIGHT_PROOF_SIZE = new BN(1024);
+const WEIGHT_PROOF_SIZE = new BN(64 * 1024);
 
 const assets = [
     {
         symbol: 'SBY',
         decimals: 18,
-        feePerSecond: new BN('10000000000000000000'),
     },
 ];
 

@@ -1,15 +1,12 @@
 import _ from 'lodash';
-import { ApiPromise, WsProvider } from '@polkadot/api';
 import { BN } from 'bn.js';
+import { ApiPromise, WsProvider } from '@polkadot/api';
+import { decodeAddress, blake2AsU8a } from '@polkadot/util-crypto';
+import { hexToU8a, u8aToHex } from '@polkadot/util';
+import { TypeRegistry } from '@polkadot/types';
 import Keyring from '@polkadot/keyring';
 
-import { WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, getProxyAccount } from './utils';
-import { Shibuya } from '../config';
-
-// frame_support::weights::constants::WEIGHT_PER_SECOND
-// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/frame/support/src/weights.rs#L39
-// https://github.com/paritytech/substrate/blob/2dff067e9f7f6f3cc4dbfdaaa97753eccc407689/primitives/weights/src/lib.rs#L48
-const WEIGHT_PER_SECOND = 1000000000000;
+import { WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies } from './utils';
 
 class ShibuyaHelper {
     constructor(config) {
@@ -25,9 +22,21 @@ class ShibuyaHelper {
 
     getApi = () => this.api;
 
-    getProxyAccount = (address, paraId) => {
-        const { accountId32 } = getProxyAccount(this.api, paraId, address);
-        return this.keyring.encodeAddress(accountId32);
+    getProxyAccount = (address, paraId, { accountType = 'AccountId32' } = {}) => {
+        const decodedAddress = accountType === 'AccountKey20' ? hexToU8a(address) : decodeAddress(address);
+
+        // Calculate Hash Component
+        const registry = new TypeRegistry();
+        const toHash = new Uint8Array([
+            ...new TextEncoder().encode('SiblingChain'),
+            ...registry.createType('Compact<u32>', paraId).toU8a(),
+            ...registry.createType('Compact<u32>', accountType.length + (accountType === 'AccountKey20' ? 20 : 32)).toU8a(),
+            ...new TextEncoder().encode(accountType),
+            ...decodedAddress,
+        ]);
+
+        const deriveAccountId = u8aToHex(blake2AsU8a(toHash).slice(0, 32));
+        return this.keyring.encodeAddress(deriveAccountId);
     };
 
     getProxies = async (address) => getProxies(this.api, address);
