@@ -11,7 +11,6 @@ const assets = [
         name: 'Moonbase Local Token',
         symbol: 'UNIT',
         address: '',
-        feePerSecond: new BN('10000000000000000000'),
     },
 ];
 

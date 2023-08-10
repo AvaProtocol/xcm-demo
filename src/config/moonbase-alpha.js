@@ -11,7 +11,6 @@ const assets = [
         name: 'Moonbase Alpha DEV',
         symbol: 'DEV',
         address: '',
-        feePerSecond: new BN('10000000000000000000'),
     },
 ];
 
