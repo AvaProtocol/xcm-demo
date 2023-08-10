@@ -37,7 +37,9 @@ class MoonbaseHelper {
             ...new TextEncoder().encode(accountType),
             ...decodedAddress,
         ]);
-        return u8aToHex(blake2AsU8a(toHash).slice(0, 32));
+
+        const deriveAccountId = u8aToHex(blake2AsU8a(toHash).slice(0, 32));
+        return this.keyring.encodeAddress(deriveAccountId);
     };
 
     getProxies = async (address) => getProxies(this.api, address);
