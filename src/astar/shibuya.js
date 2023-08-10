@@ -60,12 +60,12 @@ const scheduleTask = async ({
     );
 
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
-    const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const transactCallWeight = taskViaProxyFees.weight;
+    const { weight: transactCallWeight } = await taskViaProxy.paymentInfo(turingAddress);
+    const xcmOverallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
+    const taskViaProxyFee = turingHelper.weightToFee(xcmOverallWeight, shibuyaHelper.config.location);
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
     console.log('requireWeightAtMost: ', transactCallWeight.toHuman());
-    const xcmOverallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
 
     console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
@@ -74,7 +74,7 @@ const scheduleTask = async ({
         proxyAccount: proxyAccountId,
         transactCallWeight,
         overallWeight: xcmOverallWeight,
-        fee: turingHelper.weightToFee(xcmOverallWeight, 'SBY'),
+        fee: taskViaProxyFee,
     });
 
     await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
@@ -129,7 +129,7 @@ const main = async () => {
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
-    const paraTokenIdOnTuring = await turingHelper.getAssetIdByParaId(shibuyaHelper.config.paraId);
+    const paraTokenIdOnTuring = await turingHelper.getAssetIdByLocation(shibuyaHelper.config.location);
     console.log('Shibuya ID on Turing: ', paraTokenIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user

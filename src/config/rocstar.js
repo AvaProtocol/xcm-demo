@@ -1,3 +1,5 @@
+const PARA_ID = 2006;
+
 const assets = [
     {
         symbol: 'RSTR',
@@ -10,9 +12,10 @@ const Config = {
     key: 'rocstar',
     endpoint: 'wss://rocstar.astar.network',
     relayChain: 'rococo',
-    paraId: 2006,
+    paraId: PARA_ID,
     ss58: 5,
     assets,
+    location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
 };
 
 export default Config;

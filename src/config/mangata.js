@@ -1,3 +1,5 @@
+const PARA_ID = 2110;
+
 const assets = [
     {
         id: '0',
@@ -191,10 +193,11 @@ const Config = {
     key: 'mangata',
     endpoint: 'wss://kusama-rpc.mangata.online',
     relayChain: 'Kusama',
-    paraId: 2110,
+    paraId: PARA_ID,
     ss58: 42,
     assets,
     pools,
+    location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
 };
 
 export default Config;

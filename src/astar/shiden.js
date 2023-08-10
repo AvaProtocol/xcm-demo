@@ -117,7 +117,7 @@ const main = async () => {
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
-    const paraTokenIdOnTuring = await turingHelper.getAssetIdByParaId(shibuyaHelper.config.paraId);
+    const paraTokenIdOnTuring = await turingHelper.getAssetIdByLocation(shibuyaHelper.config.location);
     console.log('Rocstar ID on Turing: ', paraTokenIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
