@@ -38,11 +38,12 @@ const scheduleTask = async ({
     // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
     const nextExecutionTime = getHourlyTimestamp(1) / 1000;
     const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+    const assetLocation = shibuyaHelper.getNativeAssetLocation();
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } },
         { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
-        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
-        { asset_location: { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } }, amount: payloadViaProxyFees },
+        { V3: assetLocation },
+        { assetLocation: { V3: assetLocation }, amount: payloadViaProxyFees },
         encodedCallData,
         encodedCallWeight,
         payloadOverallWeight,
