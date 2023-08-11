@@ -1,8 +1,9 @@
 const PARA_ID = 2114;
+const NATIVE_TOKEN = 'TUR';
 
 const assets = [
     {
-        symbol: 'TUR',
+        symbol: NATIVE_TOKEN,
         decimals: 10,
     },
 ];
@@ -15,7 +16,7 @@ const Config = {
     paraId: PARA_ID,
     ss58: 51,
     assets,
-    location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
+    symbol: NATIVE_TOKEN,
 };
 
 export default Config;

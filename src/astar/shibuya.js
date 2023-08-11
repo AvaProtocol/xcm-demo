@@ -62,7 +62,7 @@ const scheduleTask = async ({
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const { weight: transactCallWeight } = await taskViaProxy.paymentInfo(turingAddress);
     const xcmOverallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
-    const taskViaProxyFee = turingHelper.weightToFee(xcmOverallWeight, shibuyaHelper.config.location);
+    const taskViaProxyFee = await turingHelper.weightToFee(xcmOverallWeight, shibuyaHelper.getNativeAssetLocation());
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
     console.log('requireWeightAtMost: ', transactCallWeight.toHuman());
@@ -129,7 +129,7 @@ const main = async () => {
 
     console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
 
-    const paraTokenIdOnTuring = await turingHelper.getAssetIdByLocation(shibuyaHelper.config.location);
+    const paraTokenIdOnTuring = await turingHelper.getAssetIdByLocation(shibuyaHelper.getNativeAssetLocation());
     console.log('Shibuya ID on Turing: ', paraTokenIdOnTuring);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user

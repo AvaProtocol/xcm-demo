@@ -97,8 +97,8 @@ class TuringHelper {
         return token.decimals;
     }
 
-    getAssetIdByLocation = async (location) => {
-        const assetId = (await this.api.query.assetRegistry.locationToAssetId(location))
+    getAssetIdByLocation = async (assetLocation) => {
+        const assetId = (await this.api.query.assetRegistry.locationToAssetId(assetLocation))
             .unwrapOrDefault()
             .toNumber();
         return assetId;
@@ -106,8 +106,8 @@ class TuringHelper {
 
     calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
 
-    weightToFee = async (weight, destination) => {
-        const assetId = await this.getAssetIdByLocation(destination);
+    weightToFee = async (weight, assetLocation) => {
+        const assetId = await this.getAssetIdByLocation(assetLocation);
         const feePerSecond = await this.getFeePerSecond(assetId);
         console.log(`weight: (${weight.refTime.toString()}, ${weight.proofSize.toString()})`);
         const result = weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));

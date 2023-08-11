@@ -1,4 +1,5 @@
 const PARA_ID = 2110;
+const NATIVE_TOKEN = 'MGR';
 
 const assets = [
     {
@@ -6,8 +7,9 @@ const assets = [
         chainId: 0,
         decimals: 18,
         name: 'Mangata',
-        symbol: 'MGX',
+        symbol: NATIVE_TOKEN,
         address: '',
+        location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
     },
     {
         id: '4',
@@ -197,7 +199,7 @@ const Config = {
     ss58: 42,
     assets,
     pools,
-    location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
+    symbol: NATIVE_TOKEN,
 };
 
 export default Config;
