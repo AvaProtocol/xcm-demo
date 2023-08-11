@@ -1,5 +1,9 @@
+import BN from 'bn.js';
+
 const PARA_ID = 1000;
 const NATIVE_TOKEN = 'DEV';
+const WEIGHT_REF_TIME = new BN('250000000');
+const WEIGHT_PROOF_SIZE = new BN('10000');
 
 const assets = [
     {
@@ -22,6 +26,7 @@ const Config = {
     ss58: 1287,
     assets,
     symbol: NATIVE_TOKEN,
+    instructionWeight: { refTime: WEIGHT_REF_TIME, proofSize: WEIGHT_PROOF_SIZE },
 };
 
 export default Config;

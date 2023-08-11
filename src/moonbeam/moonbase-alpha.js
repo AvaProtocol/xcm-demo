@@ -9,31 +9,21 @@ import { TuringMoonbase, MoonbaseAlpha } from '../config';
 import TuringHelper from '../common/turingHelper';
 import MoonbaseHelper from '../common/moonbaseHelper';
 import {
-    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile,
+    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile, listenEvents, getTaskIdInTaskScheduledEvent,
     // listenEvents, calculateTimeout,
 } from '../common/utils';
-
-// TODO: read this instruction value from Turing Staging
-// One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
-// It is defined as a UnitWeightCost variable in runtime.
-const TURING_INSTRUCTION_WEIGHT = 1000000000;
-// const MIN_BALANCE_IN_PROXY = 0.1 * 1e18; // The proxy accounts are to be topped up if its balance fails below this number
-// const TASK_FREQUENCY = 3600;
-
-const WEIGHT_PER_SECOND = 1000000000000;
 
 const CONTRACT_ADDRESS = '0xa72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8';
 const CONTRACT_INPUT = '0xd09de08a';
 
 const sendXcmFromMoonbase = async ({
-    turingHelper, parachainHelper, turingAddress,
-    paraTokenIdOnTuring, keyPair,
+    turingHelper, parachainHelper, turingAddress, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
     const parachainProxyCall = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
         keyPair.address,
         {
-            V3: {
+            V2: {
                 gasLimit: 71000,
                 action: { Call: CONTRACT_ADDRESS },
                 value: 0,
@@ -47,46 +37,33 @@ const sendXcmFromMoonbase = async ({
     const currentTimestamp = moment().valueOf();
     const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
     const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
-    const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-    const payloadExtrinsicWeight = { refTime: '4000000000', proofSize: 0 };
+
+    const payloadExtrinsicWeight = (await parachainProxyCall.paymentInfo(keyPair.address)).weight;
+    const payloadOverallWeight = parachainHelper.calculateXcmTransactOverallWeight(payloadExtrinsicWeight);
+    const payloadXcmpFee = await parachainHelper.api.call.transactionPaymentApi.queryWeightToFee(payloadOverallWeight);
+
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
-        providedId,
         { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
-        // { Fixed: { executionTimes: [0] } },
-        // { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime: timestampNextHour } },
-        parachainHelper.config.paraId,
-        paraTokenIdOnTuring,
-        {
-            V3: {
-                parents: 1,
-                interior: { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] },
-            },
-        },
+        { V3: { parents: 1, interior: { X1: { Parachain: parachainHelper.config.paraId } } } },
+        { V3: { parents: 1, interior: { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] } } },
+        { asset_location: { V3: { parents: 1, interior: { X2: [{ Parachain: parachainHelper.config.paraId }, { PalletInstance: 3 }] } } }, amount: payloadXcmpFee },
         parachainProxyCall.method.toHex(),
         payloadExtrinsicWeight,
+        payloadOverallWeight,
         turingAddress,
     );
     console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
 
     // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
-    const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight.refTime, 10);
+    const { weight: taskViaProxyCallWeight } = await taskViaProxy.paymentInfo(turingAddress);
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
-    console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
+    console.log(`taskViaProxyCallWeight.weight: { refTime: ${taskViaProxyCallWeight.refTime.toString()}, proofSize: ${taskViaProxyCallWeight.proofSize.toString()} }`);
 
     console.log(`\nb) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
-
-    const instructionCount = 4;
-    const totalInstructionWeight = instructionCount * TURING_INSTRUCTION_WEIGHT;
-    const weightLimit = requireWeightAtMost + totalInstructionWeight;
-    const fungible = new BN(weightLimit).mul(feePerSecond).div(new BN(WEIGHT_PER_SECOND)).mul(new BN(10));
-    const transactRequiredWeightAtMost = requireWeightAtMost + TURING_INSTRUCTION_WEIGHT;
-    // const overallWeight = (instructionCount - 1) * TURING_INSTRUCTION_WEIGHT;
-    const overallWeight = 8170208000;
-    console.log('transactRequiredWeightAtMost: ', transactRequiredWeightAtMost);
+    const overallWeight = turingHelper.calculateXcmTransactOverallWeight(taskViaProxyCallWeight);
+    const fungible = turingHelper.weightToFee(overallWeight, 'DEV');
     console.log('overallWeight: ', overallWeight);
     console.log('fungible: ', fungible.toString());
 
@@ -107,14 +84,8 @@ const sendXcmFromMoonbase = async ({
         },
         encodedTaskViaProxy,
         {
-            transactRequiredWeightAtMost: {
-                refTime: transactRequiredWeightAtMost,
-                proofSize: 0,
-            },
-            overallWeight: {
-                refTime: overallWeight,
-                proofSize: 0,
-            },
+            transactRequiredWeightAtMost: taskViaProxyCallWeight,
+            overallWeight,
         },
     );
 
@@ -259,8 +230,14 @@ const main = async () => {
     console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
 
     await sendXcmFromMoonbase({
-        turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, paraTokenIdOnTuring, keyPair: parachainKeyPair, proxyAccountId,
+        turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, keyPair: parachainKeyPair, proxyAccountId,
     });
+
+    // Listen TaskScheduled event on Turing chain
+    console.log('Listening to TaskScheduled event on Turing chain ...');
+    const taskScheduledEvent = await listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 60000);
+    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 };
 
 main().catch(console.error).finally(() => {
