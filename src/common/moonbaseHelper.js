@@ -78,6 +78,13 @@ class MoonbaseHelper {
         const { feePerSecond } = _.find(this.assets, { symbol });
         return weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
     };
+
+    getAssetLocation = (symbol) => {
+        const { location } = _.find(this.assets, { symbol });
+        return location;
+    };
+
+    getNativeAssetLocation = () => this.getAssetLocation(this.config.symbol);
 }
 
 export default MoonbaseHelper;

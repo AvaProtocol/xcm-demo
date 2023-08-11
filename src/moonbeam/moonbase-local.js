@@ -77,7 +77,7 @@ const scheduleTaskFromMoonbase = async ({
     console.log('transactCallWeight: ', transactCallWeight.toHuman());
 
     const overallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
-    const fee = turingHelper.weightToFee(overallWeight, 'DEV');
+    const fee = await turingHelper.weightToFee(overallWeight, parachainHelper.getNativeAssetLocation());
 
     console.log(`\nExecute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
 
