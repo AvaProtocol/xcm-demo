@@ -41,7 +41,7 @@ const scheduleTask = async ({
     const assetLocation = shibuyaHelper.getNativeAssetLocation();
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } },
-        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
+        shibuyaHelper.getLocation(),
         { V3: assetLocation },
         { assetLocation: { V3: assetLocation }, amount: payloadViaProxyFees },
         encodedCallData,

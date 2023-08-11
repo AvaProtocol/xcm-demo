@@ -6,7 +6,9 @@ import { hexToU8a, u8aToHex } from '@polkadot/util';
 import { TypeRegistry } from '@polkadot/types';
 import Keyring from '@polkadot/keyring';
 
-import { WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies } from './utils';
+import {
+    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, paraIdToLocation,
+} from './utils';
 
 class ShibuyaHelper {
     constructor(config) {
@@ -165,6 +167,8 @@ class ShibuyaHelper {
         const { location } = _.find(this.assets, { symbol });
         return location;
     };
+
+    getLocation = () => paraIdToLocation(this.config.paraId);
 
     getNativeAssetLocation = () => this.getAssetLocation(this.config.symbol);
 }
