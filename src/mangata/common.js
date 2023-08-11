@@ -175,15 +175,12 @@ class AutoCompound {
                 const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
                 console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), xcmpFee: xcmpFee.toString() });
 
-                // Send extrinsic
-                console.log('\nc) Sign and send scheduleXcmpTask call ...');
+                // Send extrinsic and retrieve the taskId in response
+                console.log('\nc) Sign and send scheduleXcmpTask extrinsic ...');
                 const { events } = await sendExtrinsic(turingHelper.api, xcmpCall, account.pair);
-
-                // Get taskId from TaskScheduled event
-                console.log('Find TaskScheduled event in extrinsic events.');
                 const taskScheduledEvent = findEvent(events, 'automationTime', 'TaskScheduled');
                 const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-                console.log(`Retrieved taskId: ${taskId}`);
+                console.log(`Retrieved taskId ${taskId} from TaskScheduled among the finalized events.`);
 
                 // Listen XCM events on Mangata side
                 console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
