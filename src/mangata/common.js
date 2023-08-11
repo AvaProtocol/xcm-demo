@@ -10,7 +10,7 @@ import TuringHelper from '../common/turingHelper';
 import MangataHelper from '../common/mangataHelper';
 import Account from '../common/account';
 import {
-    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic,
+    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent,
 } from '../common/utils';
 
 // Create a keyring instance
@@ -52,7 +52,6 @@ class AutoCompound {
         account.print();
 
         const mangataAddress = account.getChainByName(mangataChainName)?.address;
-        const turingAddress = account.getChainByName(turingChainName)?.address;
 
         const mgxToken = account.getAssetByChainAndSymbol(mangataChainName, mangataNativeToken.symbol);
         const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
@@ -153,7 +152,6 @@ class AutoCompound {
 
                 // Create Turing scheduleXcmpTask extrinsic
                 console.log('\na) Create the call for scheduleXcmpTask ');
-                const providedId = `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
 
                 const secPerHour = 3600;
                 const msPerHour = 3600 * 1000;
@@ -162,7 +160,6 @@ class AutoCompound {
                 const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + (secPerHour * 2);
 
                 const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
-                    providedId,
                     { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
                     mangataHelper.config.paraId,
                     0,
@@ -178,16 +175,15 @@ class AutoCompound {
                 const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
                 console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), xcmpFee: xcmpFee.toString() });
 
-                // Get a TaskId from Turing rpc
-                const taskId = await turingHelper.api.rpc.automationTime.generateTaskId(turingAddress, providedId);
-                console.log('TaskId:', taskId.toHuman());
-
-                // Send extrinsic
-                console.log('\nc) Sign and send scheduleXcmpTask call ...');
-                await turingHelper.sendXcmExtrinsic(xcmpCall, account.pair, taskId);
+                // Send extrinsic and retrieve the taskId in response
+                console.log('\nc) Sign and send scheduleXcmpTask extrinsic ...');
+                const { events } = await sendExtrinsic(turingHelper.api, xcmpCall, account.pair);
+                const taskScheduledEvent = findEvent(events, 'automationTime', 'TaskScheduled');
+                const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+                console.log(`Retrieved taskId ${taskId} from TaskScheduled among the finalized events.`);
 
                 // Listen XCM events on Mangata side
-                console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}, providerId: ${providedId}) will be successfully executed ...`);
+                console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
                 await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted');
 
                 const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
