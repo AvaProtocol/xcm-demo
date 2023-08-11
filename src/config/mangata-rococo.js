@@ -1,11 +1,15 @@
+const PARA_ID = 2110;
+const NATIVE_TOKEN = 'MGR';
+
 const assets = [
     {
         id: '0',
         chainId: 0,
         decimals: 18,
         name: 'Mangata',
-        symbol: 'MGR',
+        symbol: NATIVE_TOKEN,
         address: '',
+        location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
     },
     {
         id: '4',
@@ -274,10 +278,11 @@ const Config = {
     key: 'mangata-rococo',
     endpoint: 'wss://collator-01-ws-rococo.mangata.online',
     relayChain: 'rococo',
-    paraId: 2110,
+    paraId: PARA_ID,
     ss58: 42,
     assets,
     pools,
+    symbol: NATIVE_TOKEN,
 };
 
 export default Config;
