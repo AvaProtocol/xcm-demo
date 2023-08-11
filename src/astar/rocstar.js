@@ -123,7 +123,7 @@ const main = async () => {
     console.log(`\na) Add a proxy for ${account.name} If there is none setup on ${parachainName} (paraId:${turingHelper.config.paraId}) \n`);
 
     const proxyTypeParachain = 'Any'; // We cannotset proxyType to "DappsStaking" without the actual auto-restake call
-    const proxyOnParachain = shibuyaHelper.getProxyAccount(turingAddress, turingHelper.config.paraId);
+    const proxyOnParachain = shibuyaHelper.getProxyAccount(parachainAddress, turingHelper.config.paraId);
     const proxies = await shibuyaHelper.getProxies(parachainAddress);
     const proxyMatch = _.find(proxies, { delegate: proxyOnParachain, proxyType: proxyTypeParachain });
 
