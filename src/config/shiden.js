@@ -1,4 +1,4 @@
-const PARA_ID = 2006;
+const PARA_ID = 2007;
 const NATIVE_TOKEN = 'SDN';
 
 const assets = [
