@@ -240,7 +240,7 @@ const main = async () => {
 
     const payloadExtrinsicWeight = (await payloadExtrinsic.paymentInfo(aliceKeyPair.address)).weight;
     const overallWeight = moonbaseHelper.calculateXcmTransactOverallWeight(payloadExtrinsicWeight);
-    const fee = moonbaseHelper.api.call.transactionPaymentApi.queryWeightToFee(overallWeight);
+    const fee = await moonbaseHelper.api.call.transactionPaymentApi.queryWeightToFee(overallWeight);
 
     const taskExtrinsic = createAutomationTaskExtrinsic({
         turingHelper,

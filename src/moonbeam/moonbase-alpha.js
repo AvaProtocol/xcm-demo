@@ -40,7 +40,7 @@ const sendXcmFromMoonbase = async ({
 
     const payloadExtrinsicWeight = (await parachainProxyCall.paymentInfo(keyPair.address)).weight;
     const payloadOverallWeight = parachainHelper.calculateXcmTransactOverallWeight(payloadExtrinsicWeight);
-    const payloadXcmpFee = parachainHelper.api.call.transactionPaymentApi.queryWeightToFee(payloadOverallWeight);
+    const payloadXcmpFee = await parachainHelper.api.call.transactionPaymentApi.queryWeightToFee(payloadOverallWeight);
 
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
