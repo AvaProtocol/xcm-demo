@@ -63,7 +63,7 @@ const sendXcmFromMoonbase = async ({
 
     console.log(`\nb) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
     const overallWeight = turingHelper.calculateXcmTransactOverallWeight(taskViaProxyCallWeight);
-    const fungible = turingHelper.weightToFee(overallWeight, 'DEV');
+    const fungible = await turingHelper.weightToFee(overallWeight, parachainHelper.getNativeAssetLocation());
     console.log('overallWeight: ', overallWeight);
     console.log('fungible: ', fungible.toString());
 
