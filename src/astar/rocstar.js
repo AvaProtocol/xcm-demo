@@ -53,7 +53,7 @@ const scheduleTask = async ({
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
     const { weight: taskViaProxyCallWeight } = await taskViaProxy.paymentInfo(turingAddress);
     const overallWeight = turingHelper.calculateXcmTransactOverallWeight(taskViaProxyCallWeight);
-    const fee = turingHelper.weightToFee(overallWeight, 'RSTR');
+    const fee = await turingHelper.weightToFee(overallWeight, shibuyaHelper.getNativeAssetLocation());
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
 
