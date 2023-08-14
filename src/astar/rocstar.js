@@ -11,7 +11,7 @@ import {
 import { TuringStaging, Rocstar } from '../config';
 import Account from '../common/account';
 
-const MIN_BALANCE_IN_PROXY = 5; // The proxy accounts are to be topped up if its balance fails below this number
+const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;
 
 const keyring = new Keyring({ type: 'sr25519' });
@@ -139,8 +139,7 @@ const main = async () => {
 
     if (proxyBalance.free.lt(minBalance)) {
         console.log(`\nTopping up the proxy account on Shibuya with ${symbol} ...\n`);
-        const amountBN = minBalance.muln(2);
-        const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, amountBN.toString());
+        const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, minBalance.toString());
         await sendExtrinsic(shibuyaHelper.api, topUpExtrinsic, keyPair);
 
         // Retrieve the latest balance after top-up
