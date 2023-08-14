@@ -275,3 +275,4 @@ export const calculateXcmOverallWeight = (transactCallWeight, instructionWeight,
 
 export const findEvent = (events, section, method) => events.find((e) => e.event.section === section && e.event.method === method);
 export const getTaskIdInTaskScheduledEvent = (event) => Buffer.from(event.event.data.taskId).toString();
+export const paraIdToLocation = (paraId) => ({ parents: 1, interior: { X1: { Parachain: paraId } } });

@@ -32,7 +32,7 @@ const scheduleTask = async ({
     const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
     const encodedCallWeight = payloadViaProxyFees.weight;
     const overallWeight = shibuyaHelper.calculateXcmTransactOverallWeight(encodedCallWeight);
-    const fee = shibuyaHelper.weightToFee(overallWeight, 'SBY');
+    const fee = await shibuyaHelper.api.call.transactionPaymentApi.queryWeightToFee(overallWeight);
 
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);
@@ -48,11 +48,12 @@ const scheduleTask = async ({
 
     // TODO: add select prompt to let user decide whether to trigger immediately or at next hour
     // Currently the task trigger immediately in dev environment
+    const assetLocation = shibuyaHelper.getNativeAssetLocation();
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         { Fixed: { executionTimes: [0] } },
-        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
-        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
-        { asset_location: { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } }, amount: fee },
+        shibuyaHelper.getLocation(),
+        { V3: assetLocation },
+        { assetLocation: { V3: assetLocation }, amount: fee },
         encodedCallData,
         encodedCallWeight,
         overallWeight,

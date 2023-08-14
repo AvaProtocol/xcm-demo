@@ -1,15 +1,14 @@
 import BN from 'bn.js';
 
-const WEIGHT_REF_TIME = new BN(1_000_000_000);
-const WEIGHT_PROOF_SIZE = new BN(1024);
 const PARA_ID = 2000;
 const NATIVE_TOKEN = 'SBY';
+const WEIGHT_REF_TIME = new BN(1_000_000_000);
+const WEIGHT_PROOF_SIZE = new BN(64 * 1024);
 
 const assets = [
     {
         symbol: NATIVE_TOKEN,
         decimals: 18,
-        feePerSecond: new BN('10000000000000000000'),
         location: { parents: 1, interior: { X1: { Parachain: PARA_ID } } },
     },
 ];
