@@ -158,26 +158,31 @@ class AutoCompound {
                 const currentTimestamp = moment().valueOf();
                 const timestampNextHour = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + secPerHour;
                 const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + (secPerHour * 2);
-
+                const overallWeight = mangataHelper.calculateXcmTransactOverallWeight(mangataProxyCallFees.weight);
+                const fee = mangataHelper.weightToFee(overallWeight, 'TUR');
+                const turLocation = { parents: 0, interior: 'Here' };
                 const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
                     { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
-                    mangataHelper.config.paraId,
-                    0,
-                    { V3: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
+                    { V3: mangataHelper.getLocation() },
+                    { V3: turLocation },
+                    { asset_location: { V3: turLocation }, amount: fee },
                     encodedMangataProxyCall,
                     mangataProxyCallFees.weight,
+                    overallWeight,
                 );
 
-                console.log('xcmpCall: ', xcmpCall);
+                console.log('xcmpCall: ', xcmpCall.method.toHex());
 
                 // Query automationTime fee
                 console.log('\nb) Query automationTime fee details ');
-                const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-                console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), xcmpFee: xcmpFee.toString() });
+                const { executionFee, scheduleFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
+                console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), scheduleFee: scheduleFee.toString() });
 
                 // Send extrinsic and retrieve the taskId in response
                 console.log('\nc) Sign and send scheduleXcmpTask extrinsic ...');
                 const { events } = await sendExtrinsic(turingHelper.api, xcmpCall, account.pair);
+
+                // Get taskId from TaskScheduled event
                 const taskScheduledEvent = findEvent(events, 'automationTime', 'TaskScheduled');
                 const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
                 console.log(`Retrieved taskId ${taskId} from TaskScheduled among the finalized events.`);

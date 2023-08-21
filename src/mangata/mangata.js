@@ -104,11 +104,12 @@ async function main() {
 
     const overallWeight = mangataHelper.calculateXcmTransactOverallWeight(mangataProxyCallFees.weight);
     const fee = mangataHelper.weightToFee(overallWeight, 'TUR');
+    const turLocation = { parents: 0, interior: 'Here' };
     const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
         schedule,
-        { V3: { parents: 1, interior: { X1: { Parachain: mangataHelper.config.paraId } } } },
-        { V3: { parents: 0, interior: 'Here' } },
-        { asset_location: { V3: { parents: 0, interior: 'Here' } }, amount: fee },
+        { V3: mangataHelper.getLocation() },
+        { V3: turLocation },
+        { asset_location: { V3: turLocation }, amount: fee },
         encodedMangataProxyCall,
         mangataProxyCallFees.weight,
         overallWeight,
@@ -118,8 +119,8 @@ async function main() {
 
     // Query automationTime fee
     console.log('\n2. Query automationTime fee details ');
-    const { executionFee, xcmpFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-    console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), xcmpFee: xcmpFee.toString() });
+    const { executionFee, scheduleFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
+    console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), scheduleFee: scheduleFee.toString() });
 
     // Send extrinsic
     console.log('\n3. Sign and send scheduleXcmpTask call ...');
