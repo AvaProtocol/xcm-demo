@@ -5,7 +5,7 @@ import { Mangata } from '@mangata-finance/sdk';
 import Keyring from '@polkadot/keyring';
 
 import {
-    sendExtrinsic, getProxyAccount, getDecimalBN, calculateXcmOverallWeight, WEIGHT_REF_TIME_PER_SECOND,
+    sendExtrinsic, getProxyAccount, getDecimalBN, calculateXcmOverallWeight, WEIGHT_REF_TIME_PER_SECOND, paraIdToLocation,
 } from './utils';
 
 class MangataHelper {
@@ -35,7 +35,7 @@ class MangataHelper {
         const assetsResp = await this.mangata.getAssetsInfo();
         const assets = _.values(_.filter(assetsResp, (asset) => !_.isEmpty(asset.symbol)));
         this.assets = _.map(assets, (asset) => {
-            const localAsset = _.find(this.config.assets, { symbol: asset.symbol });
+            const localAsset = _.find(this.config.assets, { symbol: asset.symbol, id: asset.id });
             return localAsset ? { ...asset, ...localAsset } : asset;
         });
         console.log('Assets on Mangata chain: ', this.assets);
@@ -362,6 +362,8 @@ class MangataHelper {
     };
 
     getNativeAssetLocation = () => this.getAssetLocation(this.config.symbol);
+
+    getLocation = () => paraIdToLocation(this.config.paraId);
 }
 
 export default MangataHelper;
