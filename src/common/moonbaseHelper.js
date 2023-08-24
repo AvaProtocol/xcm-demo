@@ -7,7 +7,7 @@ import Keyring from '@polkadot/keyring';
 import { BN } from 'bn.js';
 
 import {
-    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies,
+    WEIGHT_REF_TIME_PER_SECOND, calculateXcmOverallWeight, getProxies, paraIdToLocation,
 } from './utils';
 
 class MoonbaseHelper {
@@ -85,6 +85,13 @@ class MoonbaseHelper {
     };
 
     getNativeAssetLocation = () => this.getAssetLocation(this.config.symbol);
+
+    getNativeAssetRelativeLocation = () => {
+        const { relativeLocation } = _.find(this.assets, { symbol: this.config.symbol });
+        return relativeLocation;
+    };
+
+    getLocation = () => paraIdToLocation(this.config.paraId);
 }
 
 export default MoonbaseHelper;

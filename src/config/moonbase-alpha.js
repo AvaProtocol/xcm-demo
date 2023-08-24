@@ -14,6 +14,7 @@ const assets = [
         symbol: NATIVE_TOKEN,
         address: '',
         location: { parents: 1, interior: { X2: [{ Parachain: PARA_ID }, { PalletInstance: 3 }] } },
+        relativeLocation: { parents: 0, interior: { X1: { PalletInstance: 3 } } },
     },
 ];
 

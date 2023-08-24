@@ -276,3 +276,12 @@ export const calculateXcmOverallWeight = (transactCallWeight, instructionWeight,
 export const findEvent = (events, section, method) => events.find((e) => e.event.section === section && e.event.method === method);
 export const getTaskIdInTaskScheduledEvent = (event) => Buffer.from(event.event.data.taskId).toString();
 export const paraIdToLocation = (paraId) => ({ parents: 1, interior: { X1: { Parachain: paraId } } });
+
+/**
+ * Wait for all promises to succeed, otherwise throw an exception.
+ * @param {*} promises
+ * @returns promise
+ */
+export const waitPromises = (promises) => new Promise((resolve, reject) => {
+    Promise.all(promises).then(resolve).catch(reject);
+});
