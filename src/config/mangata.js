@@ -1,5 +1,9 @@
+import BN from 'bn.js';
+
 const PARA_ID = 2110;
-const NATIVE_TOKEN = 'MGR';
+const NATIVE_TOKEN = 'MGX';
+const WEIGHT_REF_TIME = new BN(150000000);
+const WEIGHT_PROOF_SIZE = new BN(0);
 
 const assets = [
     {
@@ -199,6 +203,7 @@ const Config = {
     ss58: 42,
     assets,
     pools,
+    instructionWeight: { refTime: WEIGHT_REF_TIME, proofSize: WEIGHT_PROOF_SIZE },
     symbol: NATIVE_TOKEN,
 };
 
