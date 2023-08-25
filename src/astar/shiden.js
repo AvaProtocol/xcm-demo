@@ -5,7 +5,7 @@ import moment from 'moment';
 import TuringHelper from '../common/turingHelper';
 import ShibuyaHelper from '../common/shibuyaHelper';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, getTaskIdInTaskScheduledEvent,
+    sendExtrinsic, getDecimalBN, listenEvents, readMnemonicFromFile, calculateTimeout, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises,
 } from '../common/utils';
 import { Turing, Shiden } from '../config';
 import Account from '../common/account';
@@ -13,14 +13,13 @@ import Account from '../common/account';
 // TODO: read this instruction value from Turing Network
 // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
 // It is defined as a UnitWeightCost variable in runtime.
-const TURING_INSTRUCTION_WEIGHT = 1000000000;
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;
 
 const keyring = new Keyring({ type: 'sr25519' });
 
 const scheduleTask = async ({
-    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+    turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, keyPair,
 }) => {
     console.log('\na). Create a payload to store in Turing’s task ...');
 
@@ -28,49 +27,64 @@ const scheduleTask = async ({
     const payload = shibuyaHelper.api.tx.dappsStaking.claimStaker({
         Evm: '0x1cee94a11eaf390b67aa346e9dda3019dfad4f6a',
     });
-    const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
-    const encodedCallData = payloadViaProxy.method.toHex();
-    const payloadViaProxyFees = await payloadViaProxy.paymentInfo(parachainAddress);
-    const encodedCallWeight = parseInt(payloadViaProxyFees.weight.refTime, 10);
-    console.log(`Encoded call data: ${encodedCallData}`);
-    console.log(`Encoded call weight: ${encodedCallWeight}`);
 
     console.log('\nb) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...');
+    const payloadViaProxy = shibuyaHelper.api.tx.proxy.proxy(parachainAddress, 'Any', payload);
+    const encodedCallData = payloadViaProxy.method.toHex();
+    const { weight: encodedCallWeight } = await payloadViaProxy.paymentInfo(parachainAddress);
+    const overallWeight = shibuyaHelper.calculateXcmTransactOverallWeight(encodedCallWeight);
+    const fee = await shibuyaHelper.api.call.transactionPaymentApi.queryWeightToFee(overallWeight);
+
+    console.log(`Encoded call data: ${encodedCallData}`);
+    console.log('Encoded call encodedCallWeight: ', encodedCallWeight.toHuman());
+    console.log(`overallWeight: (${overallWeight.refTime.toString()}, ${overallWeight.proofSize.toString()})`);
 
     // Schedule an XCMP task from Turing’s timeAutomation pallet
-    // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
-    const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const nextExecutionTime = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
+    const executionTimes = [getHourlyTimestamp(1) / 1000, getHourlyTimestamp(2) / 1000];
+    const nextExecutionTime = executionTimes[0];
+    const assetLocation = shibuyaHelper.getNativeAssetLocation();
     const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
-        { Recurring: { frequency: TASK_FREQUENCY, nextExecutionTime } },
-        // { Fixed: { executionTimes: [0] } },
-        shibuyaHelper.config.paraId,
-        paraTokenIdOnTuring,
-        { V3: { parents: 1, interior: { X1: { Parachain: shibuyaHelper.config.paraId } } } },
+        { Fixed: { executionTimes } },
+        { V3: shibuyaHelper.getLocation() },
+        { V3: assetLocation },
+        { assetLocation: { V3: assetLocation }, amount: fee },
         encodedCallData,
         encodedCallWeight,
+        overallWeight,
+        turingAddress,
     );
 
+    console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
+
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
-    const taskViaProxyFees = await taskViaProxy.paymentInfo(turingAddress);
-    const requireWeightAtMost = parseInt(taskViaProxyFees.weight, 10);
+    const { weight: transactCallWeight } = await taskViaProxy.paymentInfo(turingAddress);
+    const xcmOverallWeight = turingHelper.calculateXcmTransactOverallWeight(transactCallWeight);
+    const taskViaProxyFee = await turingHelper.weightToFee(xcmOverallWeight, shibuyaHelper.getNativeAssetLocation());
 
     console.log(`Encoded call data: ${encodedTaskViaProxy}`);
-    console.log(`requireWeightAtMost: ${requireWeightAtMost}`);
+    console.log('requireWeightAtMost: ', transactCallWeight.toHuman());
+    console.log(`xcmOverallWeight: (${xcmOverallWeight.refTime.toString()}, ${xcmOverallWeight.proofSize.toString()})`);
 
-    console.log(`\nc) Execute the above an XCM from ${shibuyaHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const feePerSecond = await turingHelper.getFeePerSecond(paraTokenIdOnTuring);
     const xcmpExtrinsic = shibuyaHelper.createTransactExtrinsic({
         targetParaId: turingHelper.config.paraId,
         encodedCall: encodedTaskViaProxy,
         proxyAccount: proxyAccountId,
-        feePerSecond,
-        instructionWeight: TURING_INSTRUCTION_WEIGHT,
-        requireWeightAtMost,
+        transactCallWeight,
+        overallWeight: xcmOverallWeight,
+        fee: taskViaProxyFee,
     });
-    await sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
+
+    console.log('xcmpExtrinsic: ', xcmpExtrinsic.method.toHex());
+
+    // Wait extrinsic executing and listen TaskScheduled event.
+    const sendExtrinsicPromise = sendExtrinsic(shibuyaHelper.api, xcmpExtrinsic, keyPair);
+    const listenEventsPromise = listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 60000);
+    const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
+
+    console.log('Listening to TaskScheduled event on Turing chain ...');
+    const taskScheduledEvent = results[1];
+    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
     console.log(`\nAt this point if the XCM succeeds, you should see the below events on both chains:\n
   1. Shibuya\n
@@ -80,11 +94,6 @@ const scheduleTask = async ({
   b) xcmpHandler.XcmTransactedLocally, xcmpQueue.XcmpMessageSent, xcmpHandler.XcmSent and automationTime.XcmpTaskSucceeded - the task is triggered and its payload is sent to Shibuya via XCM.\n
   3. Shibuya\n
   proxy.ProxyExecuted and xcmpQueue.Success - the above payload is received and executed.\n`);
-
-    console.log('Listening to TaskScheduled event on Turing chain ...');
-    const taskScheduledEvent = await listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 20000);
-    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
     return { taskId, executionTime: nextExecutionTime };
 };
@@ -142,9 +151,7 @@ const main = async () => {
 
     if (balance.free.lt(minBalance)) {
         console.log('\nb) Topping up the proxy account on Shibuya with SBY ...\n');
-        const amount = new BN(1000, 10);
-        const amountBN = amount.mul(decimalBN);
-        const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, amountBN.toString());
+        const topUpExtrinsic = shibuyaHelper.api.tx.balances.transfer(proxyOnParachain, minBalance);
         await sendExtrinsic(shibuyaHelper.api, topUpExtrinsic, keyPair);
     } else {
         const freeAmount = (new BN(balance.free)).div(decimalBN);
@@ -154,7 +161,7 @@ const main = async () => {
     console.log('\n2. One-time proxy setup on Turing');
     console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${shibuyaHelper.config.paraId})\n`);
     const proxyTypeTuring = 'Any';
-    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, shibuyaHelper.config.paraId);
+    const proxyOnTuring = turingHelper.getProxyAccount(turingAddress, shibuyaHelper.config.paraId, { network: 'Kusama', locationType: 'XcmV3MultiLocation' });
     const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
     const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
     const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
@@ -172,9 +179,7 @@ const main = async () => {
 
     if (balanceOnTuring.free.lt(minBalanceOnTuring)) {
         console.log(`\nb) Topping up the proxy account on ${turingChainName} via reserve transfer ...`);
-        const topUpAmount = new BN(1000, 10);
-        const topUpAmountBN = topUpAmount.mul(decimalBN);
-        const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(turingHelper.config.paraId, proxyAccountId, topUpAmountBN);
+        const reserveTransferAssetsExtrinsic = shibuyaHelper.createReserveTransferAssetsExtrinsic(turingHelper.config.paraId, proxyAccountId, minBalanceOnTuring);
         await sendExtrinsic(shibuyaHelper.api, reserveTransferAssetsExtrinsic, keyPair);
     } else {
         const freeBalanceOnTuring = (new BN(balanceOnTuring.free)).div(decimalBN);
@@ -184,7 +189,7 @@ const main = async () => {
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${turingChainName} ...`);
 
     const result = await scheduleTask({
-        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, paraTokenIdOnTuring, keyPair,
+        turingHelper, shibuyaHelper, turingAddress, parachainAddress, proxyAccountId, keyPair,
     });
 
     const { taskId, executionTime } = result;
