@@ -1,5 +1,6 @@
 import AutoCompound from './common';
-import { MangataRococo, TuringStaging } from '../config';
+// import { MangataRococo, TuringStaging } from '../config';
+import { chains } from '@oak-network/config';
 
 /**
  * README!
@@ -14,7 +15,8 @@ import { MangataRococo, TuringStaging } from '../config';
 
 /** * Main entrance of the program */
 async function main() {
-    const autoCompound = new AutoCompound(TuringStaging, MangataRococo);
+    const { turingStaging, mangataRococo } = chains;
+    const autoCompound = new AutoCompound(turingStaging, mangataRococo);
     await autoCompound.run();
 }
 
