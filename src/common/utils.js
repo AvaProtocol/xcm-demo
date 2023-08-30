@@ -259,7 +259,7 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
     const digitBN = new BN(amplifier);
 
     const resultBN = amountBN.mul(digitBN).div(decimalBN);
-
+    console.log('resultBN:', resultBN.toString());
     return _.floor(resultBN.toNumber() / amplifier, digit);
 };
 
