@@ -11,7 +11,7 @@ import {
     sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile, listenEvents, getTaskIdInTaskScheduledEvent, waitPromises,
 } from '../common/utils';
 
-const CONTRACT_ADDRESS = '0xa72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8';
+const CONTRACT_ADDRESS = '0x7Dd212Fd97ab7C5FA3D44031CE1b9b50248e3177';
 const CONTRACT_INPUT = '0xd09de08a';
 
 const sendXcmFromMoonbase = async ({
