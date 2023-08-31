@@ -104,7 +104,7 @@ class TuringHelper {
         return assetId;
     };
 
-    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
+    calculateXcmTransactOverallWeight = (transactCallWeight, instructionCount = 6) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, instructionCount);
 
     weightToFee = async (weight, assetLocation) => {
         const assetId = await this.getAssetIdByLocation(assetLocation);

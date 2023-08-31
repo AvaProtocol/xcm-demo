@@ -3,7 +3,7 @@ import BN from 'bn.js';
 const PARA_ID = 2023;
 const NATIVE_TOKEN = 'MOVR';
 const WEIGHT_REF_TIME = new BN('200000000');
-const WEIGHT_PROOF_SIZE = new BN('0');
+const WEIGHT_PROOF_SIZE = new BN('10000');
 
 const assets = [
     {

@@ -72,7 +72,7 @@ class MoonbaseHelper {
         return transactExtrinsic;
     };
 
-    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 4);
+    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
 
     weightToFee = (weight, symbol) => {
         const { feePerSecond } = _.find(this.assets, { symbol });
