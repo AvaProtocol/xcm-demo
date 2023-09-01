@@ -15,12 +15,12 @@ import AstarHelper from '../common/v2/astarHelper';
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;
 
-const keyring = new Keyring({ type: 'sr25519' });
-
 // eslint-disable-next-line import/prefer-default-export
 export const scheduleTask = async ({
     oakConfig, astarConfig, scheduleActionType, createPayloadFunc, keyringPair,
 }) => {
+    const keyring = new Keyring({ type: 'sr25519' });
+
     const oakHelper = new OakHelper({ endpoint: oakConfig.endpoint });
     oakHelper.initialize();
     const oakApi = oakHelper.getApi();
@@ -131,8 +131,7 @@ export const scheduleTask = async ({
         ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
         : { Fixed: { executionTimes: [0] } };
 
-
-    console.log(`\nc) Execute the above an XCM from ${astarAdapter.getChainData().key} to schedule a task on ${oakChainName} ...`);
+    console.log(`\nb) Execute the above an XCM from ${astarAdapter.getChainData().key} to schedule a task on ${oakChainName} ...`);
     const sendExtrinsicPromise = Sdk().scheduleXcmpTaskWithPayThroughRemoteDerivativeAccountFlow({
         oakAdapter,
         destinationChainAdapter: astarAdapter,
@@ -173,9 +172,7 @@ export const scheduleTask = async ({
 
     console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, astarDecimalBN))} ${astarChainData.symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, astarDecimalBN))} ${astarChainData.symbol}.`);
 
-    if (scheduleActionType === ScheduleActionType.executeImmediately) {
-        return;
-    }
+    if (scheduleActionType === ScheduleActionType.executeImmediately) return;
 
     console.log('\n5. Cancel the task ...');
     const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);

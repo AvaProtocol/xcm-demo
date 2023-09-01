@@ -1,5 +1,7 @@
-import AutoCompound from './common';
-import { Mangata, Turing } from '../config';
+import Keyring from '@polkadot/keyring';
+import { chains } from '@oak-network/config';
+import { ScheduleActionType, readMnemonicFromFile } from '../common/utils';
+import { scheduleTask } from './common';
 
 /**
  * README!
@@ -13,12 +15,22 @@ import { Mangata, Turing } from '../config';
  */
 
 /** * Main entrance of the program */
-async function main() {
-    const autoCompound = new AutoCompound(Turing, Mangata);
-    await autoCompound.run();
-}
+const main = async () => {
+    const keyring = new Keyring({ type: 'sr25519' });
+    const json = await readMnemonicFromFile();
+    const keyringPair = keyring.addFromJson(json);
+    keyringPair.unlock(process.env.PASS_PHRASE);
+
+    const { turing, mangataKusama } = chains;
+    await scheduleTask({
+        oakConfig: turing,
+        mangataConfig: mangataKusama,
+        scheduleActionType: ScheduleActionType.executeOnTheHour,
+        keyringPair,
+    });
+};
 
 main().catch(console.error).finally(() => {
-    console.log('Reached end of main() ...');
+    console.log('Reached the end of main() ...');
     process.exit();
 });

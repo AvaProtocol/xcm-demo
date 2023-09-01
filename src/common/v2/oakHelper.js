@@ -1,23 +1,13 @@
+import '@oak-network/api-augment';
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider } from '@polkadot/api';
+import ChainHelper from './chainHelper';
 
-class OakHelper {
-    constructor(config) {
-        this.config = config;
-    }
-
+class OakHelper extends ChainHelper {
     initialize = async () => {
-        const api = await ApiPromise.create({
+        this.api = await ApiPromise.create({
             provider: new WsProvider(this.config.endpoint), rpc, types, runtime,
         });
-
-        this.api = api;
-    };
-
-    getApi = () => this.api;
-
-    finalize = async () => {
-        this.api.disconnect();
     };
 }
 
