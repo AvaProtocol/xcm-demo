@@ -1,25 +1,29 @@
 import { hexToU8a } from '@polkadot/util';
 import Keyring from '@polkadot/keyring';
+import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { chains } from '@oak-network/config';
-import { ScheduleActionType, readMnemonicFromFile } from '../common/utils';
+import { askScheduleAction } from '../common/utils';
 import { scheduleTask } from './common';
 
 const ALITH_PRIVATE_KEY = '0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133';
 
 const main = async () => {
+    await cryptoWaitReady();
     const keyring = new Keyring({ type: 'sr25519' });
-    const json = await readMnemonicFromFile();
-    const keyringPair = keyring.addFromJson(json);
-    keyringPair.unlock(process.env.PASS_PHRASE);
+
+    const keyringPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
+    keyringPair.meta.name = 'Alice';
 
     const moonbeamKeyringPair = keyring.addFromSeed(hexToU8a(ALITH_PRIVATE_KEY), undefined, 'ethereum');
-    moonbeamKeyringPair.unlock(process.env.PASS_PHRASE_ETH);
+    moonbeamKeyringPair.meta.name = 'Alith';
 
-    const { turingMoonbase, moonbaseAlpha } = chains;
+    const scheduleActionType = await askScheduleAction();
+
+    const { turingLocal, moonbaseLocal } = chains;
     await scheduleTask({
-        oakConfig: turingMoonbase,
-        moonbeamConfig: moonbaseAlpha,
-        scheduleActionType: ScheduleActionType.executeOnTheHour,
+        oakConfig: turingLocal,
+        moonbeamConfig: moonbaseLocal,
+        scheduleActionType,
         keyringPair,
         moonbeamKeyringPair,
     });

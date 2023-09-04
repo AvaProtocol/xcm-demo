@@ -28,7 +28,7 @@ export const scheduleTask = async ({
     const oakAdapter = new OakAdapter(oakApi, oakConfig);
     await oakAdapter.initialize();
 
-    const moonbeamHelper = new MoonbeamHelper({ endpoint: oakConfig.endpoint });
+    const moonbeamHelper = new MoonbeamHelper({ endpoint: moonbeamConfig.endpoint });
     await moonbeamHelper.initialize();
     const moonbeamApi = moonbeamHelper.getApi();
     const moonbeamAdapter = new MoonbeamAdapter(moonbeamApi, moonbeamConfig);
@@ -37,12 +37,12 @@ export const scheduleTask = async ({
     const oakChainData = oakAdapter.getChainData();
     const moonbeamChainData = moonbeamAdapter.getChainData();
 
-    const parachainName = moonbeamChainData.name;
+    const parachainName = moonbeamChainData.key;
 
-    const oakAddress = keyringPair.decodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
-    const moonbeamAddress = keyringPair.decodeAddress(moonbeamKeyringPair.addressRaw, moonbeamChainData.ss58Prefix);
+    const oakAddress = keyring.encodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
+    const moonbeamAddress = moonbeamKeyringPair.address;
 
-    const proxyAccountId = oakAdapter.getDeriveAccount(u8aToHex(moonbeamKeyringPair.addressRaw), moonbeamChainData.paraId);
+    const proxyAccountId = oakAdapter.getDerivativeAccount(u8aToHex(moonbeamKeyringPair.addressRaw), moonbeamChainData.paraId);
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccountId, oakChainData.ss58Prefix);
     console.log(`\n1. One-time proxy setup on ${oakChainData.key}`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainData.key}\n`);
@@ -86,7 +86,7 @@ export const scheduleTask = async ({
     console.log(`\n2. One-time proxy setup on ${moonbeamChainData.key}`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${moonbeamChainData.key}\n`);
     console.log('oakChainData.paraId: ', oakChainData.paraId);
-    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDeriveAccount(u8aToHex(keyringPair.addressRaw), oakChainData.paraId);
+    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakChainData.paraId);
     const proxyTypeMoonbeam = 'Any';
     const proxiesOnMoonbeam = _.first((await moonbeamApi.query.proxy.proxies(u8aToHex(moonbeamKeyringPair.addressRaw))).toJSON());
 
@@ -142,7 +142,7 @@ export const scheduleTask = async ({
         executionFeeLocation: moonbeamChainData.defaultAsset.location,
         schedule,
         scheduleAs: u8aToHex(keyringPair.addressRaw),
-        keyPair: moonbeamKeyringPair,
+        keyringPair: moonbeamKeyringPair,
     });
     const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
@@ -153,8 +153,9 @@ export const scheduleTask = async ({
     const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
         ? nextExecutionTime : moment().valueOf() / 1000;
     const timeout = calculateTimeout(nextExecutionTime);
+
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const isTaskExecuted = await listenEvents(moonbeamApi, 'proxy', 'ProxyExecuted', timeout);
+    const isTaskExecuted = await listenEvents(moonbeamApi, 'ethereum', 'Executed', timeout);
 
     if (!isTaskExecuted) {
         console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
@@ -172,7 +173,7 @@ export const scheduleTask = async ({
 
     console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
 
-    const isTaskExecutedAgain = await listenEvents(moonbeamAdapter, 'ethereum', 'Executed', nextExecutionTimeout);
+    const isTaskExecutedAgain = await listenEvents(moonbeamApi, 'ethereum', 'Executed', nextExecutionTimeout);
 
     if (isTaskExecutedAgain) {
         console.log('Task cancellation failed! It executes again.');

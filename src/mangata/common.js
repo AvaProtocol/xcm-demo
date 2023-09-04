@@ -5,14 +5,14 @@ import moment from 'moment';
 import Keyring from '@polkadot/keyring';
 import { u8aToHex } from '@polkadot/util';
 import confirm from '@inquirer/confirm';
-import { OakAdapter } from '@oak-network/adapter';
+import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 
 import {
-    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType,
+    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises,
 } from '../common/utils';
 import OakHelper from '../common/v2/oakHelper';
-import MangataHelper from '../common/mangataHelper';
+import MangataHelper from '../common/v2/mangataHelper';
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -33,8 +33,8 @@ export const scheduleTask = async ({
     await mangataHelper.initialize();
     const mangataApi = mangataHelper.getApi();
     const mangataSdk = mangataHelper.getMangataSdk();
-    const mangataAdapter = new OakAdapter(mangataApi, mangataConfig);
-    await oakAdapter.initialize();
+    const mangataAdapter = new MangataAdapter(mangataApi, mangataConfig);
+    await mangataAdapter.initialize();
 
     const { defaultAsset: oakDefaultAsset } = oakAdapter.getChainData();
     const { defaultAsset: mangataDefaultAsset } = mangataAdapter.getChainData();
@@ -51,15 +51,14 @@ export const scheduleTask = async ({
     const { paraId: oakParaId } = oakAdapter.getChainData();
     console.log(`\n2. Add a proxy on Mangata for paraId ${oakParaId}, or skip this step if that exists ...`);
 
-    const proxyAddress = keyring.encodeAddress(mangataAdapter.getDeriveAccount(u8aToHex(keyringPair.addressRaw), oakParaId), ss58Prefix);
+    const proxyAccountId = mangataAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakParaId);
+    const proxyAddress = keyring.encodeAddress(proxyAccountId, ss58Prefix);
     const proxiesResponse = await mangataApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw));
     const proxies = _.first(proxiesResponse.toJSON());
 
     const proxyType = 'AutoCompound';
     const matchCondition = { delegate: proxyAddress, proxyType };
-
     const proxyMatch = _.find(proxies, matchCondition);
-
     if (proxyMatch) {
         console.log(`Found proxy of ${mangataAddress} on Mangata, and will skip the addition ... `, proxyMatch);
     } else {
@@ -70,16 +69,17 @@ export const scheduleTask = async ({
         }
 
         console.log(`Adding a proxy for paraId ${oakParaId}. Proxy address: ${proxyAddress} ...`);
-        // await sendExtrinsic(mangataApi, mangataApi.tx.proxy.addProxy(proxyAddress, proxyType, 0), keyPair);
+        await sendExtrinsic(mangataApi, mangataApi.tx.proxy.addProxy(proxyAccountId, proxyType, 0), keyringPair);
     }
 
     const pools = await mangataSdk.getPools();
     let pool = _.find(pools, { firstTokenId: mangataAsset.id, secondTokenId: turAsset.id });
     pool = mangataHelper.formatPool(pool);
     const liquidityAsset = _.find(assets, { id: pool.liquidityTokenId });
-    const { name: poolName } = liquidityAsset;
+    const { symbol: poolName } = liquidityAsset;
 
     const shouldMintLiquidity = await confirm({ message: `\nAccount balance check is completed and proxy is set up. Press ENTRE to mint ${poolName}.`, default: true });
+    console.log('shouldMintLiquidity: ', shouldMintLiquidity);
 
     if (shouldMintLiquidity) {
         // Calculate rwards amount in pool
@@ -89,7 +89,7 @@ export const scheduleTask = async ({
 
         // Issue: current we couldn’t read this rewards value correct by always getting 0 on the claimable rewards.
         // The result is different from that in src/mangata.js
-        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataSdk, mangataAddress, liquidityAsset);
+        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityAsset);
         console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
         const liquidityBalance = await mangataSdk.getTokenBalance(liquidityTokenId, mangataAddress);
@@ -144,13 +144,22 @@ export const scheduleTask = async ({
                 ? { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } }
                 : { Fixed: { executionTimes: [0] } };
 
-            const { events } = await Sdk().scheduleXcmpTaskWithPayThroughSoverignAccountFlow({
+            const scheduleTaskPromise = Sdk().scheduleXcmpTaskWithPayThroughSoverignAccountFlow({
                 oakAdapter,
                 destinationChainAdapter: mangataAdapter,
                 taskPayloadExtrinsic,
                 schedule,
                 keyringPair,
             });
+
+            const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
+            const listenEventPromise = listenEvents(mangataApi, 'proxy', 'ProxyExecuted', nextHourExecutionTimeout);
+
+            const promiseResults = scheduleActionType === ScheduleActionType.executeImmediately
+                ? await waitPromises([scheduleTaskPromise, listenEventPromise])
+                : null;
+
+            const { events } = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[0] : await scheduleTaskPromise;
 
             // Get taskId from TaskScheduled event
             const taskScheduledEvent = findEvent(events, 'automationTime', 'TaskScheduled');
@@ -159,8 +168,7 @@ export const scheduleTask = async ({
 
             // Listen XCM events on Mangata side
             console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-            const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
-            const isTaskExecuted = await listenEvents(mangataApi, 'proxy', 'ProxyExecuted', nextHourExecutionTimeout);
+            const isTaskExecuted = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[1] : await listenEventPromise;
             if (!isTaskExecuted) {
                 console.log('Timeout! Task was not executed.');
                 return;
