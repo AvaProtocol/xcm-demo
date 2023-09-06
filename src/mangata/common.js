@@ -11,8 +11,8 @@ import { Sdk } from '@oak-network/sdk';
 import {
     delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises,
 } from '../common/utils';
-import OakHelper from '../common/v2/oakHelper';
-import MangataHelper from '../common/v2/mangataHelper';
+import OakHelper from '../common/oakHelper';
+import MangataHelper from '../common/mangataHelper';
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });

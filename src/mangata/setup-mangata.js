@@ -7,8 +7,8 @@ import { chains } from '@oak-network/config';
 import { u8aToHex } from '@polkadot/util';
 import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
 import { BN } from 'bn.js';
-import OakHelper from '../common/v2/oakHelper';
-import MangataHelper from '../common/v2/mangataHelper';
+import OakHelper from '../common/oakHelper';
+import MangataHelper from '../common/mangataHelper';
 import { delay, getDecimalBN } from '../common/utils';
 
 /**

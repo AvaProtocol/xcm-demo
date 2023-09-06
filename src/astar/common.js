@@ -9,8 +9,8 @@ import { AstarAdapter, OakAdapter } from '@oak-network/adapter';
 import {
     sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout, bnToFloat, delay, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType,
 } from '../common/utils';
-import OakHelper from '../common/v2/oakHelper';
-import AstarHelper from '../common/v2/astarHelper';
+import OakHelper from '../common/oakHelper';
+import AstarHelper from '../common/astarHelper';
 
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;

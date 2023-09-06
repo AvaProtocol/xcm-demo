@@ -9,8 +9,8 @@ import chalkPipe from 'chalk-pipe';
 import {
     sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType, calculateTimeout,
 } from '../common/utils';
-import OakHelper from '../common/v2/oakHelper';
-import MoonbeamHelper from '../common/v2/moonbeamHelper';
+import OakHelper from '../common/oakHelper';
+import MoonbeamHelper from '../common/moonbeamHelper';
 
 const TASK_FREQUENCY = 3600;
 const CONTRACT_ADDRESS = '0xa72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8';
