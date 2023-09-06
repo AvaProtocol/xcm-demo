@@ -58,7 +58,7 @@
 	```
 3. Run the program to schedule automation and wait for cross-chain execution
    ```
-   npm run mangata
+   npm run mangata-local
    ```
 </details>
 
