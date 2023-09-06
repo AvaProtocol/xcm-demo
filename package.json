@@ -9,6 +9,7 @@
     "shiden": "dotenv -e .env babel-node src/astar/shiden.js",
     "moonbase-alpha": "dotenv -e .env babel-node src/moonbeam/moonbase-alpha.js",
     "moonbase-local": "dotenv -e .env babel-node src/moonbeam/moonbase-local.js",
+    "moonriver": "dotenv -e .env babel-node src/moonbeam/moonriver.js",
     "test-moonbase-contract": "dotenv -e .env babel-node src/moonbeam/test-moonbase-contract/index.js",
     "utils": "dotenv -e .env babel-node src/utils.js",
     "lint": "eslint --fix src/*"
