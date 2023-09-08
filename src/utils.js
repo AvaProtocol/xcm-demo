@@ -175,7 +175,6 @@ async function main() {
         console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
 
         const targetSellAmount = 100;
-        // const minExpectedBuyAmount = 150;
 
         const assets = await mangataHelper.getMangataSdk().getAssetsInfo();
         const turAsset = _.find(assets, { symbol: 'TUR' });

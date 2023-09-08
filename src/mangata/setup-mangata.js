@@ -64,32 +64,6 @@ async function main() {
     console.log(`\n3. Minting ${oakAsset.name} for ${keyringPair.meta.name} on Maganta if balance is zero ...`);
     await mangataHelper.mintToken(u8aToHex(keyringPair.addressRaw), oakAsset.id, keyringPair);
 
-    // // If there is no proxy, add a proxy of Turing on Mangata
-    // console.log('\n4. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...');
-
-    // const proxyAccountId = mangataAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakAdapter.getChainData().paraId);
-    // const proxyAddress = keyring.encodeAddress(proxyAccountId, mangataAdapter.getChainData().ss58Prefix);
-    // const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
-    // const proxies = _.first(proxiesResponse.toJSON());
-
-    // const proxyType = 'AutoCompound';
-    // const matchCondition = { delegate: proxyAddress, proxyType };
-
-    // const proxyMatch = _.find(proxies, matchCondition);
-
-    // if (proxyMatch) {
-    //     console.log(`Found proxy of ${mangataAddress} on Mangata: `, proxyMatch);
-    // } else {
-    //     if (_.isEmpty(proxies)) {
-    //         console.log(`Proxy array of ${mangataAddress} is empty ...`);
-    //     } else {
-    //         console.log('Proxy not found. Expected', matchCondition, 'Actual', proxies);
-    //     }
-
-    //     console.log(`Adding a proxy for paraId ${oakAdapter.getChainData().paraId}. Proxy address: ${proxyAddress} ...`);
-    //     await mangataHelper.addProxy(proxyAddress, proxyType, keyringPair);
-    // }
-
     const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.', default: true });
     if (answerPool === false) return;
 
