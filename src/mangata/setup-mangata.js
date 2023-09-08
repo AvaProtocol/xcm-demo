@@ -107,10 +107,10 @@ async function main() {
 
     // Mint liquidity to generate rewards...
     console.log('\n7. Mint liquidity to generate rewards...');
-    const formatedPool = mangataHelper.formatPool(pool, mangataAsset.decimals, oakAsset.decimals);
+    const formattedPool = mangataHelper.formatPool(pool, mangataAsset.decimals, oakAsset.decimals);
     const firstTokenAmount = 1000;
     const MAX_SLIPPIAGE = 0.04; // 4% slippage; can’t be too large
-    const poolRatio = formatedPool.firstTokenAmountFloat / formatedPool.secondTokenAmountFloat;
+    const poolRatio = formattedPool.firstTokenAmountFloat / formattedPool.secondTokenAmountFloat;
     const expectedSecondTokenAmount = (firstTokenAmount / poolRatio) * (1 + MAX_SLIPPIAGE);
 
     // Estimate of fees; no need to be accurate

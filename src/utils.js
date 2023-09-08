@@ -78,14 +78,14 @@ async function main() {
     switch (actionSelected) {
     case 'examine-mangata-pools': {
         const pools = await mangataHelper.getPools({ isPromoted: true, thousandSeparator: true });
-        const formatedPools = _.map(pools, (pool) => ({
+        const formattedPools = _.map(pools, (pool) => ({
             ...pool,
             firstTokenAmount: pool.firstTokenAmount.toString(),
             secondTokenAmount: pool.secondTokenAmount.toString(),
             firstTokenRatio: pool.firstTokenRatio.toString(),
             secondTokenRatio: pool.secondTokenRatio.toString(),
         }));
-        console.log(formatedPools);
+        console.log(formattedPools);
         break;
     }
     case 'get-mangata-assets': {
