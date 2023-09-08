@@ -12,7 +12,7 @@ class ChainHelper {
 
     getApi = () => this.api;
 
-    finalize = async () => {
+    disconnect = async () => {
         this.api.disconnect();
     };
 }

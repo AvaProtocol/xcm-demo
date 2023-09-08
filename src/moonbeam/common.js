@@ -2,6 +2,7 @@ import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import { u8aToHex } from '@polkadot/util';
+import { ApiPromise, WsProvider } from '@polkadot/api';
 import { OakAdapter, MoonbeamAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 import moment from 'moment';
@@ -10,7 +11,6 @@ import {
     sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType, calculateTimeout,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
-import MoonbeamHelper from '../common/moonbeamHelper';
 
 const TASK_FREQUENCY = 3600;
 const CONTRACT_ADDRESS = '0xa72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8';
@@ -28,9 +28,7 @@ export const scheduleTask = async ({
     const oakAdapter = new OakAdapter(oakApi, oakConfig);
     await oakAdapter.initialize();
 
-    const moonbeamHelper = new MoonbeamHelper({ endpoint: moonbeamConfig.endpoint });
-    await moonbeamHelper.initialize();
-    const moonbeamApi = moonbeamHelper.getApi();
+    const moonbeamApi = await ApiPromise.create({ provider: new WsProvider(moonbeamConfig.endpoint) });
     const moonbeamAdapter = new MoonbeamAdapter(moonbeamApi, moonbeamConfig);
     await moonbeamAdapter.initialize();
 
@@ -181,6 +179,6 @@ export const scheduleTask = async ({
     }
     console.log("Task canceled successfully! It didn't execute again.");
 
-    await oakHelper.finalize();
-    await moonbeamHelper.finalize();
+    await oakHelper.disconnect();
+    await moonbeamApi.disconnect();
 };

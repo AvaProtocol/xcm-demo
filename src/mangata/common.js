@@ -204,6 +204,6 @@ export const scheduleTask = async ({
         }
     }
 
-    oakAdapter.destroy();
-    mangataAdapter.destroy();
+    oakHelper.disconnect();
+    mangataHelper.disconnect();
 };

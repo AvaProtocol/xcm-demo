@@ -4,13 +4,13 @@ import moment from 'moment';
 import chalkPipe from 'chalk-pipe';
 import Keyring from '@polkadot/keyring';
 import { u8aToHex } from '@polkadot/util';
+import { ApiPromise, WsProvider } from '@polkadot/api';
 import { Sdk } from '@oak-network/sdk';
 import { AstarAdapter, OakAdapter } from '@oak-network/adapter';
 import {
     sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout, bnToFloat, delay, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
-import AstarHelper from '../common/astarHelper';
 
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
 const TASK_FREQUENCY = 3600;
@@ -27,9 +27,7 @@ export const scheduleTask = async ({
     const oakAdapter = new OakAdapter(oakApi, oakConfig);
     await oakAdapter.initialize();
 
-    const astarHelper = new AstarHelper({ endpoint: astarConfig.endpoint });
-    await astarHelper.initialize();
-    const astarApi = astarHelper.getApi();
+    const astarApi = await ApiPromise.create({ provider: new WsProvider(astarConfig.endpoint) });
     const astarAdapter = new AstarAdapter(astarApi, astarConfig);
     await astarAdapter.initialize();
 
@@ -191,6 +189,6 @@ export const scheduleTask = async ({
     }
     console.log("Task canceled successfully! It didn't execute again.");
 
-    await oakHelper.finalize();
-    await astarHelper.finalize();
+    await oakHelper.disconnect();
+    await astarApi.disconnect();
 };

@@ -198,6 +198,10 @@ class MangataHelper extends ChainHelper {
             return events;
         });
     };
+
+    disconnect = async () => {
+        this.mangataSdk.disconnect();
+    };
 }
 
 export default MangataHelper;
