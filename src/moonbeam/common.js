@@ -14,6 +14,11 @@ import OakHelper from '../common/oakHelper';
 
 const TASK_FREQUENCY = 3600;
 
+/**
+ * Schedule task
+ * @param {*} params { oakConfig, moonbeamConfig, scheduleActionType, contract, keyringPair, moonbeamKeyringPair }
+ * contract: { address, input }
+ */
 // eslint-disable-next-line import/prefer-default-export
 export const scheduleTask = async ({
     oakConfig, moonbeamConfig, scheduleActionType, contract, keyringPair, moonbeamKeyringPair,
