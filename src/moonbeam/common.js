@@ -153,9 +153,9 @@ export const scheduleTask = async ({
     const timeout = calculateTimeout(nextExecutionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const isTaskExecuted = await listenEvents(moonbeamApi, 'ethereum', 'Executed', timeout);
+    const executedEvent = await listenEvents(moonbeamApi, 'ethereum', 'Executed', timeout);
 
-    if (!isTaskExecuted) {
+    if (_.isNull(executedEvent)) {
         console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
         return;
     }

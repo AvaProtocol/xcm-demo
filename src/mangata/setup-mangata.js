@@ -91,7 +91,7 @@ async function main() {
     // }
 
     const answerPool = await confirm({ message: '\nAccount setup is completed. Press ENTRE to set up pools.', default: true });
-    if (!answerPool) return;
+    if (answerPool === false) return;
 
     // Get current pools available
     const availablePools = await mangataHelper.getPools({ isPromoted: false });

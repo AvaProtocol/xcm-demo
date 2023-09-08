@@ -153,9 +153,9 @@ export const scheduleTask = async ({
     const timeout = calculateTimeout(nextExecutionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const isTaskExecuted = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', timeout);
+    const executedEvent = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', timeout);
 
-    if (!isTaskExecuted) {
+    if (_.isUndefined(executedEvent)) {
         console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
         return;
     }

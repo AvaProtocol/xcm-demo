@@ -168,8 +168,8 @@ export const scheduleTask = async ({
 
             // Listen XCM events on Mangata side
             console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-            const isTaskExecuted = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[1] : await listenEventPromise;
-            if (!isTaskExecuted) {
+            const executedEvent = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[1] : await listenEventPromise;
+            if (_.isNull(executedEvent)) {
                 console.log('Timeout! Task was not executed.');
                 return;
             }
