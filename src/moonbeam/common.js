@@ -13,12 +13,10 @@ import {
 import OakHelper from '../common/oakHelper';
 
 const TASK_FREQUENCY = 3600;
-const CONTRACT_ADDRESS = '0xa72f549a1a12b9b49f30a7f3aeb1f4e96389c5d8';
-const CONTRACT_INPUT = '0xd09de08a';
 
 // eslint-disable-next-line import/prefer-default-export
 export const scheduleTask = async ({
-    oakConfig, moonbeamConfig, scheduleActionType, keyringPair, moonbeamKeyringPair,
+    oakConfig, moonbeamConfig, scheduleActionType, contract, keyringPair, moonbeamKeyringPair,
 }) => {
     const keyring = new Keyring({ type: 'sr25519' });
 
@@ -117,9 +115,9 @@ export const scheduleTask = async ({
         {
             V2: {
                 gasLimit: 71000,
-                action: { Call: CONTRACT_ADDRESS },
+                action: { Call: contract.address },
                 value: 0,
-                input: CONTRACT_INPUT,
+                input: contract.input,
             },
         },
     );
