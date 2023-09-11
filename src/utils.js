@@ -3,12 +3,12 @@ import _ from 'lodash';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
-import TuringHelper from './common/turingHelper';
+import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
+import { chains } from '@oak-network/config';
+import { u8aToHex } from '@polkadot/util';
+import TuringHelper from './common/oakHelper';
 import MangataHelper from './common/mangataHelper';
-
-import { MangataRococo, TuringStaging } from './config';
-import { getDecimalBN, getProxyAccount, readMnemonicFromFile } from './common/utils';
-import Account from './common/account';
+import { getDecimalBN, readMnemonicFromFile } from './common/utils';
 
 // Create a keyring instance
 const keyring = new Keyring({ ss58Format: 42, type: 'sr25519' });
@@ -59,11 +59,16 @@ const actions = [
 async function main() {
     await cryptoWaitReady();
 
-    const turingHelper = new TuringHelper(TuringStaging);
+    const turingHelper = new TuringHelper({ endpoint: chains.turingStaging.endpoint });
     await turingHelper.initialize();
+    const turingApi = turingHelper.getApi();
+    const turingAdapter = new OakAdapter(turingApi, chains.mangataRococo);
 
-    const mangataHelper = new MangataHelper(MangataRococo);
+    const mangataHelper = new MangataHelper({ endpoint: chains.mangataRococo.endpoint });
     await mangataHelper.initialize();
+    const mangataApi = mangataHelper.getApi();
+
+    const mangataAdapter = new MangataAdapter(mangataApi, chains.mangataRococo);
 
     const actionSelected = await select({
         message: 'Select an action to perform',
@@ -73,13 +78,21 @@ async function main() {
     switch (actionSelected) {
     case 'examine-mangata-pools': {
         const pools = await mangataHelper.getPools({ isPromoted: true, thousandSeparator: true });
-        console.log(pools);
-
+        const formattedPools = _.map(pools, (pool) => ({
+            ...pool,
+            firstTokenAmount: pool.firstTokenAmount.toString(),
+            secondTokenAmount: pool.secondTokenAmount.toString(),
+            firstTokenRatio: pool.firstTokenRatio.toString(),
+            secondTokenRatio: pool.secondTokenRatio.toString(),
+        }));
+        console.log(formattedPools);
         break;
     }
-    case 'get-mangata-assets':
-        await mangataHelper.getAssets();
+    case 'get-mangata-assets': {
+        const assets = await mangataHelper.getMangataSdk().getAssetsInfo();
+        console.log('assets: ', assets);
         break;
+    }
     case 'transfer-tur-on-mangata':
     {
         // Load account from ./private/seed.json and unlock
@@ -87,21 +100,18 @@ async function main() {
         const keyPair = keyring.addFromJson(json);
         keyPair.unlock(process.env.PASS_PHRASE);
 
-        const account = new Account(keyPair);
-        await account.init([mangataHelper]);
-        account.print();
-
         // 1. Specify chain and token symbol here
-        const token = account.getAssetByChainAndSymbol('mangata-rococo', 'TUR');
+        const assets = await mangataHelper.getMangataSdk().getAssetsInfo();
+        const token = _.find(assets, ({ symbol }) => symbol === 'TUR');
 
         // 2. Set the destination address to your account
         const dest = '';
 
-        // 3. Set the amount of transfer
+        // // 3. Set the amount of transfer
         const amount = 10;
 
         await mangataHelper.transferToken({
-            keyPair: account.pair, tokenId: token.id, decimals: token.decimals, dest, amount,
+            keyPair, tokenId: token.id, decimals: token.decimals, dest, amount,
         });
         break;
     }
@@ -112,12 +122,9 @@ async function main() {
         const keyPair = keyring.addFromJson(json);
         keyPair.unlock(process.env.PASS_PHRASE);
 
-        const account = new Account(keyPair);
-        await account.init([mangataHelper]);
-        account.print();
-
         // 1. Specify chain and token symbol here
-        const mgxToken = account.getAssetByChainAndSymbol('mangata-rococo', 'MGR');
+        const assets = await mangataHelper.getMangataSdk().getAssetsInfo();
+        const mgxToken = _.find(assets, ({ symbol }) => symbol === 'MGR');
 
         // 2. Set the destination address to your account
         const dest = '';
@@ -132,7 +139,7 @@ async function main() {
         }
 
         await mangataHelper.transferToken({
-            keyPair: account.pair, tokenId: mgxToken.id, decimals: mgxToken.decimals, dest, amount,
+            keyPair, tokenId: mgxToken.id, decimals: mgxToken.decimals, dest, amount,
         });
 
         break;
@@ -145,18 +152,14 @@ async function main() {
 
         console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
 
-        const account = new Account(keyPair);
-        await account.init([mangataHelper]);
-        account.print();
-
-        const mangataAddress = account.getAddressByChain('mangata');
-
-        const token = account.getAssetByChainAndSymbol('mangata-rococo', 'TUR');
-
         try {
-            await mangataHelper.withdrawTUR({
-                amount: 100, decimal: token.decimals, address: mangataAddress, keyPair: account.pair,
-            });
+            mangataAdapter.crossChainTransfer(
+                turingAdapter.getLocation(),
+                u8aToHex(keyPair.addressRaw),
+                turingAdapter.getChainData().defaultAsset.location,
+                getDecimalBN(turingAdapter.getChainData().defaultAsset.decimals).muln(1),
+                keyPair,
+            );
         } catch (ex) {
             console.error(ex);
         }
@@ -171,25 +174,22 @@ async function main() {
 
         console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
 
-        const account = new Account(keyPair);
-        await account.init([mangataHelper]);
-        account.print();
-
-        const { pair } = account;
         const targetSellAmount = 100;
-        const minExpectedBuyAmount = 150;
 
-        await mangataHelper.sell({
-            sellSymbol: 'TUR', buySymbol: 'MGX', pair, targetSellAmount, minExpectedBuyAmount,
-        });
+        const assets = await mangataHelper.getMangataSdk().getAssetsInfo();
+        const turAsset = _.find(assets, { symbol: 'TUR' });
+        const gmrAsset = _.find(assets, { symbol: 'MGR' });
+
+        await mangataHelper.swap(turAsset.id, gmrAsset.id, keyPair, targetSellAmount);
 
         break;
     }
     case 'generate-multilocation': {
         const address = 'cxPKqGqUn2fhVvEvrRKdmu55ZzP1Xz3yBu4cwTgPdN4utjN';
-        const result = getProxyAccount(mangataHelper.api, Turing.paraId, address);
-
-        console.log('result', result);
+        const account = u8aToHex(keyring.decodeAddress(address));
+        const derivativeAccount = mangataAdapter.getDerivativeAccount(account, turingAdapter.getChainData().ss58Prefix);
+        const derivativeAddress = keyring.encodeAddress(derivativeAccount, mangataAdapter.getChainData().ss58Prefix);
+        console.log('result: ', derivativeAddress);
         break;
     }
     case 'check-claimable rewards': {
@@ -200,40 +200,32 @@ async function main() {
 
         console.log(`Restored account ${keyPair.meta.name} ${keyPair.address} ...`);
 
-        const account = new Account(keyPair);
-        await account.init([mangataHelper]);
-        account.print();
+        const mangataAddress = keyring.encodeAddress(keyPair.addressRaw, mangataAdapter.getChainData().ss58Prefix);
+        const assets = await mangataHelper.getMangataSdk().getAssetsInfo();
+        const mgxToken = _.find(assets, { symbol: 'MGR' });
+        const turToken = _.find(assets, { symbol: 'TUR' });
 
-        const mangataChainName = mangataHelper.config.key;
-        const turingNativeToken = _.first(turingHelper.config.assets);
-        const mangataNativeToken = _.first(mangataHelper.config.assets);
-
-        const mangataAddress = account.getChainByName(mangataChainName)?.address;
-        const mgxToken = account.getAssetByChainAndSymbol(mangataChainName, mangataNativeToken.symbol);
-        const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
-        const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
-
-        console.log(`Checking how much reward available in ${poolName} pool ...`);
-        const pools = await mangataHelper.getPools({ isPromoted: true });
-        console.log('pools', pools);
-
-        const pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
-        console.log('pool', pool);
-
+        console.log(`Checking how much reward available in ${mgxToken.symbol}-${turToken.symbol} pool ...`);
+        const pools = mangataHelper.getPools({ isPromoted: true });
+        console.log('pools: ', pools);
+        const pool = _.find(pools, { firstTokenId: mgxToken.id, secondTokenId: turToken.id });
         if (_.isUndefined(pool)) {
-            throw new Error(`Couldn’t find a liquidity pool for ${poolName} ...`);
+            throw new Error(`Couldn’t find a liquidity pool for ${mgxToken.symbol}-${turToken.symbol} ...`);
         }
+        console.log('pool: ', pool);
+        const liquidityAsset = _.find(assets, { id: pool.liquidityTokenId });
+        const { symbol: poolName } = liquidityAsset;
 
         // Calculate rwards amount in pool
         const { liquidityTokenId } = pool;
         const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
         console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
-        const balance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
-        const poolNameDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
+        const balance = await mangataHelper.mangataSdk.getTokenBalance(liquidityTokenId, mangataAddress);
+        const poolNameDecimalBN = getDecimalBN(liquidityAsset.decimals);
         const numReserved = (new BN(balance.reserved)).div(poolNameDecimalBN);
 
-        console.log(`${account.name} reserved "${poolName}": ${numReserved.toString()} ...`);
+        console.log(`${keyPair.meta.name} reserved "${poolName}": ${numReserved.toString()} ...`);
 
         break;
     }

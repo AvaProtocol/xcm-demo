@@ -1,208 +1,95 @@
-/* eslint-disable no-throw-literal */
-import BN from 'bn.js';
 import _ from 'lodash';
+import BN from 'bn.js';
 import { Mangata } from '@mangata-finance/sdk';
-import Keyring from '@polkadot/keyring';
+import { getDecimalBN, sendExtrinsic } from './utils';
+import ChainHelper from './chainHelper';
 
-import {
-    sendExtrinsic, getProxyAccount, getDecimalBN, calculateXcmOverallWeight, WEIGHT_REF_TIME_PER_SECOND, paraIdToLocation,
-} from './utils';
-
-class MangataHelper {
-    constructor(config) {
-        this.config = config;
-    }
-
+class MangataHelper extends ChainHelper {
     initialize = async () => {
-        const mangata = Mangata.getInstance([this.config.endpoint]);
-        const mangataApi = await mangata.getApi();
-
-        this.mangata = mangata;
-        this.api = mangataApi;
-        this.keyring = new Keyring({ type: 'sr25519', ss58Format: this.config.ss58 });
-
-        await this.updateAssets();
-    /**
-    [
-      {"id":"0","chainId":0,"decimals":18,"name":"Mangata","symbol":"MGR","address":""},
-      {"id":"4","chainId":0,"decimals":12,"name":"Rococo  Native","symbol":"ROC","address":""},
-      {"id":"7","chainId":0,"decimals":10,"name":"Turing native token","symbol":"TUR","address":""}
-    ]
-     */
+        this.mangataSdk = Mangata.getInstance([this.config.endpoint]);
+        this.api = await this.mangataSdk.getApi();
     };
 
-    updateAssets = async () => {
-        const assetsResp = await this.mangata.getAssetsInfo();
-        const assets = _.values(_.filter(assetsResp, (asset) => !_.isEmpty(asset.symbol)));
-        this.assets = _.map(assets, (asset) => {
-            const localAsset = _.find(this.config.assets, { symbol: asset.symbol, id: asset.id });
-            return localAsset ? { ...asset, ...localAsset } : asset;
-        });
-        console.log('Assets on Mangata chain: ', this.assets);
-    };
-
-    getBalance = async (address, symbol) => {
-        const tokenId = (_.find(this.assets, { symbol })).id;
-        const balance = await this.mangata.getTokenBalance(tokenId, address);
-        return balance;
-    };
-
-    getTokenIdBySymbol(symbol) {
-        const token = _.find(this.assets, { symbol });
-        return token.id;
+    getMangataSdk() {
+        return this.mangataSdk;
     }
-
-    getDecimalsBySymbol(symbol) {
-        const token = _.find(this.assets, { symbol });
-        return token.decimals;
-    }
-
-    getProxyAccount = (address, paraId) => {
-        const { accountId32 } = getProxyAccount(this.api, paraId, address);
-        return this.keyring.encodeAddress(accountId32);
-    };
-
-    addProxy = async (proxyAccount, proxyType, keyPair) => sendExtrinsic(this.api, this.api.tx.proxy.addProxy(proxyAccount, proxyType, 0), keyPair);
-
-    createProxyCall = async (address, proxyType, extrinsic) => this.api.tx.proxy.proxy(address, proxyType, extrinsic);
 
     initIssuance = async (keyPair) => {
         await sendExtrinsic(this.api, this.api.tx.issuance.finalizeTge(), keyPair, { isSudo: true });
         await sendExtrinsic(this.api, this.api.tx.issuance.initIssuanceConfig(), keyPair, { isSudo: true });
     };
 
-    mintToken = async (address, symbol, keyPair, amount = 5000000000000000) => {
-        const tokenId = (_.find(this.assets, { symbol })).id;
-        const mintTokenExtrinsic = this.api.tx.tokens.mint(tokenId, address, amount);
+    mintToken = async (accountId, assetId, keyPair, amount = 5000000000000000) => {
+        const mintTokenExtrinsic = this.api.tx.tokens.mint(assetId, accountId, amount);
         await sendExtrinsic(this.api, mintTokenExtrinsic, keyPair, { isSudo: true });
     };
 
-    /**
-     *
-     * @param {*} firstTokenId
-     * @param {*} secondTokenId
-     * @param {number} firstAmount Amount in token unit, not planck
-     * @param {number} secondAmount Amount in token unit, not planck
-     * @param {*} keyPair
-     */
     createPool = async ({
-        firstTokenId, firstAmount, secondTokenId, secondAmount, keyPair,
-    }) => {
-        const firstToken = _.find(this.assets, { id: firstTokenId });
-        const firstTokenDecimals = getDecimalBN(firstToken.decimals);
-        const firstAmountBN = (new BN(firstAmount)).mul(firstTokenDecimals);
+        firstAssetId, firstAmount, secondAssetId, secondAmount, keyringPair,
+    }) => this.mangataSdk.createPool(keyringPair, _.toString(firstAssetId), firstAmount, _.toString(secondAssetId), secondAmount);
 
-        const secondToken = _.find(this.assets, { id: secondTokenId });
-        const secondTokenDecimals = getDecimalBN(secondToken.decimals);
-        const secondAmountBN = (new BN(secondAmount)).mul(secondTokenDecimals);
-
-        return this.mangata.createPool(keyPair, _.toString(firstTokenId), firstAmountBN, _.toString(secondTokenId), secondAmountBN);
-    };
-
-    async updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight, keyPair) {
+    async updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight, keyringPair) {
         const promotePoolExtrinsic = this.api.tx.proofOfStake.updatePoolPromotion(tokenId, liquidityMiningIssuanceWeight);
-        await sendExtrinsic(this.api, promotePoolExtrinsic, keyPair, { isSudo: true });
-    }
-
-    /**
-     *
-     * @param {string} tokenId Token id
-     * @param {number} amount Amount in token unit, not planck
-     * @param {*} keyPair Account key pair to sign the extrinsic
-     */
-    async activateLiquidityV2({ tokenId, amount, keyPair }) {
-        const token = _.find(this.assets, { id: tokenId });
-        const decimalBN = getDecimalBN(token.decimals);
-        const amountBN = (new BN(amount)).mul(decimalBN);
-
-        const extrinsic = this.api.tx.xyk.activateLiquidityV2(tokenId, amountBN, undefined);
-        await sendExtrinsic(this.api, extrinsic, keyPair, { isSudo: true });
+        await sendExtrinsic(this.api, promotePoolExtrinsic, keyringPair, { isSudo: true });
     }
 
     getMintLiquidityFee = async ({
-        pair, firstTokenId, firstTokenAmount, secondTokenId, expectedSecondTokenAmount,
+        pair, firstAsset, firstTokenAmount, secondAsset, expectedSecondTokenAmount,
     }) => {
-        const firstToken = _.find(this.assets, { id: firstTokenId });
-        const firstDecimalBN = getDecimalBN(firstToken.decimals);
-
-        const secondToken = _.find(this.assets, { id: secondTokenId });
-        const secondDecimalBN = getDecimalBN(secondToken.decimals);
-
+        const firstDecimalBN = getDecimalBN(firstAsset.decimals);
+        const secondDecimalBN = getDecimalBN(secondAsset.decimals);
         const firstAmount = (new BN(firstTokenAmount, 10)).mul(firstDecimalBN);
         const expectedSecondAmount = (new BN(expectedSecondTokenAmount, 10)).mul(secondDecimalBN);
-
-        const fees = await this.mangata.mintLiquidityFee(pair, firstTokenId, secondTokenId, firstAmount, expectedSecondAmount);
-
+        const fees = await this.mangataSdk.mintLiquidityFee(pair, firstAsset.id, secondAsset.id, firstAmount, expectedSecondAmount);
         return fees;
     };
 
     mintLiquidity = async ({
         pair, firstTokenId, firstTokenAmount, secondTokenId, expectedSecondTokenAmount,
-    }) => {
-        const firstToken = _.find(this.assets, { id: firstTokenId });
-        const firstDecimalBN = getDecimalBN(firstToken.decimals);
+    }) => this.mangataSdk.mintLiquidity(pair, firstTokenId, secondTokenId, firstTokenAmount, expectedSecondTokenAmount)
+        .then((events) => {
+            const lastEvent = _.last(events);
 
-        const secondToken = _.find(this.assets, { id: secondTokenId });
-        const secondDecimalBN = getDecimalBN(secondToken.decimals);
+            if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicFailed') {
+                const txPaymentEvent = _.find(events, (event) => {
+                    const { section, method } = event;
+                    return section === 'transactionPayment' && method === 'TransactionFeePaid';
+                });
 
-        const amountBN = (new BN(firstTokenAmount, 10)).mul(firstDecimalBN);
-        const expectedSecondAmountBN = (new BN(expectedSecondTokenAmount)).mul(secondDecimalBN);
-
-        return this.mangata.mintLiquidity(pair, firstTokenId, secondTokenId, amountBN, expectedSecondAmountBN)
-            .then((events) => {
-                const lastEvent = _.last(events);
-
-                if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicFailed') {
-                    const txPaymentEvent = _.find(events, (event) => {
-                        const { section, method } = event;
-                        return section === 'transactionPayment' && method === 'TransactionFeePaid';
-                    });
-
-                    throw {
-                        message: lastEvent?.error?.documentation, feePayer: txPaymentEvent?.eventData[0]?.data,
-                    };
-                } if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicSuccess') {
-                    const matchedEvent = _.find(events, (event) => {
-                        if (event.section === 'xyk' && event.method === 'LiquidityMinted') {
-                            return event;
-                        }
-
-                        return undefined;
-                    });
-
-                    if (!_.isUndefined(matchedEvent)) {
-                        const address = matchedEvent.eventData[0]?.data;
-                        const firstId = new BN(matchedEvent.eventData[1]?.data);
-                        const secondId = new BN(matchedEvent.eventData[3]?.data);
-                        const firstAmount = new BN(matchedEvent.eventData[2]?.data);
-                        const secondAmount = new BN(matchedEvent.eventData[4]?.data);
-
-                        return {
-                            module: 'xyk.LiquidityMinted', address, firstId: firstId.toNumber(), firstAmount: firstAmount.toString(), secondId: secondId.toNumber(), secondAmount: secondAmount.toString(),
-                        };
+                const error = new Error(lastEvent?.error?.documentation);
+                error.feePayer = txPaymentEvent?.eventData[0]?.data;
+                throw error;
+            } if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicSuccess') {
+                const matchedEvent = _.find(events, (event) => {
+                    if (event.section === 'xyk' && event.method === 'LiquidityMinted') {
+                        return event;
                     }
 
-                    return events;
+                    return undefined;
+                });
+
+                if (!_.isUndefined(matchedEvent)) {
+                    const address = matchedEvent.eventData[0]?.data;
+                    const firstId = new BN(matchedEvent.eventData[1]?.data);
+                    const secondId = new BN(matchedEvent.eventData[3]?.data);
+                    const firstAmount = new BN(matchedEvent.eventData[2]?.data);
+                    const secondAmount = new BN(matchedEvent.eventData[4]?.data);
+
+                    return {
+                        module: 'xyk.LiquidityMinted', address, firstId: firstId.toNumber(), firstAmount: firstAmount.toString(), secondId: secondId.toNumber(), secondAmount: secondAmount.toString(),
+                    };
                 }
 
                 return events;
-            });
-    };
+            }
 
-    async provideLiquidity(keyPair, liquidityAsset, providedAsset, providedAssetAmount) {
-        const liquidityAssetId = this.getTokenIdBySymbol(liquidityAsset);
-        const providedAssetId = this.getTokenIdBySymbol(providedAsset);
-        const tx = this.api.tx.xyk.provideLiquidityWithConversion(liquidityAssetId, providedAssetId, providedAssetAmount);
-        await sendExtrinsic(this.api, tx, keyPair, { isSudo: false });
-    }
+            return events;
+        });
 
     /**
-   * Swap sellSymol for buySymbol
-   */
-    async swap(sellSymbol, buySymbol, keyPair, amount = '1000000000000') {
-        const sellTokenId = this.getTokenIdBySymbol(sellSymbol);
-        const buyTokenId = this.getTokenIdBySymbol(buySymbol);
-
+     * Swap sellTokenId for buyTokenId
+     */
+    async swap(sellTokenId, buyTokenId, keyPair, amount = '1000000000000') {
         console.log('selltokenId', sellTokenId);
         console.log('buytokenId', buyTokenId);
 
@@ -210,61 +97,23 @@ class MangataHelper {
         await this.mangata.buyAsset(keyPair, sellTokenId, buyTokenId, new BN(amount), new BN('100000000000000000000000000'));
     }
 
-    /**
-     *
-     * @param {object} param0 options
-     * @param {boolean} param0.isPromoted Only list promoted pools if true; this value has to be specified
-     * @returns
-     */
     getPools = async ({ isPromoted } = {}) => {
-        const pools = await this.mangata.getPools();
+        const pools = await this.mangataSdk.getPools();
         const filterdPools = isPromoted ? _.filter(pools, (item) => item.isPromoted) : pools;
         return filterdPools;
     };
 
-    formatPool = (pool) => {
-        const firstToken = _.find(this.assets, { id: pool.firstTokenId });
-        const firstTokenAmountFloat = (new BN(pool.firstTokenAmount)).div(getDecimalBN(firstToken.decimals));
-
-        const secondToken = _.find(this.assets, { id: pool.secondTokenId });
-        const secondTokenAmountFloat = (new BN(pool.secondTokenAmount)).div(getDecimalBN(secondToken.decimals));
-
-        return _.extend(pool, {
-            firstTokenAmountFloat,
-            secondTokenAmountFloat,
-        });
+    // eslint-disable-next-line class-methods-use-this
+    formatPool = (pool, firstAssetDecimals, secondAssetDecimals) => {
+        const firstTokenAmountFloat = (new BN(pool.firstTokenAmount)).div(getDecimalBN(firstAssetDecimals));
+        const secondTokenAmountFloat = (new BN(pool.secondTokenAmount)).div(getDecimalBN(secondAssetDecimals));
+        return _.extend(pool, { firstTokenAmountFloat, secondTokenAmountFloat });
     };
 
-    transferTur = async (amount, address, paraId, keyPair) => {
-        const publicKey = this.keyring.decodeAddress(address);
-        const publicKeyHex = `0x${Buffer.from(publicKey).toString('hex')}`;
-
-        const currencyId = this.getTokenIdBySymbol('TUR');
-
-        const dest = {
-            V3: {
-                parents: 1,
-                interior: {
-                    X2: [
-                        { Parachain: paraId },
-                        { AccountId32: { network: null, id: publicKeyHex } },
-                    ],
-                },
-            },
-        };
-
-        const extrinsic = this.api.tx.xTokens.transfer(currencyId, amount, dest, 6000000000);
-        await sendExtrinsic(this.api, extrinsic, keyPair);
-    };
-
-    calculateRewardsAmount = async (address, tokenId) => {
-        // console.log('calculateRewardsAmount: address', address, 'liquidityTokenId', _.toString(tokenId));
-        const amountBN = await this.mangata.calculateRewardsAmount(address, _.toString(tokenId));
-        const token = _.find(this.assets, { id: tokenId });
-        const decimalBN = getDecimalBN(token.decimals);
-
+    calculateRewardsAmount = async (address, liquidityAsset) => {
+        const amountBN = await this.mangataSdk.calculateRewardsAmount(address, _.toString(liquidityAsset.id));
+        const decimalBN = getDecimalBN(liquidityAsset.decimals);
         const result = amountBN.div(decimalBN);
-
         return result.toString();
     };
 
@@ -286,7 +135,7 @@ class MangataHelper {
         // console.log('decimalBN.mul.amountBN', decimalBN.mul(amountBN).toString());
         console.log(`Sending ${amount} #${tokenId} token from ${sender} to ${dest} ...`);
 
-        return this.mangata.transferToken(
+        return this.mangataSdk.transferToken(
             keyPair,
             tokenId,
             dest,
@@ -320,9 +169,10 @@ class MangataHelper {
                     return section === 'transactionPayment' && method === 'TransactionFeePaid';
                 });
 
-                throw {
-                    message: lastEvent?.error?.documentation, feePayer: txPaymentEvent?.eventData[0]?.data, recipient: sentDest,
-                };
+                const error = new Error(lastEvent?.error?.documentation);
+                error.feePayer = txPaymentEvent?.eventData[0]?.data;
+                error.recipient = sentDest;
+                throw error;
             } if (lastEvent.section === 'system' && lastEvent.method === 'ExtrinsicSuccess') {
                 const transferEvent = _.find(events, (event) => {
                     if (event.section === 'tokens' && event.method === 'Transfer') {
@@ -349,21 +199,9 @@ class MangataHelper {
         });
     };
 
-    calculateXcmTransactOverallWeight = (transactCallWeight) => calculateXcmOverallWeight(transactCallWeight, this.config.instructionWeight, 6);
-
-    weightToFee = (weight, symbol) => {
-        const { feePerSecond } = _.find(this.assets, { symbol });
-        return weight.refTime.mul(new BN(feePerSecond)).div(new BN(WEIGHT_REF_TIME_PER_SECOND));
+    disconnect = async () => {
+        this.mangataSdk.disconnect();
     };
-
-    getAssetLocation = (symbol) => {
-        const { location } = _.find(this.assets, { symbol });
-        return location;
-    };
-
-    getNativeAssetLocation = () => this.getAssetLocation(this.config.symbol);
-
-    getLocation = () => paraIdToLocation(this.config.paraId);
 }
 
 export default MangataHelper;

@@ -1,233 +1,187 @@
 import _ from 'lodash';
 import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
-import moment from 'moment';
 import { u8aToHex } from '@polkadot/util';
-
-import Account from '../common/account';
-import TuringHelper from '../common/turingHelper';
-import MoonbaseHelper from '../common/moonbaseHelper';
+import { ApiPromise, WsProvider } from '@polkadot/api';
+import { OakAdapter, MoonbeamAdapter } from '@oak-network/adapter';
+import { Sdk } from '@oak-network/sdk';
+import moment from 'moment';
+import chalkPipe from 'chalk-pipe';
 import {
-    sendExtrinsic, readEthMnemonicFromFile, readMnemonicFromFile, listenEvents, getTaskIdInTaskScheduledEvent, waitPromises,
+    sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType, calculateTimeout,
 } from '../common/utils';
+import OakHelper from '../common/oakHelper';
 
-const CONTRACT_ADDRESS = '0x7Dd212Fd97ab7C5FA3D44031CE1b9b50248e3177';
-const CONTRACT_INPUT = '0xd09de08a';
+const TASK_FREQUENCY = 3600;
 
-const sendXcmFromMoonbase = async ({
-    turingHelper, parachainHelper, turingAddress, keyPair,
+/**
+ * Schedule task
+ * @param {*} params { oakConfig, moonbeamConfig, scheduleActionType, contract, keyringPair, moonbeamKeyringPair }
+ * contract: { address, input }
+ */
+// eslint-disable-next-line import/prefer-default-export
+export const scheduleTask = async ({
+    oakConfig, moonbeamConfig, scheduleActionType, contract, keyringPair, moonbeamKeyringPair,
 }) => {
-    console.log('\na). Create a payload to store in Turing’s task ...');
-    const parachainProxyCall = parachainHelper.api.tx.ethereumXcm.transactThroughProxy(
-        keyPair.address,
-        {
-            V2: {
-                gasLimit: 71000,
-                action: { Call: CONTRACT_ADDRESS },
-                value: 0,
-                input: CONTRACT_INPUT,
-            },
-        },
-    );
-
-    const secondsInHour = 3600;
-    const millisecondsInHour = 3600 * 1000;
-    const currentTimestamp = moment().valueOf();
-    const timestampNextHour = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + secondsInHour;
-    const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % millisecondsInHour)) / 1000 + (secondsInHour * 2);
-
-    const payloadExtrinsicWeight = (await parachainProxyCall.paymentInfo(keyPair.address)).weight;
-    const payloadOverallWeight = parachainHelper.calculateXcmTransactOverallWeight(payloadExtrinsicWeight);
-    const payloadXcmpFee = await parachainHelper.api.call.transactionPaymentApi.queryWeightToFee(payloadOverallWeight);
-    const assetLocation = parachainHelper.getNativeAssetLocation();
-
-    const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
-        { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
-        { V3: parachainHelper.getLocation() },
-        { V3: assetLocation },
-        { asset_location: { V3: assetLocation }, amount: payloadXcmpFee },
-        parachainProxyCall.method.toHex(),
-        payloadExtrinsicWeight,
-        payloadOverallWeight,
-        turingAddress,
-    );
-    console.log(`Task extrinsic encoded call data: ${taskViaProxy.method.toHex()}`);
-
-    // const taskExtrinsic = turingHelper.api.tx.system.remarkWithEvent('Hello!!!');
-    const encodedTaskViaProxy = taskViaProxy.method.toHex();
-    const { weight: taskViaProxyCallWeight } = await taskViaProxy.paymentInfo(turingAddress);
-
-    console.log(`Encoded call data: ${encodedTaskViaProxy}`);
-    console.log(`taskViaProxyCallWeight.weight: { refTime: ${taskViaProxyCallWeight.refTime.toString()}, proofSize: ${taskViaProxyCallWeight.proofSize.toString()} }`);
-
-    console.log(`\nb) Execute the above an XCM from ${parachainHelper.config.name} to schedule a task on ${turingHelper.config.name} ...`);
-    const overallWeight = turingHelper.calculateXcmTransactOverallWeight(taskViaProxyCallWeight, 4);
-    const fungible = await turingHelper.weightToFee(overallWeight, parachainHelper.getNativeAssetLocation());
-    console.log(`overallWeight: (${overallWeight.refTime.toString()}, ${overallWeight.proofSize.toString()})})`);
-    console.log('fungible: ', fungible.toString());
-
-    const transactExtrinsic = parachainHelper.api.tx.xcmTransactor.transactThroughSigned(
-        {
-            V3: {
-                parents: 1,
-                interior: {
-                    X1: { Parachain: 2114 },
-                },
-            },
-        },
-        {
-            currency: {
-                AsCurrencyId: 'SelfReserve',
-            },
-            feeAmount: fungible,
-        },
-        encodedTaskViaProxy,
-        {
-            transactRequiredWeightAtMost: taskViaProxyCallWeight,
-            overallWeight,
-        },
-    );
-
-    console.log(`transactExtrinsic Encoded call data: ${transactExtrinsic.method.toHex()}`);
-
-    // Wait extrinsic executing and listen TaskScheduled event.
-    const sendExtrinsicPromise = sendExtrinsic(parachainHelper.api, transactExtrinsic, keyPair);
-    const listenEventsPromise = listenEvents(turingHelper.api, 'automationTime', 'TaskScheduled', 60000);
-    const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-
-    console.log('Listening to TaskScheduled event on Turing chain ...');
-    const taskScheduledEvent = results[1];
-    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-    console.log(`Found the event and retrieved TaskId, ${taskId}`);
-};
-
-const autoCompound = async (turingConfig, moonbaseConfig) => {
-    const turingHelper = new TuringHelper(turingConfig);
-    await turingHelper.initialize();
-
-    const moonbaseHelper = new MoonbaseHelper(moonbaseConfig);
-    await moonbaseHelper.initialize();
-
-    const turingChainName = turingHelper.config.key;
-    const parachainName = moonbaseHelper.config.key;
-
-    console.log(`\n1. Setup accounts on ${turingChainName} and ${parachainName}`);
-    // Refer to the following article to export seed-eth.json
-    // https://docs.moonbeam.network/tokens/connect/polkadotjs/
-    const jsonEth = await readEthMnemonicFromFile();
-    const parachainKeyring = new Keyring({ type: 'ethereum' });
-    const parachainKeyPair = parachainKeyring.addFromJson(jsonEth);
-    parachainKeyPair.unlock(process.env.PASS_PHRASE_ETH);
-    console.log('Parachain address: ', parachainKeyPair.address);
-
-    const { data: balance } = await moonbaseHelper.api.query.system.account(parachainKeyPair.address);
-    console.log(`Parachain balance: ${balance.free}`);
-
     const keyring = new Keyring({ type: 'sr25519' });
-    const json = await readMnemonicFromFile();
-    const keyPair = keyring.addFromJson(json);
-    keyPair.unlock(process.env.PASS_PHRASE);
-    const account = new Account(keyPair);
-    await account.init([turingHelper]);
-    account.print();
 
-    const assetLocation = moonbaseHelper.getNativeAssetLocation();
-    const paraTokenIdOnTuring = (await turingHelper.api.query.assetRegistry.locationToAssetId(assetLocation))
-        .unwrapOrDefault()
-        .toNumber();
-    console.log('paraTokenIdOnTuring: ', paraTokenIdOnTuring);
+    const oakHelper = new OakHelper({ endpoint: oakConfig.endpoint });
+    await oakHelper.initialize();
+    const oakApi = oakHelper.getApi();
+    const oakAdapter = new OakAdapter(oakApi, oakConfig);
+    await oakAdapter.initialize();
 
-    const turingAddress = account.getChainByName(turingChainName)?.address;
-    const proxyOnTuring = turingHelper.getProxyAccount(parachainKeyPair.address, moonbaseHelper.config.paraId, { addressType: 'Ethereum' });
-    console.log('proxyOnTuring: ', proxyOnTuring);
-    const proxyAccountId = keyring.decodeAddress(proxyOnTuring);
-    const parachainAddress = parachainKeyPair.address;
-    // console.log('moonbaseKeyPair.publicKey: ', u8aToHex(moonbaseKeyPair.publicKey));
+    const moonbeamApi = await ApiPromise.create({ provider: new WsProvider(moonbeamConfig.endpoint) });
+    const moonbeamAdapter = new MoonbeamAdapter(moonbeamApi, moonbeamConfig);
+    await moonbeamAdapter.initialize();
 
-    console.log('\n2. One-time proxy setup on Turing');
-    console.log(`\na) Add a proxy for Alice If there is none setup on Turing (paraId:${moonbaseHelper.config.paraId})\n`);
-    const proxyTypeTuring = 'Any';
-    const proxiesOnTuring = await turingHelper.getProxies(turingAddress);
-    const proxyMatchTuring = _.find(proxiesOnTuring, { delegate: proxyOnTuring, proxyType: proxyTypeTuring });
-    if (proxyMatchTuring) {
-        console.log(`Proxy address ${proxyOnTuring} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeTuring} already exists; skipping creation ...`);
+    const oakChainData = oakAdapter.getChainData();
+    const moonbeamChainData = moonbeamAdapter.getChainData();
+
+    const parachainName = moonbeamChainData.key;
+
+    const oakAddress = keyring.encodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
+    const moonbeamAddress = moonbeamKeyringPair.address;
+
+    const proxyAccountId = oakAdapter.getDerivativeAccount(u8aToHex(moonbeamKeyringPair.addressRaw), moonbeamChainData.paraId);
+    const proxyAddressOnOak = keyring.encodeAddress(proxyAccountId, oakChainData.ss58Prefix);
+    console.log(`\n1. One-time proxy setup on ${oakChainData.key}`);
+    console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainData.key}\n`);
+    const proxiesResponse = await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw));
+    const proxies = _.first(proxiesResponse.toJSON());
+    const proxyTypeOak = 'Any';
+    const proxyMatchOak = _.find(proxies, { delegate: proxyAddressOnOak, proxyType: 'Any' });
+    if (proxyMatchOak) {
+        console.log(`Proxy address ${proxyAddressOnOak} for paraId: ${moonbeamChainData.paraId} and proxyType: ${proxyTypeOak} already exists; skipping creation ...`);
     } else {
-        console.log(`Add a proxy of ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeTuring} on Turing ...\n Proxy address: ${proxyOnTuring}\n`);
-        await sendExtrinsic(turingHelper.api, turingHelper.api.tx.proxy.addProxy(proxyOnTuring, proxyTypeTuring, 0), keyPair);
+        console.log(`Add a proxy of ${moonbeamChainData.key} (paraId:${moonbeamChainData.paraId}) and proxyType: ${proxyTypeOak} on Turing ...\n Proxy address: ${proxyAddressOnOak}\n`);
+        await sendExtrinsic(oakApi, oakApi.tx.proxy.addProxy(proxyAccountId, proxyTypeOak, 0), keyringPair);
     }
 
     // Reserve transfer DEV to the proxy account on Turing
-    console.log('\nb) Reserve transfer DEV to the proxy account on Turing: ');
-    const paraTokenbalanceOnTuring = await turingHelper.getTokenBalance(proxyOnTuring, paraTokenIdOnTuring);
-    const minBalanceOnTuring = new BN('500000000000000000'); // 1 DEV
-    console.log('minBalanceOnTuring: ', minBalanceOnTuring);
-    console.log('paraTokenbalanceOnTuring.free: ', paraTokenbalanceOnTuring.free.toString());
+    console.log(`\nb) Reserve transfer DEV to the proxy account on ${oakChainData.key}: `);
+    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(moonbeamChainData.defaultAsset.location))
+        .unwrapOrDefault()
+        .toNumber();
+    console.log('paraTokenIdOnOak: ', paraTokenIdOnOak);
+    const paraTokenbalanceOnOak = await oakApi.query.tokens.accounts(proxyAddressOnOak, paraTokenIdOnOak);
+    const minBalanceOnOak = new BN('100000000000000000'); // 0.5 DEV
+    console.log('minBalanceOnOak: ', minBalanceOnOak.toString());
+    console.log('paraTokenbalanceOnOak.free: ', paraTokenbalanceOnOak.free.toString());
 
     // We have to transfer some more tokens because the execution fee will be deducted.
-    if (paraTokenbalanceOnTuring.free.lt(minBalanceOnTuring)) {
+    if (paraTokenbalanceOnOak.free.lt(minBalanceOnOak)) {
         // Transfer DEV from Moonbase to Turing
         console.log('Transfer DEV from Moonbase to Turing');
-        const extrinsic = moonbaseHelper.api.tx.xTokens.transferMultiasset(
-            {
-                V3: {
-                    id: { Concrete: moonbaseHelper.getNativeAssetRelativeLocation() },
-                    fun: { Fungible: minBalanceOnTuring },
-                },
-            },
-            {
-                V3: {
-                    parents: 1,
-                    interior: {
-                        X2: [
-                            { Parachain: turingHelper.config.paraId },
-                            { AccountId32: { network: null, id: u8aToHex(proxyAccountId) } },
-                        ],
-                    },
-                },
-            },
-            'Unlimited',
+        await moonbeamAdapter.crossChainTransfer(
+            oakAdapter.getLocation(),
+            proxyAccountId,
+            moonbeamChainData.defaultAsset.location,
+            minBalanceOnOak,
+            moonbeamKeyringPair,
         );
-
-        console.log('Resevered transfer call data: ', extrinsic.method.toHex());
-        await sendExtrinsic(moonbaseHelper.api, extrinsic, parachainKeyPair);
     } else {
-        console.log(`\nb) Proxy’s parachain token balance is ${`${paraTokenbalanceOnTuring.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
+        console.log(`\nb) Proxy’s parachain token balance is ${`${paraTokenbalanceOnOak.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
     }
 
-    console.log('\n3. One-time proxy setup on Moonbase');
-    console.log(`\na) Add a proxy for Alice If there is none setup on Moonbase (paraId:${moonbaseHelper.config.paraId})\n`);
-    const proxyOnMoonbase = moonbaseHelper.getProxyAccount(turingAddress, turingHelper.config.paraId);
-    console.log(`parachainAddress: ${parachainAddress}, proxyOnMoonbase: ${proxyOnMoonbase}`);
-    const proxyTypeMoonbase = 'Any';
-    const proxiesOnMoonbase = await moonbaseHelper.getProxies(parachainKeyPair.address);
-    console.log('proxiesOnMoonbase: ', proxiesOnMoonbase);
+    console.log(`\n2. One-time proxy setup on ${moonbeamChainData.key}`);
+    console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${moonbeamChainData.key}\n`);
+    console.log('oakChainData.paraId: ', oakChainData.paraId);
+    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakChainData.paraId);
+    const proxyTypeMoonbeam = 'Any';
+    const proxiesOnMoonbeam = _.first((await moonbeamApi.query.proxy.proxies(u8aToHex(moonbeamKeyringPair.addressRaw))).toJSON());
 
-    const proxyMatchMoonbase = _.find(proxiesOnMoonbase, ({ delegate, proxyType }) => _.toLower(delegate) === _.toLower(proxyOnMoonbase) && proxyType === proxyTypeMoonbase);
-
-    if (proxyMatchMoonbase) {
-        console.log(`Proxy address ${proxyOnMoonbase} for paraId: ${moonbaseHelper.config.paraId} and proxyType: ${proxyTypeMoonbase} already exists; skipping creation ...`);
+    const proxyMatchMoonbeam = _.find(proxiesOnMoonbeam, ({ delegate, proxyType }) => _.toLower(delegate) === _.toLower(proxyAccountIdOnMoonbeam) && proxyType === proxyTypeMoonbeam);
+    if (proxyMatchMoonbeam) {
+        console.log(`Proxy address ${proxyAccountIdOnMoonbeam} for paraId: ${moonbeamChainData.paraId} and proxyType: ${proxyTypeMoonbeam} already exists; skipping creation ...`);
     } else {
-        console.log(`Add a proxy of ${parachainName} (paraId:${moonbaseHelper.config.paraId}) and proxyType: ${proxyTypeMoonbase} on Turing ...\n Proxy address: ${proxyOnMoonbase}\n`);
-        await sendExtrinsic(moonbaseHelper.api, moonbaseHelper.api.tx.proxy.addProxy(proxyOnMoonbase, proxyTypeMoonbase, 0), parachainKeyPair);
+        console.log(`Add a proxy of ${moonbeamChainData.key} (paraId:${moonbeamChainData.paraId}) and proxyType: ${proxyTypeMoonbeam} on Turing ...\n Proxy address: ${proxyAccountIdOnMoonbeam}\n`);
+        await sendExtrinsic(moonbeamApi, moonbeamApi.tx.proxy.addProxy(proxyAccountIdOnMoonbeam, proxyTypeMoonbeam, 0), moonbeamKeyringPair);
     }
 
-    console.log('\nb) Topping up the proxy account on Moonbase with DEV ...\n');
+    console.log(`\nb) Topping up the proxy account on ${moonbeamChainData.key} with DEV ...\n`);
     const minBalanceOnMoonbaseProxy = new BN('500000000000000000');
-    const { data: moonbaseProxyBalance } = await moonbaseHelper.api.query.system.account(proxyOnMoonbase);
+    const { data: moonbaseProxyBalance } = await moonbeamApi.query.system.account(proxyAccountIdOnMoonbeam);
+    // console.log('moonbaseProxyBalance:', moonbaseProxyBalance.free.toHuman());
     if (moonbaseProxyBalance.free.lt(minBalanceOnMoonbaseProxy)) {
-        const topUpExtrinsic = moonbaseHelper.api.tx.balances.transfer(proxyOnMoonbase, minBalanceOnMoonbaseProxy);
-        await sendExtrinsic(moonbaseHelper.api, topUpExtrinsic, parachainKeyPair);
+        const topUpExtrinsic = moonbeamApi.tx.balances.transfer(proxyAccountIdOnMoonbeam, minBalanceOnMoonbaseProxy);
+        await sendExtrinsic(moonbeamApi, topUpExtrinsic, moonbeamKeyringPair);
     } else {
         console.log(`\nMoonbase proxy account balance is ${`${moonbaseProxyBalance.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
     }
 
-    console.log(`\nUser ${account.name} ${turingChainName} address: ${turingAddress}, ${parachainName} address: ${parachainAddress}`);
+    console.log(`\nUser ${keyringPair.meta.name} ${oakChainData.key} address: ${oakAddress}, ${moonbeamChainData.key} address: ${moonbeamAddress}`);
 
-    console.log(`\n4. Execute an XCM from ${parachainName} to ${turingChainName} ...`);
+    console.log(`\n3. Execute an XCM from ${moonbeamChainData.key} to ${oakChainData.key} ...`);
 
-    await sendXcmFromMoonbase({
-        turingHelper, parachainHelper: moonbaseHelper, turingAddress, parachainAddress, keyPair: parachainKeyPair, proxyAccountId,
+    console.log('\na). Create a payload to store in Turing’s task ...');
+    const taskPayloadExtrinsic = moonbeamApi.tx.ethereumXcm.transactThroughProxy(
+        moonbeamKeyringPair.address,
+        {
+            V2: {
+                gasLimit: 71000,
+                action: { Call: contract.address },
+                value: 0,
+                input: contract.input,
+            },
+        },
+    );
+
+    console.log(`\nb). Send extrinsic from ${moonbeamChainData.key} to ${oakChainData.key} to schedule task. Listen to TaskScheduled event on ${oakChainData.key} chain ...`);
+    const nextExecutionTime = getHourlyTimestamp(1) / 1000;
+    const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+
+    const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
+        ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
+        : { Fixed: { executionTimes: [0] } };
+
+    const sendExtrinsicPromise = Sdk().scheduleXcmpTaskWithPayThroughRemoteDerivativeAccountFlow({
+        oakAdapter,
+        destinationChainAdapter: moonbeamAdapter,
+        taskPayloadExtrinsic,
+        scheduleFeeLocation: moonbeamChainData.defaultAsset.location,
+        executionFeeLocation: moonbeamChainData.defaultAsset.location,
+        schedule,
+        scheduleAs: u8aToHex(keyringPair.addressRaw),
+        keyringPair: moonbeamKeyringPair,
     });
-};
+    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
+    const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
+    const taskScheduledEvent = results[1];
+    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
-export default autoCompound;
+    const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
+        ? nextExecutionTime : moment().valueOf() / 1000;
+    const timeout = calculateTimeout(nextExecutionTime);
+
+    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
+    const executedEvent = await listenEvents(moonbeamApi, 'ethereum', 'Executed', timeout);
+
+    if (_.isNull(executedEvent)) {
+        console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
+        return;
+    }
+
+    if (scheduleActionType === ScheduleActionType.executeImmediately) return;
+
+    console.log('\n5. Cancel the task ...');
+    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
+    await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
+
+    const nextTwoHourExecutionTime = nextExecutionTime + TASK_FREQUENCY;
+    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+
+    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
+
+    const isTaskExecutedAgain = await listenEvents(moonbeamApi, 'ethereum', 'Executed', nextExecutionTimeout);
+
+    if (isTaskExecutedAgain) {
+        console.log('Task cancellation failed! It executes again.');
+        return;
+    }
+    console.log("Task canceled successfully! It didn't execute again.");
+
+    await oakHelper.disconnect();
+    await moonbeamApi.disconnect();
+};

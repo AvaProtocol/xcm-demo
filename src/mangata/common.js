@@ -1,231 +1,209 @@
 import '@oak-network/api-augment';
 import _ from 'lodash';
-import moment from 'moment';
-import { cryptoWaitReady } from '@polkadot/util-crypto';
-import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
+import moment from 'moment';
+import Keyring from '@polkadot/keyring';
+import { u8aToHex } from '@polkadot/util';
 import confirm from '@inquirer/confirm';
+import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
+import { Sdk } from '@oak-network/sdk';
 
-import TuringHelper from '../common/turingHelper';
-import MangataHelper from '../common/mangataHelper';
-import Account from '../common/account';
 import {
-    delay, listenEvents, readMnemonicFromFile, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent,
+    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises,
 } from '../common/utils';
+import OakHelper from '../common/oakHelper';
+import MangataHelper from '../common/mangataHelper';
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 
-class AutoCompound {
-    constructor(turingConfig, managataConfig) {
-        this.turingConfig = turingConfig;
-        this.managataConfig = managataConfig;
+// eslint-disable-next-line import/prefer-default-export
+export const scheduleTask = async ({
+    oakConfig, mangataConfig, scheduleActionType, keyringPair,
+}) => {
+    console.log('Initializing adapters of both chains ...');
+
+    const oakHelper = new OakHelper({ endpoint: oakConfig.endpoint });
+    await oakHelper.initialize();
+    const oakApi = oakHelper.getApi();
+    const oakAdapter = new OakAdapter(oakApi, oakConfig);
+    await oakAdapter.initialize();
+
+    const mangataHelper = new MangataHelper({ endpoint: mangataConfig.endpoint });
+    await mangataHelper.initialize();
+    const mangataApi = mangataHelper.getApi();
+    const mangataSdk = mangataHelper.getMangataSdk();
+    const mangataAdapter = new MangataAdapter(mangataApi, mangataConfig);
+    await mangataAdapter.initialize();
+
+    const { defaultAsset: oakDefaultAsset } = oakAdapter.getChainData();
+    const { defaultAsset: mangataDefaultAsset } = mangataAdapter.getChainData();
+
+    console.log('1. Reading assets ...');
+    let assets = await mangataSdk.getAssetsInfo();
+    assets = _.map(assets, (asset) => asset);
+    const turAsset = _.find(assets, { symbol: oakDefaultAsset.symbol });
+    const mangataAsset = _.find(assets, { symbol: mangataDefaultAsset.symbol });
+
+    const { key: mangataChainName, ss58Prefix } = mangataAdapter.getChainData();
+    const mangataAddress = keyring.encodeAddress(keyringPair.addressRaw, ss58Prefix);
+
+    const { paraId: oakParaId } = oakAdapter.getChainData();
+    console.log(`\n2. Add a proxy on Mangata for paraId ${oakParaId}, or skip this step if that exists ...`);
+
+    const proxyAccountId = mangataAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakParaId);
+    const proxyAddress = keyring.encodeAddress(proxyAccountId, ss58Prefix);
+    const proxiesResponse = await mangataApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw));
+    const proxies = _.first(proxiesResponse.toJSON());
+
+    const proxyType = 'AutoCompound';
+    const matchCondition = { delegate: proxyAddress, proxyType };
+    const proxyMatch = _.find(proxies, matchCondition);
+    if (proxyMatch) {
+        console.log(`Found proxy of ${mangataAddress} on Mangata, and will skip the addition ... `, proxyMatch);
+    } else {
+        if (_.isEmpty(proxies)) {
+            console.log(`Proxy array of ${mangataAddress} is empty ...`);
+        } else {
+            console.log('Proxy not found. Expected', matchCondition, 'Actual', proxies);
+        }
+
+        console.log(`Adding a proxy for paraId ${oakParaId}. Proxy address: ${proxyAddress} ...`);
+        await sendExtrinsic(mangataApi, mangataApi.tx.proxy.addProxy(proxyAccountId, proxyType, 0), keyringPair);
     }
 
-    run = async () => {
-        await cryptoWaitReady();
+    const pools = await mangataSdk.getPools();
+    let pool = _.find(pools, { firstTokenId: mangataAsset.id, secondTokenId: turAsset.id });
+    pool = mangataHelper.formatPool(pool);
+    const liquidityAsset = _.find(assets, { id: pool.liquidityTokenId });
+    const { symbol: poolName } = liquidityAsset;
 
-        console.log('Initializing APIs of both chains ...');
+    const shouldMintLiquidity = await confirm({ message: `\nAccount balance check is completed and proxy is set up. Press ENTRE to mint ${poolName}.`, default: true });
+    console.log('shouldMintLiquidity: ', shouldMintLiquidity);
 
-        const turingHelper = new TuringHelper(this.turingConfig);
-        await turingHelper.initialize();
+    if (shouldMintLiquidity) {
+        // Calculate rwards amount in pool
+        const { liquidityTokenId } = pool;
 
-        const mangataHelper = new MangataHelper(this.managataConfig);
-        await mangataHelper.initialize();
+        console.log(`Checking how much reward available in ${poolName} pool, tokenId: ${liquidityTokenId} ...`);
 
-        const turingChainName = turingHelper.config.key;
-        const mangataChainName = mangataHelper.config.key;
-        const turingNativeToken = _.first(turingHelper.config.assets);
-        const mangataNativeToken = _.first(mangataHelper.config.assets);
+        // Issue: current we couldn’t read this rewards value correct by always getting 0 on the claimable rewards.
+        // The result is different from that in src/mangata.js
+        const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityAsset);
+        console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
-        console.log(`\nTuring chain name: ${turingChainName}, native token: ${JSON.stringify(turingNativeToken)}`);
-        console.log(`Mangata chain name: ${mangataChainName}, native token: ${JSON.stringify(mangataNativeToken)}\n`);
+        const liquidityBalance = await mangataSdk.getTokenBalance(liquidityTokenId, mangataAddress);
 
-        console.log('1. Reading token and balance of account ...');
+        const poolNameDecimalBN = getDecimalBN(liquidityAsset.decimals);
+        const numReserved = (new BN(liquidityBalance.reserved)).div(poolNameDecimalBN);
 
-        const json = await readMnemonicFromFile();
-        const keyPair = keyring.addFromJson(json);
-        keyPair.unlock(process.env.PASS_PHRASE);
+        console.log(`Before auto-compound, ${keyringPair.meta.name} reserved "${poolName}": ${numReserved.toString()} ...`);
 
-        const account = new Account(keyPair);
-        await account.init([turingHelper, mangataHelper]);
-        account.print();
+        // Mint liquidity to create reserved MGR-TUR if it’s zero
+        if (numReserved.toNumber() === 0) {
+            console.log('Reserved pool token is zero; minting liquidity to generate rewards...');
 
-        const mangataAddress = account.getChainByName(mangataChainName)?.address;
+            const firstTokenAmount = 50;
+            const MAX_SLIPPIAGE = 0.04; // 4% slippage; can’t be too large
+            const poolRatio = pool.firstTokenAmountFloat / pool.secondTokenAmountFloat;
+            const expectedSecondTokenAmount = (firstTokenAmount / poolRatio) * (1 + MAX_SLIPPIAGE);
 
-        const mgxToken = account.getAssetByChainAndSymbol(mangataChainName, mangataNativeToken.symbol);
-        const turToken = account.getAssetByChainAndSymbol(mangataChainName, turingNativeToken.symbol);
-        const poolName = `${mgxToken.symbol}-${turToken.symbol}`;
+            // Estimate of fees; no need to be accurate
+            const fees = await mangataHelper.getMintLiquidityFee({
+                mangataSdk, pair: keyringPair, firstAsset: mangataAsset, secondAsset: turAsset, firstTokenAmount, expectedSecondTokenAmount,
+            });
 
-        console.log('\n2. Add a proxy on Mangata for paraId 2114, or skip this step if that exists ...');
+            console.log('fees', fees);
 
-        const proxyAddress = mangataHelper.getProxyAccount(mangataAddress, turingHelper.config.paraId);
-        const proxiesResponse = await mangataHelper.api.query.proxy.proxies(mangataAddress);
-        const proxies = _.first(proxiesResponse.toJSON());
-
-        const proxyType = 'AutoCompound';
-        const matchCondition = { delegate: proxyAddress, proxyType };
-
-        const proxyMatch = _.find(proxies, matchCondition);
-
-        if (proxyMatch) {
-            console.log(`Found proxy of ${account.address} on Mangata, and will skip the addition ... `, proxyMatch);
-        } else {
-            if (_.isEmpty(proxies)) {
-                console.log(`Proxy array of ${account.address} is empty ...`);
-            } else {
-                console.log('Proxy not found. Expected', matchCondition, 'Actual', proxies);
-            }
-
-            console.log(`Adding a proxy for paraId ${turingHelper.config.paraId}. Proxy address: ${proxyAddress} ...`);
-            await mangataHelper.addProxy(proxyAddress, proxyType, account.pair);
+            await mangataSdk.mintLiquidity({
+                pair: keyringPair,
+                firstTokenId: mangataAsset.id,
+                secondTokenId: turAsset.id,
+                firstTokenAmount: firstTokenAmount - fees,
+                expectedSecondTokenAmount,
+            });
         }
 
-        const shouldMintLiquidity = await confirm({ message: `\nAccount balance check is completed and proxy is set up. Press ENTRE to mint ${poolName}.`, default: true });
+        if (rewardAmount === 0) {
+            console.log('Reserved pool token is not zero but claimable rewards is. You might need to wait some time for it to accumulate ...');
+        }
 
-        if (shouldMintLiquidity) {
-            const pools = await mangataHelper.getPools();
+        const answerPool = await confirm({ message: '\nDo you want to continue to schedule auto-compound. Press ENTRE to continue.', default: true });
 
-            let pool = _.find(pools, { firstTokenId: mangataHelper.getTokenIdBySymbol(mgxToken.symbol), secondTokenId: mangataHelper.getTokenIdBySymbol(turToken.symbol) });
-            pool = mangataHelper.formatPool(pool);
-            console.log(`Found a pool of ${poolName}`, pool);
-
-            if (_.isUndefined(pool)) {
-                throw new Error(`Couldn’t find a liquidity pool for ${poolName} ...`);
-            }
-
-            // Calculate rwards amount in pool
-            const { liquidityTokenId } = pool;
-
-            console.log(`Checking how much reward available in ${poolName} pool, tokenId: ${liquidityTokenId} ...`);
-
-            // Issue: current we couldn’t read this rewards value correct by always getting 0 on the claimable rewards.
-            // The result is different from that in src/mangata.js
-            const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityTokenId);
-            console.log(`Claimable reward in ${poolName}: `, rewardAmount);
-
-            const liquidityBalance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
-            const poolNameDecimalBN = getDecimalBN(mangataHelper.getDecimalsBySymbol(poolName));
-            const numReserved = (new BN(liquidityBalance.reserved)).div(poolNameDecimalBN);
-
-            console.log(`Before auto-compound, ${account.name} reserved "${poolName}": ${numReserved.toString()} ...`);
-
-            // Mint liquidity to create reserved MGR-TUR if it’s zero
-            if (numReserved.toNumber() === 0) {
-                console.log('Reserved pool token is zero; minting liquidity to generate rewards...');
-
-                const firstTokenAmount = 50;
-                const MAX_SLIPPIAGE = 0.04; // 4% slippage; can’t be too large
-                const poolRatio = pool.firstTokenAmountFloat / pool.secondTokenAmountFloat;
-                const expectedSecondTokenAmount = (firstTokenAmount / poolRatio) * (1 + MAX_SLIPPIAGE);
-
-                // Estimate of fees; no need to be accurate
-                const fees = await mangataHelper.getMintLiquidityFee({
-                    pair: account.pair, firstTokenId: mgxToken.id, secondTokenId: turToken.id, firstTokenAmount, expectedSecondTokenAmount,
-                });
-
-                console.log('fees', fees);
-
-                await mangataHelper.mintLiquidity({
-                    pair: account.pair,
-                    firstTokenId: mgxToken.id,
-                    secondTokenId: turToken.id,
-                    firstTokenAmount: firstTokenAmount - fees,
-                    expectedSecondTokenAmount,
-                });
-            } if (rewardAmount === 0) {
-                console.log('Reserved pool token is not zero but claimable rewards is. You might need to wait some time for it to accumulate ...');
-            }
-
-            const answerPool = await confirm({ message: '\nDo you want to continue to schedule auto-compound. Press ENTRE to continue.', default: true });
-
-            if (answerPool) {
+        if (answerPool) {
             // Create Mangata proxy call
-                console.log('\n4. Start to schedule an auto-compound call via XCM ...');
-                const proxyExtrinsic = mangataHelper.api.tx.xyk.compoundRewards(liquidityTokenId, 100);
-                const mangataProxyCall = await mangataHelper.createProxyCall(mangataAddress, proxyType, proxyExtrinsic);
-                const encodedMangataProxyCall = mangataProxyCall.method.toHex(mangataProxyCall);
-                const mangataProxyCallFees = await mangataProxyCall.paymentInfo(mangataAddress);
+            console.log('\n4. Start to schedule an auto-compound call via XCM ...');
+            const compoundRewardsExtrinsic = mangataApi.tx.xyk.compoundRewards(liquidityTokenId, 100);
+            const taskPayloadExtrinsic = mangataApi.tx.proxy.proxy(u8aToHex(keyringPair.addressRaw), 'AutoCompound', compoundRewardsExtrinsic);
 
-                console.log('encodedMangataProxyCall: ', encodedMangataProxyCall);
-                console.log('mangataProxyCallFees: ', mangataProxyCallFees.toHuman());
+            // Schedule task with sdk
+            const timestampNextHour = getHourlyTimestamp(1) / 1000;
+            const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
 
-                // Create Turing scheduleXcmpTask extrinsic
-                console.log('\na) Create the call for scheduleXcmpTask ');
+            const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
+                ? { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } }
+                : { Fixed: { executionTimes: [0] } };
 
-                const secPerHour = 3600;
-                const msPerHour = 3600 * 1000;
-                const currentTimestamp = moment().valueOf();
-                const timestampNextHour = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + secPerHour;
-                const timestampTwoHoursLater = (currentTimestamp - (currentTimestamp % msPerHour)) / 1000 + (secPerHour * 2);
-                const overallWeight = mangataHelper.calculateXcmTransactOverallWeight(mangataProxyCallFees.weight);
-                const fee = mangataHelper.weightToFee(overallWeight, 'TUR');
-                const turLocation = { parents: 0, interior: 'Here' };
-                const xcmpCall = turingHelper.api.tx.automationTime.scheduleXcmpTask(
-                    { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } },
-                    { V3: mangataHelper.getLocation() },
-                    { V3: turLocation },
-                    { asset_location: { V3: turLocation }, amount: fee },
-                    encodedMangataProxyCall,
-                    mangataProxyCallFees.weight,
-                    overallWeight,
-                );
+            const scheduleTaskPromise = Sdk().scheduleXcmpTaskWithPayThroughSoverignAccountFlow({
+                oakAdapter,
+                destinationChainAdapter: mangataAdapter,
+                taskPayloadExtrinsic,
+                schedule,
+                keyringPair,
+            });
 
-                console.log('xcmpCall: ', xcmpCall.method.toHex());
+            const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
+            const listenEventPromise = listenEvents(mangataApi, 'proxy', 'ProxyExecuted', nextHourExecutionTimeout);
 
-                // Query automationTime fee
-                console.log('\nb) Query automationTime fee details ');
-                const { executionFee, scheduleFee } = await turingHelper.api.rpc.automationTime.queryFeeDetails(xcmpCall);
-                console.log('automationFeeDetails: ', { executionFee: executionFee.toString(), scheduleFee: scheduleFee.toString() });
+            const promiseResults = scheduleActionType === ScheduleActionType.executeImmediately
+                ? await waitPromises([scheduleTaskPromise, listenEventPromise])
+                : null;
 
-                // Send extrinsic and retrieve the taskId in response
-                console.log('\nc) Sign and send scheduleXcmpTask extrinsic ...');
-                const { events } = await sendExtrinsic(turingHelper.api, xcmpCall, account.pair);
+            const { events } = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[0] : await scheduleTaskPromise;
 
-                // Get taskId from TaskScheduled event
-                const taskScheduledEvent = findEvent(events, 'automationTime', 'TaskScheduled');
-                const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-                console.log(`Retrieved taskId ${taskId} from TaskScheduled among the finalized events.`);
+            // Get taskId from TaskScheduled event
+            const taskScheduledEvent = findEvent(events, 'automationTime', 'TaskScheduled');
+            const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
+            console.log(`Retrieved taskId ${taskId} from TaskScheduled among the finalized events.`);
 
-                // Listen XCM events on Mangata side
-                console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-                await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted');
-
-                const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
-                const isTaskExecuted = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', nextHourExecutionTimeout);
-                if (!isTaskExecuted) {
-                    console.log('Timeout! Task was not executed.');
-                    return;
-                }
-
-                console.log('Task has been executed!');
-
-                console.log('\nWaiting 20 seconds before reading new chain states ...');
-                await delay(20000);
-
-                // Account’s reserved LP token after auto-compound
-                const newLiquidityBalance = await mangataHelper.mangata.getTokenBalance(liquidityTokenId, mangataAddress);
-                console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
-
-                console.log(`${account.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
-
-                console.log('\n5. Cancel task ...');
-                const cancelTaskExtrinsic = turingHelper.api.tx.automationTime.cancelTask(taskId);
-                await sendExtrinsic(turingHelper.api, cancelTaskExtrinsic, keyPair);
-
-                const twoHoursExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
-
-                console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
-
-                const isTaskExecutedAgain = await listenEvents(mangataHelper.api, 'proxy', 'ProxyExecuted', twoHoursExecutionTimeout);
-                if (isTaskExecutedAgain) {
-                    console.log('Task cancellation failed! It executes again.');
-                    return;
-                }
-                console.log("Task canceled successfully! It didn't execute again.");
+            // Listen XCM events on Mangata side
+            console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
+            const executedEvent = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[1] : await listenEventPromise;
+            if (_.isNull(executedEvent)) {
+                console.log('Timeout! Task was not executed.');
+                return;
             }
-        }
-    };
-}
 
-export default AutoCompound;
+            console.log('Task has been executed!');
+
+            console.log('\nWaiting 20 seconds before reading new chain states ...');
+            await delay(20000);
+
+            // Account’s reserved LP token after auto-compound
+            const newLiquidityBalance = await mangataSdk.getTokenBalance(liquidityTokenId, mangataAddress);
+            console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
+
+            console.log(`${keyringPair.meta.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);
+
+            if (scheduleActionType === ScheduleActionType.executeImmediately) return;
+
+            console.log('\n5. Cancel task ...');
+            const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
+            await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
+
+            const twoHoursExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
+
+            console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
+
+            const isTaskExecutedAgain = await listenEvents(mangataApi, 'proxy', 'ProxyExecuted', twoHoursExecutionTimeout);
+            if (isTaskExecutedAgain) {
+                console.log('Task cancellation failed! It executes again.');
+                return;
+            }
+            console.log("Task canceled successfully! It didn't execute again.");
+        }
+    }
+
+    oakHelper.disconnect();
+    mangataHelper.disconnect();
+};

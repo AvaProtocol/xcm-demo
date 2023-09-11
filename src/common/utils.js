@@ -1,6 +1,4 @@
 import _ from 'lodash';
-import { decodeAddress } from '@polkadot/util-crypto';
-import { u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
@@ -109,35 +107,6 @@ export function formatNumberThousands(num) {
 
     return `${decimalStr}${period}${floatStr}`;
 }
-
-export const getProxyAccount = (api, sourceParaId, address, { addressType = 'Substrate', locationType = 'XcmV2MultiLocation', network = 'Any' } = {}) => {
-    const account = addressType === 'Ethereum'
-        ? { AccountKey20: { network, key: address } }
-        : { AccountId32: { network, id: u8aToHex(decodeAddress(address)) } }; // An Int array presentation of the address’ ss58 public key
-
-    const location = {
-        parents: 1, // from source parachain to target parachain
-        interior: {
-            X2: [
-                { Parachain: sourceParaId },
-                account,
-            ],
-        },
-    };
-
-    const multilocation = api.createType(locationType, location);
-
-    const toHash = new Uint8Array([
-        ...new Uint8Array([32]),
-        ...new TextEncoder().encode('multiloc'),
-        ...multilocation.toU8a(),
-    ]);
-
-    return {
-        accountId32: u8aToHex(api.registry.hash(toHash).slice(0, 32)),
-        accountKey20: u8aToHex(api.registry.hash(toHash).slice(0, 20)),
-    };
-};
 
 /**
  * Return a BN object for the power of 10, for example getDecimalBN(10) returns new BN(10,000,000,000)
@@ -259,23 +228,13 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
     const digitBN = new BN(amplifier);
 
     const resultBN = amountBN.mul(digitBN).div(decimalBN);
-
     return _.floor(resultBN.toNumber() / amplifier, digit);
 };
 
-export const generateProvidedId = () => `xcmp_automation_test_${(Math.random() + 1).toString(36).substring(7)}`;
-
 export const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf();
-
-export const calculateXcmOverallWeight = (transactCallWeight, instructionWeight, instructionCount) => {
-    const totalInstructionWeight = { refTime: instructionWeight.refTime.mul(new BN(instructionCount)), proofSize: instructionWeight.proofSize.mul(new BN(instructionCount)) };
-    const totalWeight = { refTime: transactCallWeight.refTime.unwrap().add(totalInstructionWeight.refTime), proofSize: transactCallWeight.proofSize.unwrap().add(totalInstructionWeight.proofSize) };
-    return totalWeight;
-};
 
 export const findEvent = (events, section, method) => events.find((e) => e.event.section === section && e.event.method === method);
 export const getTaskIdInTaskScheduledEvent = (event) => Buffer.from(event.event.data.taskId).toString();
-export const paraIdToLocation = (paraId) => ({ parents: 1, interior: { X1: { Parachain: paraId } } });
 
 /**
  * Wait for all promises to succeed, otherwise throw an exception.
