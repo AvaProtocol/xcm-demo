@@ -15,10 +15,10 @@
     "lint": "eslint --fix src/*"
   },
   "dependencies": {
-    "@oak-network/adapter": "^0.1.2",
-    "@oak-network/config": "^0.1.2",
-    "@oak-network/sdk": "^0.1.2",
-    "@oak-network/sdk-types": "^0.1.2",
+    "@oak-network/adapter": "0.1.0-rc.18",
+    "@oak-network/config": "0.1.0-rc.18",
+    "@oak-network/sdk": "0.1.0-rc.18",
+    "@oak-network/sdk-types": "0.1.0-rc.18",
     "@inquirer/confirm": "^2.0.10",
     "@inquirer/select": "^1.2.9",
     "@mangata-finance/sdk": "^1.20.1",

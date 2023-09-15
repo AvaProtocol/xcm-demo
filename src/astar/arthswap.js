@@ -117,78 +117,65 @@ export const scheduleTask = async ({
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${oakChainName} ...`);
 
-    console.log('\na). Create a payload to store in Turing’s task ...');
-    // We are using a very simple system.remark extrinsic to demonstrate the payload here.
-    // The real payload on Shiden would be Shibuya’s utility.batch() call to claim staking rewards and restake
-
     const payload = createPayloadFunc(astarApi);
-    const payloadViaProxy = astarApi.tx.proxy.proxy(keyringPair.addressRaw, 'Any', payload);
+    const taskPayloadExtrinsic = astarApi.tx.proxy.proxy(keyringPair.addressRaw, 'Any', payload);
 
-    const nextExecutionTime = getHourlyTimestamp(1) / 1000;
-    const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
-    const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
-        : { Fixed: { executionTimes: [0] } };
+    const dest = { V3: astarAdapter.getLocation() };
+    // const encodedCall = taskPayloadExtrinsic.method.toHex();
+    const oakTransactXcmInstructionCount = 4; // oakAdapter.getTransactXcmInstructionCount();
+    const { encodedCallWeight, overallWeight } = await astarAdapter.getXcmWeight(taskPayloadExtrinsic, keyringPair.address, oakTransactXcmInstructionCount);
+    const astarLocation = astarChainData.defaultAsset.location;
+    const feeAmount = await astarAdapter.weightToFee(overallWeight, astarLocation);
+    const feeLocation = { parents: 0, interior: 'Here' };
+    // const executionFee = { assetLocation: { V3: executionFeeLocation }, amount: executionFeeAmout };
 
-    console.log(`\nb) Execute the above an XCM from ${astarAdapter.getChainData().key} to schedule a task on ${oakChainName} ...`);
-    const sendExtrinsicPromise = Sdk().scheduleXcmpTaskWithPayThroughRemoteDerivativeAccountFlow({
-        oakAdapter,
-        destinationChainAdapter: astarAdapter,
-        taskPayloadExtrinsic: payloadViaProxy,
-        scheduleFeeLocation: astarChainData.defaultAsset.location,
-        executionFeeLocation: astarChainData.defaultAsset.location,
-        schedule,
-        scheduleAs: u8aToHex(keyringPair.addressRaw),
-        keyringPair,
-    });
+    // Calculate derive account on Turing/OAK
+    // const options = { locationType: 'XcmV3MultiLocation', network: astarChainData.xcm.network };
+    // const deriveAccountId = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, options);
 
-    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
-    const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-    const taskScheduledEvent = results[1];
-    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-    console.log(`Found the event and retrieved TaskId, ${taskId}`);
+    const message = {
+        V3: [
+            {
+                WithdrawAsset: [
+                    {
+                        fun: { Fungible: feeAmount },
+                        id: { Concrete: feeLocation },
+                    },
+                ],
+            },
+            {
+                BuyExecution: {
+                    fees: {
+                        fun: { Fungible: feeAmount },
+                        id: { Concrete: feeLocation },
+                    },
+                    weightLimit: { Limited: overallWeight },
+                },
+            },
+            {
+                Transact: {
+                    originKind: 'SovereignAccount',
+                    requireWeightAtMost: encodedCallWeight,
+                    call: { encoded: taskPayloadExtrinsic.method.toHex() },
+                },
+            },
+            { RefundSurplus: '' },
+            {
+                DepositAsset: {
+                    assets: { Wild: { AllCounted: 1 } },
+                    maxAssets: 1,
+                    beneficiary: {
+                        parents: 1,
+                        interior: { X1: { AccountId32: { network: null, id: u8aToHex(keyringPair.addressRaw) } } },
+                    },
+                },
+            },
+        ],
+    };
 
-    const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? nextExecutionTime : Math.round(moment().valueOf() / 1000);
-
-    const timeout = calculateTimeout(nextExecutionTime);
-
-    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const executedEvent = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', timeout);
-
-    if (_.isUndefined(executedEvent)) {
-        console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
-        return;
-    }
-
-    console.log('\nTask has been executed! Waiting for 20 seconds before reading proxy balance.');
-
-    await delay(20000);
-
-    // Calculating balance delta to show fee cost
-    const { data: endProxyBalance } = await astarApi.query.system.account(proxyAccoundIdOnParachain);
-    const proxyBalanceDelta = (new BN(proxyBalance.free)).sub(new BN(endProxyBalance.free));
-
-    console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, astarDecimalBN))} ${astarChainData.defaultAsset.symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, astarDecimalBN))} ${astarChainData.defaultAsset.symbol}.`);
-
-    if (scheduleActionType === ScheduleActionType.executeImmediately) return;
-
-    console.log('\n5. Cancel the task ...');
-    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
-    await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
-
-    const nextTwoHourExecutionTime = nextExecutionTime + TASK_FREQUENCY;
-    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
-
-    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
-
-    const isTaskExecutedAgain = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
-
-    if (isTaskExecutedAgain) {
-        console.log('Task cancellation failed! It executes again.');
-        return;
-    }
-    console.log("Task canceled successfully! It didn't execute again.");
+    const extrinsic = oakApi.tx.polkadotXcm.send(dest, message);
+    console.log('extrinsic: ', extrinsic.method.toHex());
+    await sendExtrinsic(oakApi, extrinsic, keyringPair);
 
     await oakHelper.disconnect();
     await astarApi.disconnect();
