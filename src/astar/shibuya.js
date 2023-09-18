@@ -2,8 +2,8 @@ import BN from 'bn.js';
 import Keyring from '@polkadot/keyring';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { chains } from '@oak-network/config';
-// import { scheduleTask } from './common';
-import { scheduleTask } from './arthswap';
+import { scheduleTask } from './common';
+// import { scheduleTask } from './arthswap';
 import { askScheduleAction } from '../common/utils';
 
 // const createTaskPayload = (astarApi) => astarApi.tx.system.remarkWithEvent('Hello world!');

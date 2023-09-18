@@ -84,10 +84,10 @@ export const scheduleTask = async ({
     console.log('astarChainData.relayChain: ', astarChainData.relayChain);
     console.log('astarChainData.network: ', astarChainData.xcm.network);
 
-    const keyringPairBob = keyring.addFromUri('//Bob', undefined, 'sr25519');
-    keyringPairBob.meta.name = 'Bob';
-    const proxyAccoundIdOnOak = u8aToHex(keyringPairBob.addressRaw);
-    // const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.xcm.network, locationType: 'XcmV3MultiLocation' });
+    // const keyringPairBob = keyring.addFromUri('//Bob', undefined, 'sr25519');
+    // keyringPairBob.meta.name = 'Bob';
+    // const proxyAccoundIdOnOak = u8aToHex(keyringPairBob.addressRaw);
+    const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.xcm.network, locationType: 'XcmV3MultiLocation' });
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccoundIdOnOak, oakChainData.ss58Prefix);
     const proxiesOnOak = _.first((await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw))).toJSON());
     const proxyMatchOak = _.find(proxiesOnOak, { delegate: proxyAddressOnOak, proxyType: proxyTypeOak });
@@ -125,7 +125,7 @@ export const scheduleTask = async ({
     const payload = createPayloadFunc(astarApi);
     const taskPayloadExtrinsic = astarApi.tx.proxy.proxy(keyringPair.addressRaw, 'Any', payload);
 
-    const dest = { V3: astarAdapter.getLocation() };
+    // const dest = { V3: astarAdapter.getLocation() };
     // const encodedCall = taskPayloadExtrinsic.method.toHex();
     const oakTransactXcmInstructionCount = 4; // oakAdapter.getTransactXcmInstructionCount();
     const { encodedCallWeight, overallWeight } = await astarAdapter.getXcmWeight(taskPayloadExtrinsic, keyringPair.address, oakTransactXcmInstructionCount);
@@ -136,7 +136,7 @@ export const scheduleTask = async ({
     const astarLocation = astarChainData.defaultAsset.location;
     const feeAmount = await astarAdapter.weightToFee(overallWeight, astarLocation);
 
-    const feeLocation = { parents: 0, interior: 'Here' };
+    // const feeLocation = { parents: 0, interior: 'Here' };
     // const executionFee = { assetLocation: { V3: executionFeeLocation }, amount: executionFeeAmout };
 
     // Calculate derive account on Turing/OAK
@@ -183,7 +183,7 @@ export const scheduleTask = async ({
     const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
         ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
         : { Fixed: { executionTimes: [0] } };
-    const extrinsic = oakApi.tx.automationTime.scheduleXcmpTaskThroughProxy(
+    const taskExtrinsic = oakApi.tx.automationTime.scheduleXcmpTaskThroughProxy(
         schedule,
         { V3: astarAdapter.getLocation() },
         scheduleFeeLocation,
@@ -193,7 +193,44 @@ export const scheduleTask = async ({
         overallWeight,
         u8aToHex(keyringPair.addressRaw),
     );
-    await sendExtrinsic(oakApi, extrinsic, keyringPairBob);
+    // await sendExtrinsic(oakApi, taskExtrinsic, keyringPairBob);
+
+    const astarTransactXcmInstructionCount = 4;
+    const { encodedCallWeight: astarEncodedCallWeight, overallWeight: astarOverallWeight } = await oakAdapter.getXcmWeight(taskExtrinsic, u8aToHex(keyringPair.addressRaw), astarTransactXcmInstructionCount);
+
+    const extrinsic = astarApi.tx.polkadotXcm.send(
+        { V3: oakAdapter.getLocation() },
+        {
+            V3: [
+                {
+                    WithdrawAsset: [
+                        {
+                            fun: { Fungible: feeAmount },
+                            id: { Concrete: astarChainData.defaultAsset.location },
+                        },
+                    ],
+                },
+                {
+                    BuyExecution: {
+                        fees: {
+                            fun: { Fungible: feeAmount },
+                            id: { Concrete: astarChainData.defaultAsset.location },
+                        },
+                        weightLimit: { Limited: astarOverallWeight },
+                    },
+                },
+                {
+                    Transact: {
+                        originKind: 'SovereignAccount',
+                        requireWeightAtMost: astarEncodedCallWeight,
+                        call: { encoded: taskExtrinsic.method.toHex() },
+                    },
+                },
+            ],
+        },
+    );
+
+    await sendExtrinsic(astarApi, extrinsic, keyringPair);
 
     await oakHelper.disconnect();
     await astarApi.disconnect();
