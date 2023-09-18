@@ -48,6 +48,7 @@ export const scheduleTask = async ({
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${parachainName}\n`);
 
     const proxyAccoundIdOnParachain = astarAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakChainData.paraId);
+    // const proxyAccoundIdOnParachain = u8aToHex(keyringPairBob.addressRaw);
     const proxyAddressOnParachain = keyring.encodeAddress(proxyAccoundIdOnParachain, astarChainData.ss58Prefix);
     const proxyTypeParachain = 'Any'; // We cannot set proxyType to "DappsStaking" without the actual auto-restake call
     const proxies = _.first((await astarApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw))).toJSON());
@@ -82,7 +83,11 @@ export const scheduleTask = async ({
     const proxyTypeOak = 'Any';
     console.log('astarChainData.relayChain: ', astarChainData.relayChain);
     console.log('astarChainData.network: ', astarChainData.xcm.network);
-    const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.xcm.network, locationType: 'XcmV3MultiLocation' });
+
+    const keyringPairBob = keyring.addFromUri('//Bob', undefined, 'sr25519');
+    keyringPairBob.meta.name = 'Bob';
+    const proxyAccoundIdOnOak = u8aToHex(keyringPairBob.addressRaw);
+    // const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.xcm.network, locationType: 'XcmV3MultiLocation' });
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccoundIdOnOak, oakChainData.ss58Prefix);
     const proxiesOnOak = _.first((await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw))).toJSON());
     const proxyMatchOak = _.find(proxiesOnOak, { delegate: proxyAddressOnOak, proxyType: proxyTypeOak });
@@ -138,38 +143,57 @@ export const scheduleTask = async ({
     // const options = { locationType: 'XcmV3MultiLocation', network: astarChainData.xcm.network };
     // const deriveAccountId = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, options);
 
-    const message = {
-        V3: [
-            {
-                WithdrawAsset: [
-                    {
-                        fun: { Fungible: feeAmount },
-                        id: { Concrete: feeLocation },
-                    },
-                ],
-            },
-            {
-                BuyExecution: {
-                    fees: {
-                        fun: { Fungible: feeAmount },
-                        id: { Concrete: feeLocation },
-                    },
-                    weightLimit: { Limited: overallWeight },
-                },
-            },
-            {
-                Transact: {
-                    originKind: 'SovereignAccount',
-                    requireWeightAtMost: encodedCallWeight,
-                    call: { encoded: taskPayloadExtrinsic.method.toHex() },
-                },
-            },
-        ],
-    };
+    // const message = {
+    //     V3: [
+    //         {
+    //             WithdrawAsset: [
+    //                 {
+    //                     fun: { Fungible: feeAmount },
+    //                     id: { Concrete: feeLocation },
+    //                 },
+    //             ],
+    //         },
+    //         {
+    //             BuyExecution: {
+    //                 fees: {
+    //                     fun: { Fungible: feeAmount },
+    //                     id: { Concrete: feeLocation },
+    //                 },
+    //                 weightLimit: { Limited: overallWeight },
+    //             },
+    //         },
+    //         {
+    //             Transact: {
+    //                 originKind: 'SovereignAccount',
+    //                 requireWeightAtMost: encodedCallWeight,
+    //                 call: { encoded: taskPayloadExtrinsic.method.toHex() },
+    //             },
+    //         },
+    //     ],
+    // };
 
-    const extrinsic = oakApi.tx.polkadotXcm.send(dest, message);
-    console.log('extrinsic: ', extrinsic.method.toHex());
-    await sendExtrinsic(oakApi, extrinsic, keyringPair);
+    // const extrinsic = oakApi.tx.polkadotXcm.send(dest, message);
+    // console.log('extrinsic: ', extrinsic.method.toHex());
+    // await sendExtrinsic(oakApi, extrinsic, keyringPair);
+
+    const scheduleFeeLocation = { V3: astarChainData.defaultAsset.location };
+    const executionFee = { assetLocation: { V3: astarChainData.defaultAsset.location }, amount: feeAmount };
+    const nextExecutionTime = getHourlyTimestamp(1) / 1000;
+    const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+    const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
+        ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
+        : { Fixed: { executionTimes: [0] } };
+    const extrinsic = oakApi.tx.automationTime.scheduleXcmpTaskThroughProxy(
+        schedule,
+        { V3: astarAdapter.getLocation() },
+        scheduleFeeLocation,
+        executionFee,
+        taskPayloadExtrinsic.method.toHex(),
+        encodedCallWeight,
+        overallWeight,
+        u8aToHex(keyringPair.addressRaw),
+    );
+    await sendExtrinsic(oakApi, extrinsic, keyringPairBob);
 
     await oakHelper.disconnect();
     await astarApi.disconnect();
