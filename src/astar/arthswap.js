@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import _, { over } from 'lodash';
 import BN from 'bn.js';
 import moment from 'moment';
 import chalkPipe from 'chalk-pipe';
@@ -124,8 +124,13 @@ export const scheduleTask = async ({
     // const encodedCall = taskPayloadExtrinsic.method.toHex();
     const oakTransactXcmInstructionCount = 4; // oakAdapter.getTransactXcmInstructionCount();
     const { encodedCallWeight, overallWeight } = await astarAdapter.getXcmWeight(taskPayloadExtrinsic, keyringPair.address, oakTransactXcmInstructionCount);
+
+    console.log('encodedCallWeight: ', 'refTime', encodedCallWeight.refTime.toNumber(), ', proofSize', encodedCallWeight.proofSize.toNumber());
+    console.log('overallWeight: ', 'refTime:', overallWeight.refTime.toNumber(), ', proofSize', overallWeight.proofSize.toNumber());
+
     const astarLocation = astarChainData.defaultAsset.location;
     const feeAmount = await astarAdapter.weightToFee(overallWeight, astarLocation);
+
     const feeLocation = { parents: 0, interior: 'Here' };
     // const executionFee = { assetLocation: { V3: executionFeeLocation }, amount: executionFeeAmout };
 
@@ -157,17 +162,6 @@ export const scheduleTask = async ({
                     originKind: 'SovereignAccount',
                     requireWeightAtMost: encodedCallWeight,
                     call: { encoded: taskPayloadExtrinsic.method.toHex() },
-                },
-            },
-            { RefundSurplus: '' },
-            {
-                DepositAsset: {
-                    assets: { Wild: { AllCounted: 1 } },
-                    maxAssets: 1,
-                    beneficiary: {
-                        parents: 1,
-                        interior: { X1: { AccountId32: { network: null, id: u8aToHex(keyringPair.addressRaw) } } },
-                    },
                 },
             },
         ],
