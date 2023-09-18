@@ -1,4 +1,4 @@
-import _, { over } from 'lodash';
+import _ from 'lodash';
 import BN from 'bn.js';
 import moment from 'moment';
 import chalkPipe from 'chalk-pipe';
