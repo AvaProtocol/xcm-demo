@@ -133,7 +133,11 @@ export const scheduleTask = async ({
         if (answerPool) {
             // Create Mangata proxy call
             console.log('\n4. Start to schedule an auto-compound call via XCM ...');
-            const compoundRewardsExtrinsic = mangataApi.tx.xyk.compoundRewards(liquidityTokenId, 100);
+
+            // The second parameter of compoundRewards is a Permill type in Rust,
+            // of which 10% equates to 1,000 and 100% equates to 10,000.
+            // We use 100% here to make sure all rewards to be claimed after task execution.
+            const compoundRewardsExtrinsic = mangataApi.tx.xyk.compoundRewards(liquidityTokenId, 10000);
             const taskPayloadExtrinsic = mangataApi.tx.proxy.proxy(u8aToHex(keyringPair.addressRaw), 'AutoCompound', compoundRewardsExtrinsic);
 
             // Schedule task with sdk
