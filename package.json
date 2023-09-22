@@ -15,15 +15,15 @@
     "lint": "eslint --fix src/*"
   },
   "dependencies": {
-    "@oak-network/adapter": "^0.1.2",
-    "@oak-network/config": "^0.1.2",
-    "@oak-network/sdk": "^0.1.2",
-    "@oak-network/sdk-types": "^0.1.2",
     "@inquirer/confirm": "^2.0.10",
     "@inquirer/select": "^1.2.9",
     "@mangata-finance/sdk": "^1.20.1",
-    "@oak-network/api-augment": "^2.0.6",
-    "@oak-network/types": "^2.0.6",
+    "@oak-network/adapter": "^0.1.3",
+    "@oak-network/api-augment": "^2.0.7",
+    "@oak-network/config": "^0.1.2",
+    "@oak-network/sdk": "^0.1.3",
+    "@oak-network/sdk-types": "^0.1.3",
+    "@oak-network/types": "^2.0.7",
     "@polkadot/api": "^10.9.1",
     "@polkadot/keyring": "^12.3.2",
     "@polkadot/util": "^12.3.2",
@@ -33,6 +33,8 @@
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.38",
+    "npm": "^10.1.0",
+    "run": "^1.4.0",
     "web3": "^1.8.2"
   },
   "devDependencies": {
