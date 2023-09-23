@@ -5,6 +5,7 @@
     "mangata": "dotenv -e .env babel-node src/mangata/mangata.js",
     "setup-mangata": "dotenv -e .env babel-node src/mangata/setup-mangata.js",
     "shibuya": "dotenv -e .env babel-node src/astar/shibuya.js",
+    "shibuya:price": "dotenv -e .env babel-node src/astar/shibuya-price.js",
     "rocstar": "dotenv -e .env babel-node src/astar/rocstar.js",
     "shiden": "dotenv -e .env babel-node src/astar/shiden.js",
     "moonbase-alpha": "dotenv -e .env babel-node src/moonbeam/moonbase-alpha.js",

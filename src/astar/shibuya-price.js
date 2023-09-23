@@ -37,7 +37,7 @@ const scheduleTask = async ({
     console.log(`Encoded call data: ${encodedCallData}`);
     console.log(`Encoded call weight: ${encodedCallWeight}`);
 
-    console.log('\nb) Prepare automationTime.scheduleXcmpTask extrinsic for XCM ...');
+    console.log('\nb) Prepare automationPrice.scheduleXcmpTask extrinsic for XCM ...');
 
     // Schedule an XCMP task from Turing’s timeAutomation pallet
     // The parameter "Fixed: { executionTimes: [0] }" will trigger the task immediately, while in real world usage Recurring can achieve every day or every week
@@ -49,15 +49,34 @@ const scheduleTask = async ({
     // TODO: add select prompt to let user decide whether to trigger immediately or at next hour
     // Currently the task trigger immediately in dev environment
     const assetLocation = shibuyaHelper.getNativeAssetLocation();
+
+    const automationPriceAsset = {
+        chain: 'shibuya',
+        exchange: 'arthswap',
+        asset1: 'WRSTR',
+        asset2: 'USDT',
+    };
+
+    const triggerParam = [100];
+    const submittedAt = moment().unix();
+    const triggerFunction = 'lt';
+    const scheduleAs = turingAddress;
+
     const taskViaProxy = turingHelper.api.tx.automationPrice.scheduleXcmpTaskThroughProxy(
-        { Fixed: { executionTimes: [0] } },
+        automationPriceAsset.chain,
+        automationPriceAsset.exchange,
+        automationPriceAsset.asset1,
+        automationPriceAsset.asset2,
+        submittedAt,
+        triggerFunction,
+        triggerParam,
         { V3: shibuyaHelper.getLocation() },
         { V3: assetLocation },
         { assetLocation: { V3: assetLocation }, amount: fee },
         encodedCallData,
         encodedCallWeight,
         overallWeight,
-        turingAddress,
+        scheduleAs,
     );
 
     const encodedTaskViaProxy = taskViaProxy.method.toHex();
