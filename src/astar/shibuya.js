@@ -49,7 +49,7 @@ const scheduleTask = async ({
     // TODO: add select prompt to let user decide whether to trigger immediately or at next hour
     // Currently the task trigger immediately in dev environment
     const assetLocation = shibuyaHelper.getNativeAssetLocation();
-    const taskViaProxy = turingHelper.api.tx.automationPrice.scheduleXcmpTaskThroughProxy(
+    const taskViaProxy = turingHelper.api.tx.automationTime.scheduleXcmpTaskThroughProxy(
         { Fixed: { executionTimes: [0] } },
         { V3: shibuyaHelper.getLocation() },
         { V3: assetLocation },
