@@ -36,10 +36,14 @@ export const scheduleTask = async ({
 
     const oakChainName = oakChainData.key;
     const parachainName = astarChainData.key;
+    const oakChainAddress = keyring.encodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
+    const parachainAddress = keyring.encodeAddress(keyringPair.addressRaw, astarChainData.ss58Prefix);
     const astarDecimalBN = getDecimalBN(astarChainData.defaultAsset.decimals);
     const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(astarChainData.defaultAsset.location))
         .unwrapOrDefault()
         .toNumber();
+
+    console.log(`Wallet address on ${oakChainName}:${oakChainAddress}, ${parachainName}: ${parachainAddress}`);
     console.log(`${astarChainData.defaultAsset.symbol} ID on ${oakChainName}: `, paraTokenIdOnOak);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
@@ -80,8 +84,7 @@ export const scheduleTask = async ({
     console.log(`\n2. One-time proxy setup on ${oakChainName} ...`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainName} (paraId:${astarChainData.paraId})\n`);
     const proxyTypeOak = 'Any';
-    console.log('astarChainData.relayChain: ', astarChainData.relayChain);
-    const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.network, locationType: 'XcmV3MultiLocation' });
+    const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.xcm.network, locationType: 'XcmV3MultiLocation' });
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccoundIdOnOak, oakChainData.ss58Prefix);
     const proxiesOnOak = _.first((await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw))).toJSON());
     const proxyMatchOak = _.find(proxiesOnOak, { delegate: proxyAddressOnOak, proxyType: proxyTypeOak });
@@ -110,6 +113,7 @@ export const scheduleTask = async ({
         balanceOnOak = await oakApi.query.tokens.accounts(proxyAccoundIdOnOak, paraTokenIdOnOak);
     }
 
+    // TODO: wait for balance to be updated here; if we execute too quick the following xcm execution will fail due to insufficient balance
     const beginBalanceOak = bnToFloat(balanceOnOak.free, astarDecimalBN);
     const beginBalanceTuringColor = beginBalanceOak === 0 ? 'red' : 'green';
     console.log(`\nb) Proxy’s balance on ${oakChainData.key} is ${chalkPipe(beginBalanceTuringColor)(beginBalanceOak)} ${astarChainData.defaultAsset.symbol}.`);
