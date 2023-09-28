@@ -156,9 +156,9 @@ export const scheduleTask = async ({
     const timeout = calculateTimeout(nextExecutionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const executedEvent = await listenEvents(moonbeamApi, 'ethereum', 'Executed', timeout);
+    const listenEventsResult = await listenEvents(moonbeamApi, 'ethereum', 'Executed', undefined, timeout);
 
-    if (_.isNull(executedEvent)) {
+    if (_.isNull(listenEventsResult)) {
         console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
         return;
     }
@@ -174,9 +174,9 @@ export const scheduleTask = async ({
 
     console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
 
-    const isTaskExecutedAgain = await listenEvents(moonbeamApi, 'ethereum', 'Executed', nextExecutionTimeout);
+    const listenEventsAgainResult = await listenEvents(moonbeamApi, 'ethereum', 'Executed', undefined, nextExecutionTimeout);
 
-    if (isTaskExecutedAgain) {
+    if (_.isNull(listenEventsAgainResult)) {
         console.log('Task cancellation failed! It executes again.');
         return;
     }

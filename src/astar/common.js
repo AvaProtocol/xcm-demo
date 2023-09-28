@@ -145,9 +145,9 @@ export const scheduleTask = async ({
         keyringPair,
     });
 
-    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
+    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', undefined, 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-    const taskScheduledEvent = results[1];
+    const { foundEvent: taskScheduledEvent } = results[1];
     const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
     console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
@@ -157,9 +157,9 @@ export const scheduleTask = async ({
     const timeout = calculateTimeout(nextExecutionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const executedEvent = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', timeout);
+    const listenEventsResult = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', timeout);
 
-    if (_.isUndefined(executedEvent)) {
+    if (_.isNull(listenEventsResult)) {
         console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
         return;
     }
@@ -185,9 +185,9 @@ export const scheduleTask = async ({
 
     console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
 
-    const isTaskExecutedAgain = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', nextExecutionTimeout);
+    const TaskExecutedAgainResult = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', undefined, nextExecutionTimeout);
 
-    if (isTaskExecutedAgain) {
+    if (!_.isNull(TaskExecutedAgainResult)) {
         console.log('Task cancellation failed! It executes again.');
         return;
     }

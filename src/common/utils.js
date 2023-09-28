@@ -132,7 +132,7 @@ export const getProxies = async (api, address) => {
  * @param {*} timeout - Set timeout to stop event listening.
  * @returns
  */
-export const listenEvents = async (api, section, method, timeout = undefined) => new Promise((resolve) => {
+export const listenEvents = async (api, section, method, conditions, timeout = undefined) => new Promise((resolve) => {
     let unsub = null;
     let timeoutId = null;
 
@@ -145,12 +145,28 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
 
     const listenSystemEvents = async () => {
         unsub = await api.query.system.events((events) => {
-            const foundEvent = _.find(events, ({ event }) => {
-                const { section: eventSection, method: eventMethod } = event;
-                return eventSection === section && eventMethod === method;
+            const foundEventIndex = _.findIndex(events, ({ event }) => {
+                const { section: eventSection, method: eventMethod, data } = event;
+                if (eventSection !== section || eventMethod !== method) {
+                    return false;
+                }
+
+                if (!_.isUndefined(conditions)) {
+                    return true;
+                }
+
+                let conditionPassed = true;
+                _.each(_.keys(conditions), (key) => {
+                    if (conditions[key] === data[key]) {
+                        conditionPassed = false;
+                    }
+                });
+
+                return conditionPassed;
             });
 
-            if (foundEvent) {
+            if (foundEventIndex !== -1) {
+                const foundEvent = events[foundEventIndex];
                 const {
                     event: {
                         section: eventSection, method: eventMethod, typeDef: types, data: eventData,
@@ -170,7 +186,12 @@ export const listenEvents = async (api, section, method, timeout = undefined) =>
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                 }
-                resolve(foundEvent);
+
+                resolve({
+                    events,
+                    foundEvent,
+                    foundEventIndex,
+                });
             }
         });
     };

@@ -157,7 +157,7 @@ export const scheduleTask = async ({
             });
 
             const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
-            const listenEventPromise = listenEvents(mangataApi, 'proxy', 'ProxyExecuted', nextHourExecutionTimeout);
+            const listenEventPromise = listenEvents(mangataApi, 'proxy', 'ProxyExecuted', undefined, nextHourExecutionTimeout);
 
             const promiseResults = scheduleActionType === ScheduleActionType.executeImmediately
                 ? await waitPromises([scheduleTaskPromise, listenEventPromise])
@@ -172,7 +172,7 @@ export const scheduleTask = async ({
 
             // Listen XCM events on Mangata side
             console.log(`\n5. Keep Listening XCM events on ${mangataChainName} until ${moment(timestampNextHour * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampNextHour}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-            const executedEvent = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[1] : await listenEventPromise;
+            const executedEvent = scheduleActionType === ScheduleActionType.executeImmediately ? promiseResults[1].foundEvent : await listenEventPromise;
             if (_.isNull(executedEvent)) {
                 console.log('Timeout! Task was not executed.');
                 return;
@@ -199,8 +199,8 @@ export const scheduleTask = async ({
 
             console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
 
-            const isTaskExecutedAgain = await listenEvents(mangataApi, 'proxy', 'ProxyExecuted', twoHoursExecutionTimeout);
-            if (isTaskExecutedAgain) {
+            const taskExecutedAgainResult = await listenEvents(mangataApi, 'proxy', 'ProxyExecuted', undefined, twoHoursExecutionTimeout);
+            if (!_.isNull(taskExecutedAgainResult)) {
                 console.log('Task cancellation failed! It executes again.');
                 return;
             }

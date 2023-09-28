@@ -148,9 +148,9 @@ export const schedulePriceTask = async ({
         keyringPair,
     });
 
-    const listenEventsPromise = listenEvents(oakApi, 'automationPrice', 'TaskScheduled', 60000);
+    const listenEventsPromise = listenEvents(oakApi, 'automationPrice', 'TaskScheduled', undefined, 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-    const taskScheduledEvent = results[1];
+    const { foundEvent: taskScheduledEvent } = results[1];
     const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
     console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
@@ -166,6 +166,9 @@ export const schedulePriceTask = async ({
         const { section, method } = event.event;
         return section === 'proxy' && method === 'ProxyExecuted';
     }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+    if (_.isNull(proxyExecutedEvent)) {
+        throw new Error('No xcmpQueue.Success event found.');
+    }
     console.log('ProxyExecuted event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
 
     await oakHelper.disconnect();
