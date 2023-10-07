@@ -35,7 +35,7 @@
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.38",
-    "web3": "^1.8.2"
+    "web3": "^4.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",
