@@ -8,16 +8,15 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { Sdk } from '@oak-network/sdk';
 import { AstarAdapter, OakAdapter } from '@oak-network/adapter';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout, bnToFloat, delay, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType,
+    sendExtrinsic, getDecimalBN, listenEvents, bnToFloat, getTaskIdInTaskScheduledEvent, waitPromises,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
-const TASK_FREQUENCY = 3600;
 
 // eslint-disable-next-line import/prefer-default-export
-export const scheduleTask = async ({
-    oakConfig, astarConfig, scheduleActionType, createPayloadFunc, keyringPair,
+export const schedulePriceTask = async ({
+    oakConfig, astarConfig, createPayloadFunc, keyringPair,
 }) => {
     const keyring = new Keyring({ type: 'sr25519' });
 
@@ -127,71 +126,50 @@ export const scheduleTask = async ({
     const payload = createPayloadFunc(astarApi);
     const payloadViaProxy = astarApi.tx.proxy.proxy(keyringPair.addressRaw, 'Any', payload);
 
-    const nextExecutionTime = getHourlyTimestamp(1) / 1000;
-    const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
-    const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
-        : { Fixed: { executionTimes: [0] } };
+    const automationPriceTriggerParams = {
+        chain: astarChainData.key,
+        exchange: 'arthswap',
+        asset1: 'WRSTR',
+        asset2: 'USDT',
+        submittedAt: moment().unix(),
+        triggerFunction: 'lt',
+        triggerParam: [100],
+    };
 
     console.log(`\nb) Execute the above an XCM from ${astarAdapter.getChainData().key} to schedule a task on ${oakChainName} ...`);
-    const sendExtrinsicPromise = Sdk().scheduleXcmpTaskWithPayThroughRemoteDerivativeAccountFlow({
+    const sendExtrinsicPromise = Sdk().scheduleXcmpPriceTaskWithPayThroughRemoteDerivativeAccountFlow({
         oakAdapter,
         destinationChainAdapter: astarAdapter,
         taskPayloadExtrinsic: payloadViaProxy,
         scheduleFeeLocation: astarChainData.defaultAsset.location,
         executionFeeLocation: astarChainData.defaultAsset.location,
-        schedule,
+        automationPriceTriggerParams,
         scheduleAs: u8aToHex(keyringPair.addressRaw),
         keyringPair,
     });
 
-    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', undefined, 60000);
+    const listenEventsPromise = listenEvents(oakApi, 'automationPrice', 'TaskScheduled', undefined, 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
     const { foundEvent: taskScheduledEvent } = results[1];
     const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
     console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
-    const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? nextExecutionTime : Math.round(moment().valueOf() / 1000);
+    console.log(`Wait for the price to be ${automationPriceTriggerParams.triggerFunction === 'lt' ? 'less than' : 'greater than'} ${automationPriceTriggerParams.triggerParam[0]}.`);
+    console.log(`Listen xcmpQueue.XcmpMessageSent event with taskId(${taskId}) and find xcmpQueue.XcmpMessageSent event on Turing...`);
+    const { foundEvent: xcmpMessageSentEvent } = await listenEvents(oakApi, 'xcmpQueue', 'XcmpMessageSent', { taskId });
+    const { messageHash } = xcmpMessageSentEvent.event.data;
+    console.log('messageHash: ', messageHash.toString());
 
-    const timeout = calculateTimeout(nextExecutionTime);
-
-    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const listenEventsResult = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', timeout);
-
-    if (_.isNull(listenEventsResult)) {
-        console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
-        return;
+    console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
+    const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = await listenEvents(astarApi, 'xcmpQueue', 'Success', { messageHash });
+    const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
+        const { section, method } = event.event;
+        return section === 'proxy' && method === 'ProxyExecuted';
+    }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+    if (_.isNull(proxyExecutedEvent)) {
+        throw new Error('No xcmpQueue.Success event found.');
     }
-
-    console.log('\nTask has been executed! Waiting for 20 seconds before reading proxy balance.');
-
-    await delay(20000);
-
-    // Calculating balance delta to show fee cost
-    const { data: endProxyBalance } = await astarApi.query.system.account(proxyAccoundIdOnParachain);
-    const proxyBalanceDelta = (new BN(proxyBalance.free)).sub(new BN(endProxyBalance.free));
-
-    console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, astarDecimalBN))} ${astarChainData.defaultAsset.symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, astarDecimalBN))} ${astarChainData.defaultAsset.symbol}.`);
-
-    if (scheduleActionType === ScheduleActionType.executeImmediately) return;
-
-    console.log('\n5. Cancel the task ...');
-    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
-    await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
-
-    const nextTwoHourExecutionTime = nextExecutionTime + TASK_FREQUENCY;
-    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
-
-    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
-
-    const TaskExecutedAgainResult = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', undefined, nextExecutionTimeout);
-
-    if (!_.isNull(TaskExecutedAgainResult)) {
-        console.log('Task cancellation failed! It executes again.');
-        return;
-    }
-    console.log("Task canceled successfully! It didn't execute again.");
+    console.log('ProxyExecuted event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
 
     await oakHelper.disconnect();
     await astarApi.disconnect();
