@@ -12,7 +12,8 @@ const main = async () => {
 
     const scheduleActionType = await askScheduleAction();
 
-    const { turingLocal, mangataLocal } = chains;
+    // const { turingLocal, mangataLocal } = chains;
+    const { DevChains: { turingLocal, mangataLocal } } = chains;
     await scheduleTask({
         oakConfig: turingLocal,
         mangataConfig: mangataLocal,

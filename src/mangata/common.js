@@ -9,10 +9,12 @@ import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 
 import {
-    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises,
+    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises, FeeType, FeeToken, askFeeToken,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 import MangataHelper from '../common/mangataHelper';
+
+const MIN_FOREIGN_TOKEN_ON_TURING = 10;
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -36,8 +38,11 @@ export const scheduleTask = async ({
     const mangataAdapter = new MangataAdapter(mangataApi, mangataConfig);
     await mangataAdapter.initialize();
 
-    const { defaultAsset: oakDefaultAsset } = oakAdapter.getChainData();
-    const { defaultAsset: mangataDefaultAsset } = mangataAdapter.getChainData();
+    const [oakDefaultAsset] = oakAdapter.getChainConfig().assets;
+    const [mangataDefaultAsset] = mangataAdapter.getChainConfig().assets;
+
+    const scheduleFeeToken = await askFeeToken(FeeType.scheduleFee);
+    const executionFeeToken = await askFeeToken(FeeType.executionFee);
 
     console.log('1. Reading assets ...');
     let assets = await mangataSdk.getAssetsInfo();
@@ -45,10 +50,10 @@ export const scheduleTask = async ({
     const turAsset = _.find(assets, { symbol: oakDefaultAsset.symbol });
     const mangataAsset = _.find(assets, { symbol: mangataDefaultAsset.symbol });
 
-    const { key: mangataChainName, ss58Prefix } = mangataAdapter.getChainData();
+    const { key: mangataChainName, ss58Prefix } = mangataAdapter.getChainConfig();
     const mangataAddress = keyring.encodeAddress(keyringPair.addressRaw, ss58Prefix);
 
-    const { paraId: oakParaId } = oakAdapter.getChainData();
+    const { paraId: oakParaId } = oakAdapter.getChainConfig();
     console.log(`\n2. Add a proxy on Mangata for paraId ${oakParaId}, or skip this step if that exists ...`);
 
     const proxyAccountId = mangataAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakParaId);
@@ -131,8 +136,31 @@ export const scheduleTask = async ({
         const answerPool = await confirm({ message: '\nDo you want to continue to schedule auto-compound. Press ENTRE to continue.', default: true });
 
         if (answerPool) {
+            console.log("\n4. Check if It's need to send foreign token to Turing ...");
+            if (scheduleFeeToken === FeeToken.foreignToken || executionFeeToken === FeeToken.foreignToken) {
+                const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(mangataDefaultAsset.location))
+                    .unwrapOrDefault()
+                    .toNumber();
+                const balanceOnOak = await oakApi.query.tokens.accounts(u8aToHex(keyringPair.addressRaw), paraTokenIdOnOak);
+                const minBalanceOnOak = new BN(MIN_FOREIGN_TOKEN_ON_TURING).mul(new BN(10).pow(new BN(mangataDefaultAsset.decimals)));
+                if (balanceOnOak.free.lt(minBalanceOnOak)) {
+                    console.log('Send MGR to Turing...');
+                    await mangataAdapter.crossChainTransfer(
+                        oakAdapter.getLocation(),
+                        u8aToHex(keyringPair.addressRaw),
+                        mangataDefaultAsset.location,
+                        minBalanceOnOak,
+                        keyringPair,
+                    );
+                } else {
+                    console.log('Enough foreign token on Turing.');
+                }
+            } else {
+                console.log('The scheduleFeeToken and executionFeeToken are not foreign token. No need to send foreign token to Turing.');
+            }
+
             // Create Mangata proxy call
-            console.log('\n4. Start to schedule an auto-compound call via XCM ...');
+            console.log('\n5. Start to schedule an auto-compound call via XCM ...');
 
             // The second parameter of compoundRewards is a Permill type in Rust,
             // of which 10% equates to 1,000 and 100% equates to 10,000.
@@ -148,13 +176,14 @@ export const scheduleTask = async ({
                 ? { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } }
                 : { Fixed: { executionTimes: [0] } };
 
-            const scheduleTaskPromise = Sdk().scheduleXcmpTaskWithPayThroughSoverignAccountFlow({
+            const scheduleTaskPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughSoverignAccountFlow({
                 oakAdapter,
                 destinationChainAdapter: mangataAdapter,
                 taskPayloadExtrinsic,
-                schedule,
                 keyringPair,
-            });
+                scheduleFeeLocation: scheduleFeeToken === FeeToken.turToken ? oakDefaultAsset.location : mangataDefaultAsset.location,
+                executionFeeLocation: executionFeeToken === FeeToken.turToken ? oakDefaultAsset.location : mangataDefaultAsset.location,
+            }, schedule);
 
             const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
             const listenEventPromise = listenEvents(mangataApi, 'proxy', 'ProxyExecuted', undefined, nextHourExecutionTimeout);

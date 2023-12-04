@@ -15,6 +15,16 @@ export const ScheduleActionType = {
     executeOnTheHour: 'execute-on-the-hour',
 };
 
+export const FeeType = {
+    scheduleFee: 'schedule-fee',
+    executionFee: 'execution-fee',
+};
+
+export const FeeToken = {
+    turToken: 'tur-token',
+    foreignToken: 'foreign-token',
+};
+
 export const sendExtrinsic = async (api, extrinsic, keyPair, { isSudo = false } = {}) => new Promise((resolve) => {
     const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
     newExtrinsic.signAndSend(keyPair, { nonce: -1 }, ({ status, events }) => {
@@ -235,6 +245,26 @@ export const askScheduleAction = async () => {
         choices: actions,
     });
     return actionSelected;
+};
+
+export const askFeeToken = async (feeType) => {
+    const choices = [
+        {
+            name: 'TUR token',
+            value: FeeToken.turToken,
+            description: 'TUR token',
+        },
+        {
+            name: 'Foreign token',
+            value: FeeToken.foreignToken,
+            description: 'Foreign token',
+        },
+    ];
+    const feeTokenSelected = await select({
+        message: feeType === FeeType.scheduleFee ? 'Select a token as the schedule fee for the task' : 'Select a token as the execution fee for XCM',
+        choices,
+    });
+    return feeTokenSelected;
 };
 
 /**

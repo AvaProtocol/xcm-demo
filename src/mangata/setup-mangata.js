@@ -24,7 +24,7 @@ import { delay, getDecimalBN } from '../common/utils';
 /** * Main entrance of the program */
 async function main() {
     await cryptoWaitReady();
-    const { turingLocal, mangataLocal } = chains;
+    const { DevChains: { turingLocal, mangataLocal } } = chains;
 
     console.log('Initializing APIs of both chains ...');
     const oakHelper = new OakHelper({ endpoint: turingLocal.endpoint });
@@ -41,8 +41,8 @@ async function main() {
     const oakChainName = oakAdapter.getChainData().key;
     const mangataChainName = mangataAdapter.getChainData().key;
 
-    const { defaultAsset: oakDefaultAsset } = oakAdapter.getChainData();
-    const { defaultAsset: mangataDefaultAsset } = mangataAdapter.getChainData();
+    const [oakDefaultAsset] = oakAdapter.getChainData().assets;
+    const [mangataDefaultAsset] = mangataAdapter.getChainData().assets;
 
     console.log(`\n${oakChainName} chain, native token: ${JSON.stringify(oakDefaultAsset)}`);
     console.log(`${mangataChainName} chain, native token: ${JSON.stringify(mangataDefaultAsset)}\n`);
