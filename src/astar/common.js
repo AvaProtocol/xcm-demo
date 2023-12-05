@@ -31,20 +31,22 @@ export const scheduleTask = async ({
     const astarAdapter = new AstarAdapter(astarApi, astarConfig);
     await astarAdapter.initialize();
 
-    const oakChainData = oakAdapter.getChainData();
-    const astarChainData = astarAdapter.getChainData();
+    const oakChainData = oakAdapter.getChainConfig();
+    const astarChainData = astarAdapter.getChainConfig();
+
+    const [astarDefaultAsset] = astarChainData.assets;
 
     const oakChainName = oakChainData.key;
     const parachainName = astarChainData.key;
     const oakChainAddress = keyring.encodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
     const parachainAddress = keyring.encodeAddress(keyringPair.addressRaw, astarChainData.ss58Prefix);
-    const astarDecimalBN = getDecimalBN(astarChainData.defaultAsset.decimals);
-    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(astarChainData.defaultAsset.location))
+    const astarDecimalBN = getDecimalBN(astarDefaultAsset.decimals);
+    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(astarDefaultAsset.location))
         .unwrapOrDefault()
         .toNumber();
 
     console.log(`Wallet address on ${oakChainName}:${oakChainAddress}, ${parachainName}: ${parachainAddress}`);
-    console.log(`${astarChainData.defaultAsset.symbol} ID on ${oakChainName}: `, paraTokenIdOnOak);
+    console.log(`${astarDefaultAsset.symbol} ID on ${oakChainName}: `, paraTokenIdOnOak);
 
     // One-time setup - a proxy account needs to be created to execute an XCM message on behalf of its user
     // We also need to transfer tokens to the proxy account to pay for XCM and task execution fees
@@ -69,7 +71,7 @@ export const scheduleTask = async ({
     const { data } = await astarApi.query.system.account(proxyAccoundIdOnParachain);
     let proxyBalance = data;
     if (proxyBalance.free.lt(minBalance)) {
-        console.log(`\nTopping up the proxy account on ${astarChainData.key} with ${astarChainData.defaultAsset.symbol} ...\n`);
+        console.log(`\nTopping up the proxy account on ${astarChainData.key} with ${astarDefaultAsset.symbol} ...\n`);
         const topUpExtrinsic = astarApi.tx.balances.transfer(proxyAccoundIdOnParachain, minBalance.toString());
         await sendExtrinsic(astarApi, topUpExtrinsic, keyringPair);
 
@@ -79,7 +81,7 @@ export const scheduleTask = async ({
 
     const beginProxyBalance = bnToFloat(proxyBalance.free, astarDecimalBN);
     const beginProxyBalanceColor = beginProxyBalance === 0 ? 'red' : 'green';
-    console.log(`\nb) Proxy’s balance on ${parachainName} is ${chalkPipe(beginProxyBalanceColor)(beginProxyBalance)} ${astarChainData.defaultAsset.symbol}.`);
+    console.log(`\nb) Proxy’s balance on ${parachainName} is ${chalkPipe(beginProxyBalanceColor)(beginProxyBalance)} ${astarDefaultAsset.symbol}.`);
 
     console.log(`\n2. One-time proxy setup on ${oakChainName} ...`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainName} (paraId:${astarChainData.paraId})\n`);
@@ -105,7 +107,7 @@ export const scheduleTask = async ({
         astarAdapter.crossChainTransfer(
             oakAdapter.getLocation(),
             proxyAccoundIdOnOak,
-            astarChainData.defaultAsset.location,
+            astarDefaultAsset.location,
             minBalanceOnOak,
             keyringPair,
         );
@@ -116,7 +118,7 @@ export const scheduleTask = async ({
     // TODO: wait for balance to be updated here; if we execute too quick the following xcm execution will fail due to insufficient balance
     const beginBalanceOak = bnToFloat(balanceOnOak.free, astarDecimalBN);
     const beginBalanceTuringColor = beginBalanceOak === 0 ? 'red' : 'green';
-    console.log(`\nb) Proxy’s balance on ${oakChainData.key} is ${chalkPipe(beginBalanceTuringColor)(beginBalanceOak)} ${astarChainData.defaultAsset.symbol}.`);
+    console.log(`\nb) Proxy’s balance on ${oakChainData.key} is ${chalkPipe(beginBalanceTuringColor)(beginBalanceOak)} ${astarDefaultAsset.symbol}.`);
 
     console.log(`\n3. Execute an XCM from ${parachainName} to schedule a task on ${oakChainData} ...`);
 
@@ -133,17 +135,18 @@ export const scheduleTask = async ({
         ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
         : { Fixed: { executionTimes: [0] } };
 
-    console.log(`\nb) Execute the above an XCM from ${astarAdapter.getChainData().key} to schedule a task on ${oakChainName} ...`);
-    const sendExtrinsicPromise = Sdk().scheduleXcmpTaskWithPayThroughRemoteDerivativeAccountFlow({
-        oakAdapter,
-        destinationChainAdapter: astarAdapter,
-        taskPayloadExtrinsic: payloadViaProxy,
-        scheduleFeeLocation: astarChainData.defaultAsset.location,
-        executionFeeLocation: astarChainData.defaultAsset.location,
+    console.log(`\nb) Execute the above an XCM from ${astarChainData.key} to schedule a task on ${oakChainName} ...`);
+    const sendExtrinsicPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughRemoteDerivativeAccountFlow(
+        {
+            oakAdapter,
+            taskPayloadExtrinsic: payloadViaProxy,
+            scheduleFeeLocation: astarDefaultAsset.location,
+            executionFeeLocation: astarDefaultAsset.location,
+            keyringPair,
+        },
+        astarAdapter,
         schedule,
-        scheduleAs: u8aToHex(keyringPair.addressRaw),
-        keyringPair,
-    });
+    );
 
     const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', undefined, 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
@@ -172,7 +175,7 @@ export const scheduleTask = async ({
     const { data: endProxyBalance } = await astarApi.query.system.account(proxyAccoundIdOnParachain);
     const proxyBalanceDelta = (new BN(proxyBalance.free)).sub(new BN(endProxyBalance.free));
 
-    console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, astarDecimalBN))} ${astarChainData.defaultAsset.symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, astarDecimalBN))} ${astarChainData.defaultAsset.symbol}.`);
+    console.log(`\nAfter execution, Proxy’s balance is ${chalkPipe('green')(bnToFloat(endProxyBalance.free, astarDecimalBN))} ${astarDefaultAsset.symbol}. The delta of proxy balance, or the XCM fee cost is ${chalkPipe('green')(bnToFloat(proxyBalanceDelta, astarDecimalBN))} ${astarDefaultAsset.symbol}.`);
 
     if (scheduleActionType === ScheduleActionType.executeImmediately) return;
 
