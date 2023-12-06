@@ -8,12 +8,11 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { Sdk } from '@oak-network/sdk';
 import { AstarAdapter, OakAdapter } from '@oak-network/adapter';
 import {
-    sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout, bnToFloat, delay, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType,
+    sendExtrinsic, getDecimalBN, listenEvents, calculateTimeout, bnToFloat, delay, getTaskIdInTaskScheduledEvent, waitPromises, ScheduleActionType, getTimeSlotSpanTimestamp,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 
 const MIN_BALANCE_IN_PROXY = 10; // The proxy accounts are to be topped up if its balance fails below this number
-const TASK_FREQUENCY = 3600;
 
 // eslint-disable-next-line import/prefer-default-export
 export const scheduleTask = async ({
@@ -86,7 +85,7 @@ export const scheduleTask = async ({
     console.log(`\n2. One-time proxy setup on ${oakChainName} ...`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainName} (paraId:${astarChainData.paraId})\n`);
     const proxyTypeOak = 'Any';
-    const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, { network: astarChainData.xcm.network, locationType: 'XcmV3MultiLocation' });
+    const proxyAccoundIdOnOak = oakAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), astarChainData.paraId, astarChainData.xcm.instructionNetworkType);
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccoundIdOnOak, oakChainData.ss58Prefix);
     const proxiesOnOak = _.first((await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw))).toJSON());
     const proxyMatchOak = _.find(proxiesOnOak, { delegate: proxyAddressOnOak, proxyType: proxyTypeOak });
@@ -129,10 +128,10 @@ export const scheduleTask = async ({
     const payload = createPayloadFunc(astarApi);
     const payloadViaProxy = astarApi.tx.proxy.proxy(keyringPair.addressRaw, 'Any', payload);
 
-    const nextExecutionTime = getHourlyTimestamp(1) / 1000;
-    const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+    const nextExecutionTime = getTimeSlotSpanTimestamp(1) / 1000;
+    const twoTimeSlotsTimestamp = getTimeSlotSpanTimestamp(2) / 1000;
     const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
+        ? { Fixed: { executionTimes: [nextExecutionTime, twoTimeSlotsTimestamp] } }
         : { Fixed: { executionTimes: [0] } };
 
     console.log(`\nb) Execute the above an XCM from ${astarChainData.key} to schedule a task on ${oakChainName} ...`);
@@ -180,13 +179,12 @@ export const scheduleTask = async ({
     if (scheduleActionType === ScheduleActionType.executeImmediately) return;
 
     console.log('\n5. Cancel the task ...');
-    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
+    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTaskWithScheduleAs(proxyAccoundIdOnOak, taskId);
     await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
 
-    const nextTwoHourExecutionTime = nextExecutionTime + TASK_FREQUENCY;
     const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
 
-    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
+    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(twoTimeSlotsTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotsTimestamp}) to verify that the task was successfully canceled ...`);
 
     const TaskExecutedAgainResult = await listenEvents(astarApi, 'proxy', 'ProxyExecuted', undefined, nextExecutionTimeout);
 
