@@ -38,11 +38,11 @@ async function main() {
     const mangataSdk = mangataHelper.getMangataSdk();
     const mangataAdapter = new MangataAdapter(mangataApi, mangataLocal);
 
-    const oakChainName = oakAdapter.getChainData().key;
-    const mangataChainName = mangataAdapter.getChainData().key;
+    const oakChainName = oakAdapter.getChainConfig().key;
+    const mangataChainName = mangataAdapter.getChainConfig().key;
 
-    const [oakDefaultAsset] = oakAdapter.getChainData().assets;
-    const [mangataDefaultAsset] = mangataAdapter.getChainData().assets;
+    const [oakDefaultAsset] = oakAdapter.getChainConfig().assets;
+    const [mangataDefaultAsset] = mangataAdapter.getChainConfig().assets;
 
     console.log(`\n${oakChainName} chain, native token: ${JSON.stringify(oakDefaultAsset)}`);
     console.log(`${mangataChainName} chain, native token: ${JSON.stringify(mangataDefaultAsset)}\n`);
@@ -51,7 +51,7 @@ async function main() {
     const keyringPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
     keyringPair.meta.name = 'Alice';
 
-    const mangataAddress = keyring.encodeAddress(keyringPair.addressRaw, mangataAdapter.getChainData().ss58Prefix);
+    const mangataAddress = keyring.encodeAddress(keyringPair.addressRaw, mangataAdapter.getChainConfig().ss58Prefix);
 
     let assets = await mangataSdk.getAssetsInfo();
     assets = _.map(assets, (asset) => asset);
