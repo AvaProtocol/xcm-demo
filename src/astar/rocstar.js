@@ -11,7 +11,7 @@ const main = async () => {
     const keyringPair = keyring.addFromJson(json);
     keyringPair.unlock(process.env.PASS_PHRASE);
 
-    const { turingStaging, rocstar } = chains;
+    const { RococoChains: { turingStaging, rocstar } } = chains;
     await scheduleTask({
         oakConfig: turingStaging,
         astarConfig: rocstar,
