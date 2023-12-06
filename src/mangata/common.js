@@ -9,12 +9,12 @@ import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 
 import {
-    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises, FeeType, FeeToken, askFeeToken,
+    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises, FeeType, FeeToken, askFeeToken, getTimeSlotSpanTimestamp,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 import MangataHelper from '../common/mangataHelper';
 
-const MIN_FOREIGN_TOKEN_ON_TURING = 10;
+const MIN_FOREIGN_TOKEN_ON_TURING = 100;
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -169,11 +169,11 @@ export const scheduleTask = async ({
             const taskPayloadExtrinsic = mangataApi.tx.proxy.proxy(u8aToHex(keyringPair.addressRaw), 'AutoCompound', compoundRewardsExtrinsic);
 
             // Schedule task with sdk
-            const timestampNextHour = getHourlyTimestamp(1) / 1000;
-            const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+            const timestampNextHour = getTimeSlotSpanTimestamp(1) / 1000;
+            const twoTimeSlotTimestamp = getTimeSlotSpanTimestamp(2) / 1000;
 
             const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
-                ? { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } }
+                ? { Fixed: { executionTimes: [timestampNextHour, twoTimeSlotTimestamp] } }
                 : { Fixed: { executionTimes: [0] } };
 
             const scheduleTaskPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughSoverignAccountFlow({
@@ -224,9 +224,9 @@ export const scheduleTask = async ({
             const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
             await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
 
-            const twoHoursExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
+            const twoHoursExecutionTimeout = calculateTimeout(twoTimeSlotTimestamp);
 
-            console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
+            console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(twoTimeSlotTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotTimestamp}) to verify that the task was successfully canceled ...`);
 
             const taskExecutedAgainResult = await listenEvents(mangataApi, 'proxy', 'ProxyExecuted', undefined, twoHoursExecutionTimeout);
             if (!_.isNull(taskExecutedAgainResult)) {
