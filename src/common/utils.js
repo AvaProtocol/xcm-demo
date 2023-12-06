@@ -9,6 +9,7 @@ const LISTEN_EVENT_DELAY = 3 * 60;
 
 export const WEIGHT_REF_TIME_PER_SECOND = 1000000000000;
 export const WEIGHT_PROOF_SIZE_PER_MB = 1024 * 1024;
+export const TIME_SLOT_IN_SECONDS = 600;
 
 export const ScheduleActionType = {
     executeImmediately: 'execute-immediately',
@@ -253,6 +254,21 @@ export const bnToFloat = (amountBN, decimalBN, digit = 4) => {
 };
 
 export const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf();
+
+/**
+ * Get the timestamp on time slot
+ * @param {*} numberOfTimeSlot the number of timeslot, e.g. 1, 2, 3, 4
+ * @returns a timestamp in milliseconds
+ */
+export const getTimeSlotSpanTimestamp = (numberOfTimeSlot) => {
+    // Get the current timestamp
+    const currentTimeStampInSeconds = Math.floor(Date.now() / 1000);
+    // Adjust the current timestamp to be a multiple of the timeslot
+    const adjustedTime = currentTimeStampInSeconds
+      - (currentTimeStampInSeconds % TIME_SLOT_IN_SECONDS);
+    // Return the timestamp on time slot
+    return (adjustedTime + numberOfTimeSlot * TIME_SLOT_IN_SECONDS) * 1000;
+};
 
 export const findEvent = (events, section, method) => events.find((e) => e.event.section === section && e.event.method === method);
 export const getTaskIdInTaskScheduledEvent = (event) => Buffer.from(event.event.data.taskId).toString();

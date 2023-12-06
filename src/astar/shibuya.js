@@ -14,7 +14,7 @@ const main = async () => {
 
     const scheduleActionType = await askScheduleAction();
 
-    const { turingLocal, shibuya } = chains;
+    const { DevChains: { turingLocal, shibuya } } = chains;
     await scheduleTask({
         oakConfig: turingLocal,
         astarConfig: shibuya,
