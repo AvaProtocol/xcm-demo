@@ -239,6 +239,21 @@ export const askScheduleAction = async () => {
 };
 
 /**
+ * Get the selected asset from the user
+ * @param {*} message The message to be displayed to the user
+ * @param {*} assets The list of assets to be selected
+ * @returns the selected asset
+ */
+export const getSelectedAsset = async (message, assets) => {
+    const choices = _.map(assets, (asset) => ({
+        name: asset.symbol,
+        value: asset,
+        description: asset.symbol,
+    }));
+    return select({ message, choices });
+};
+
+/**
  * Convert a BN object to float such as 0.0135
  * @param {*} amountBN
  * @param {*} decimalBN

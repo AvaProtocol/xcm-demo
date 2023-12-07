@@ -9,10 +9,12 @@ import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 
 import {
-    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises,
+    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, ScheduleActionType, waitPromises, getTimeSlotSpanTimestamp, getSelectedAsset,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 import MangataHelper from '../common/mangataHelper';
+
+const MIN_FOREIGN_TOKEN_ON_TURING = 100;
 
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
@@ -36,8 +38,17 @@ export const scheduleTask = async ({
     const mangataAdapter = new MangataAdapter(mangataApi, mangataConfig);
     await mangataAdapter.initialize();
 
-    const { defaultAsset: oakDefaultAsset } = oakAdapter.getChainData();
-    const { defaultAsset: mangataDefaultAsset } = mangataAdapter.getChainData();
+    const [oakDefaultAsset] = oakAdapter.getChainConfig().assets;
+    const [mangataDefaultAsset] = mangataAdapter.getChainConfig().assets;
+
+    const scheduleFeeAsset = await getSelectedAsset(
+        'Select a asset as the schedule fee for the task',
+        [oakDefaultAsset, mangataDefaultAsset],
+    );
+    const executionFeeAsset = await getSelectedAsset(
+        'Select a asset as the execution fee for XCM',
+        [oakDefaultAsset, mangataDefaultAsset],
+    );
 
     console.log('1. Reading assets ...');
     let assets = await mangataSdk.getAssetsInfo();
@@ -45,10 +56,10 @@ export const scheduleTask = async ({
     const turAsset = _.find(assets, { symbol: oakDefaultAsset.symbol });
     const mangataAsset = _.find(assets, { symbol: mangataDefaultAsset.symbol });
 
-    const { key: mangataChainName, ss58Prefix } = mangataAdapter.getChainData();
+    const { key: mangataChainName, ss58Prefix } = mangataAdapter.getChainConfig();
     const mangataAddress = keyring.encodeAddress(keyringPair.addressRaw, ss58Prefix);
 
-    const { paraId: oakParaId } = oakAdapter.getChainData();
+    const { paraId: oakParaId } = oakAdapter.getChainConfig();
     console.log(`\n2. Add a proxy on Mangata for paraId ${oakParaId}, or skip this step if that exists ...`);
 
     const proxyAccountId = mangataAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakParaId);
@@ -131,8 +142,31 @@ export const scheduleTask = async ({
         const answerPool = await confirm({ message: '\nDo you want to continue to schedule auto-compound. Press ENTRE to continue.', default: true });
 
         if (answerPool) {
+            console.log("\n4. Check if It's need to send foreign token to Turing ...");
+            if (scheduleFeeAsset === mangataDefaultAsset || executionFeeAsset === mangataDefaultAsset) {
+                const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(mangataDefaultAsset.location))
+                    .unwrapOrDefault()
+                    .toNumber();
+                const balanceOnOak = await oakApi.query.tokens.accounts(u8aToHex(keyringPair.addressRaw), paraTokenIdOnOak);
+                const minBalanceOnOak = new BN(MIN_FOREIGN_TOKEN_ON_TURING).mul(new BN(10).pow(new BN(mangataDefaultAsset.decimals)));
+                if (balanceOnOak.free.lt(minBalanceOnOak)) {
+                    console.log('Send MGR to Turing...');
+                    await mangataAdapter.crossChainTransfer(
+                        oakAdapter.getLocation(),
+                        u8aToHex(keyringPair.addressRaw),
+                        mangataDefaultAsset.location,
+                        minBalanceOnOak,
+                        keyringPair,
+                    );
+                } else {
+                    console.log('Enough foreign token on Turing.');
+                }
+            } else {
+                console.log('The scheduleFeeToken and executionFeeToken are not foreign token. No need to send foreign token to Turing.');
+            }
+
             // Create Mangata proxy call
-            console.log('\n4. Start to schedule an auto-compound call via XCM ...');
+            console.log('\n5. Start to schedule an auto-compound call via XCM ...');
 
             // The second parameter of compoundRewards is a Permill type in Rust,
             // of which 10% equates to 1,000 and 100% equates to 10,000.
@@ -141,20 +175,21 @@ export const scheduleTask = async ({
             const taskPayloadExtrinsic = mangataApi.tx.proxy.proxy(u8aToHex(keyringPair.addressRaw), 'AutoCompound', compoundRewardsExtrinsic);
 
             // Schedule task with sdk
-            const timestampNextHour = getHourlyTimestamp(1) / 1000;
-            const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+            const timestampNextHour = getTimeSlotSpanTimestamp(1) / 1000;
+            const twoTimeSlotTimestamp = getTimeSlotSpanTimestamp(2) / 1000;
 
             const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
-                ? { Fixed: { executionTimes: [timestampNextHour, timestampTwoHoursLater] } }
+                ? { Fixed: { executionTimes: [timestampNextHour, twoTimeSlotTimestamp] } }
                 : { Fixed: { executionTimes: [0] } };
 
-            const scheduleTaskPromise = Sdk().scheduleXcmpTaskWithPayThroughSoverignAccountFlow({
+            const scheduleTaskPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughSoverignAccountFlow({
                 oakAdapter,
                 destinationChainAdapter: mangataAdapter,
                 taskPayloadExtrinsic,
-                schedule,
                 keyringPair,
-            });
+                scheduleFeeLocation: scheduleFeeAsset.location,
+                executionFeeLocation: executionFeeAsset.location,
+            }, schedule);
 
             const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
             const listenEventPromise = listenEvents(mangataApi, 'proxy', 'ProxyExecuted', undefined, nextHourExecutionTimeout);
@@ -195,9 +230,9 @@ export const scheduleTask = async ({
             const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
             await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
 
-            const twoHoursExecutionTimeout = calculateTimeout(timestampTwoHoursLater);
+            const twoHoursExecutionTimeout = calculateTimeout(twoTimeSlotTimestamp);
 
-            console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(timestampTwoHoursLater * 1000).format('YYYY-MM-DD HH:mm:ss')}(${timestampTwoHoursLater}) to verify that the task was successfully canceled ...`);
+            console.log(`\n6. Keep Listening events on ${mangataChainName} until ${moment(twoTimeSlotTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotTimestamp}) to verify that the task was successfully canceled ...`);
 
             const taskExecutedAgainResult = await listenEvents(mangataApi, 'proxy', 'ProxyExecuted', undefined, twoHoursExecutionTimeout);
             if (!_.isNull(taskExecutedAgainResult)) {
