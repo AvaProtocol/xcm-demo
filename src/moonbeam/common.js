@@ -8,11 +8,9 @@ import { Sdk } from '@oak-network/sdk';
 import moment from 'moment';
 import chalkPipe from 'chalk-pipe';
 import {
-    sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, waitPromises, ScheduleActionType, calculateTimeout,
+    sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, waitPromises, ScheduleActionType, calculateTimeout, getTimeSlotSpanTimestamp,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
-
-const TASK_FREQUENCY = 3600;
 
 /**
  * Schedule task
@@ -35,8 +33,10 @@ export const scheduleTask = async ({
     const moonbeamAdapter = new MoonbeamAdapter(moonbeamApi, moonbeamConfig);
     await moonbeamAdapter.initialize();
 
-    const oakChainData = oakAdapter.getChainData();
-    const moonbeamChainData = moonbeamAdapter.getChainData();
+    const oakChainData = oakAdapter.getChainConfig();
+    const moonbeamChainData = moonbeamAdapter.getChainConfig();
+
+    const [moonbeamDefaultAsset] = moonbeamChainData.assets;
 
     const parachainName = moonbeamChainData.key;
 
@@ -60,7 +60,7 @@ export const scheduleTask = async ({
 
     // Reserve transfer DEV to the proxy account on Turing
     console.log(`\nb) Reserve transfer DEV to the proxy account on ${oakChainData.key}: `);
-    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(moonbeamChainData.defaultAsset.location))
+    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(moonbeamDefaultAsset.location))
         .unwrapOrDefault()
         .toNumber();
     console.log('paraTokenIdOnOak: ', paraTokenIdOnOak);
@@ -76,7 +76,7 @@ export const scheduleTask = async ({
         await moonbeamAdapter.crossChainTransfer(
             oakAdapter.getLocation(),
             proxyAccountId,
-            moonbeamChainData.defaultAsset.location,
+            moonbeamDefaultAsset.location,
             minBalanceOnOak,
             moonbeamKeyringPair,
         );
@@ -128,26 +128,25 @@ export const scheduleTask = async ({
     );
 
     console.log(`\nb). Send extrinsic from ${moonbeamChainData.key} to ${oakChainData.key} to schedule task. Listen to TaskScheduled event on ${oakChainData.key} chain ...`);
-    const nextExecutionTime = getHourlyTimestamp(1) / 1000;
-    const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+    const nextExecutionTime = getTimeSlotSpanTimestamp(1) / 1000;
+    const twoTimeSlotsTimestamp = getTimeSlotSpanTimestamp(2) / 1000;
 
     const schedule = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } }
+        ? { Fixed: { executionTimes: [nextExecutionTime, twoTimeSlotsTimestamp] } }
         : { Fixed: { executionTimes: [0] } };
 
-    const sendExtrinsicPromise = Sdk().scheduleXcmpTaskWithPayThroughRemoteDerivativeAccountFlow({
+    const sendExtrinsicPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughRemoteDerivativeAccountFlow({
         oakAdapter,
         destinationChainAdapter: moonbeamAdapter,
         taskPayloadExtrinsic,
-        scheduleFeeLocation: moonbeamChainData.defaultAsset.location,
-        executionFeeLocation: moonbeamChainData.defaultAsset.location,
-        schedule,
+        scheduleFeeLocation: moonbeamDefaultAsset.location,
+        executionFeeLocation: moonbeamDefaultAsset.location,
         scheduleAs: u8aToHex(keyringPair.addressRaw),
         keyringPair: moonbeamKeyringPair,
-    });
+    }, schedule);
     const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-    const taskScheduledEvent = results[1];
+    const { foundEvent: taskScheduledEvent } = results[1];
     const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
     console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
@@ -156,27 +155,49 @@ export const scheduleTask = async ({
     const timeout = calculateTimeout(nextExecutionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-    const listenEventsResult = await listenEvents(moonbeamApi, 'ethereum', 'Executed', undefined, timeout);
+
+    const listenEventsResult = await listenEvents(oakApi, 'automationTime', 'TaskTriggered', { taskId }, timeout);
 
     if (_.isNull(listenEventsResult)) {
-        console.log(`\n${chalkPipe('red')('Error')} Timeout! Task was not executed.`);
+        console.log(`\n${chalkPipe('red')('Error')} No automationTime.TaskTriggered event found.`);
         return;
     }
+
+    const { events, foundEventIndex } = listenEventsResult;
+    const xcmpMessageSentEvent = _.find(events, (event) => {
+        const { section, method } = event.event;
+        return section === 'xcmpQueue' && method === 'XcmpMessageSent';
+    }, foundEventIndex);
+    console.log('XcmpMessageSent event: ', xcmpMessageSentEvent.toHuman());
+    const { messageHash } = xcmpMessageSentEvent.event.data;
+    console.log('messageHash: ', messageHash.toString());
+
+    console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
+    const result = await listenEvents(moonbeamApi, 'xcmpQueue', 'Success', { messageHash }, 60000);
+    if (_.isNull(result)) {
+        console.log('No xcmpQueue.Success event found.');
+        return;
+    }
+    const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = result;
+    const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
+        const { section, method } = event.event;
+        return section === 'ethereum' && method === 'Executed';
+    }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+    console.log('ethereum.Executed event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
 
     if (scheduleActionType === ScheduleActionType.executeImmediately) return;
 
     console.log('\n5. Cancel the task ...');
-    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTask(taskId);
+    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTaskWithScheduleAs(proxyAccountId, taskId);
     await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
 
-    const nextTwoHourExecutionTime = nextExecutionTime + TASK_FREQUENCY;
-    const nextExecutionTimeout = calculateTimeout(nextExecutionTime);
+    const nextExecutionTimeout = calculateTimeout(twoTimeSlotsTimestamp);
 
-    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(nextTwoHourExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${nextTwoHourExecutionTime}) to verify that the task was successfully canceled ...`);
+    console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(twoTimeSlotsTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotsTimestamp}) to verify that the task was successfully canceled ...`);
 
-    const listenEventsAgainResult = await listenEvents(moonbeamApi, 'ethereum', 'Executed', undefined, nextExecutionTimeout);
+    const listenEventsAgainResult = await listenEvents(oakApi, 'automationTime', 'TaskTriggered', { taskId }, nextExecutionTimeout);
 
-    if (_.isNull(listenEventsAgainResult)) {
+    if (!_.isNull(listenEventsAgainResult)) {
         console.log('Task cancellation failed! It executes again.');
         return;
     }

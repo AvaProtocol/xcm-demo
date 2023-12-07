@@ -17,7 +17,7 @@ const main = async () => {
     const moonbeamKeyringPair = moonbeamKeyring.addFromJson(moonbeamMnemonic);
     moonbeamKeyringPair.unlock(process.env.PASS_PHRASE_ETH);
 
-    const { turingMoonbase, moonbaseAlpha } = chains;
+    const { MoonbaseChains: { turingMoonbase, moonbaseAlpha } } = chains;
     await scheduleTask({
         oakConfig: turingMoonbase,
         moonbeamConfig: moonbaseAlpha,
