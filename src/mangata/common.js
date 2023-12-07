@@ -9,7 +9,7 @@ import { MangataAdapter, OakAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 
 import {
-    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, getHourlyTimestamp, ScheduleActionType, waitPromises, FeeType, FeeToken, askFeeToken, getTimeSlotSpanTimestamp,
+    delay, listenEvents, getDecimalBN, calculateTimeout, sendExtrinsic, findEvent, getTaskIdInTaskScheduledEvent, ScheduleActionType, waitPromises, getTimeSlotSpanTimestamp, getSelectedAsset,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 import MangataHelper from '../common/mangataHelper';
@@ -41,8 +41,14 @@ export const scheduleTask = async ({
     const [oakDefaultAsset] = oakAdapter.getChainConfig().assets;
     const [mangataDefaultAsset] = mangataAdapter.getChainConfig().assets;
 
-    const scheduleFeeToken = await askFeeToken(FeeType.scheduleFee);
-    const executionFeeToken = await askFeeToken(FeeType.executionFee);
+    const scheduleFeeAsset = await getSelectedAsset(
+        'Select a asset as the schedule fee for the task',
+        [oakDefaultAsset, mangataDefaultAsset],
+    );
+    const executionFeeAsset = await getSelectedAsset(
+        'Select a asset as the execution fee for XCM',
+        [oakDefaultAsset, mangataDefaultAsset],
+    );
 
     console.log('1. Reading assets ...');
     let assets = await mangataSdk.getAssetsInfo();
@@ -137,7 +143,7 @@ export const scheduleTask = async ({
 
         if (answerPool) {
             console.log("\n4. Check if It's need to send foreign token to Turing ...");
-            if (scheduleFeeToken === FeeToken.foreignToken || executionFeeToken === FeeToken.foreignToken) {
+            if (scheduleFeeAsset === mangataDefaultAsset || executionFeeAsset === mangataDefaultAsset) {
                 const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(mangataDefaultAsset.location))
                     .unwrapOrDefault()
                     .toNumber();
@@ -181,8 +187,8 @@ export const scheduleTask = async ({
                 destinationChainAdapter: mangataAdapter,
                 taskPayloadExtrinsic,
                 keyringPair,
-                scheduleFeeLocation: scheduleFeeToken === FeeToken.turToken ? oakDefaultAsset.location : mangataDefaultAsset.location,
-                executionFeeLocation: executionFeeToken === FeeToken.turToken ? oakDefaultAsset.location : mangataDefaultAsset.location,
+                scheduleFeeLocation: scheduleFeeAsset.location,
+                executionFeeLocation: executionFeeAsset.location,
             }, schedule);
 
             const nextHourExecutionTimeout = calculateTimeout(timestampNextHour);
