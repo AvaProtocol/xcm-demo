@@ -62,7 +62,7 @@ export const scheduleTask = async ({
     if (proxyMatch) {
         console.log(`Proxy address ${proxyAddressOnParachain} for paraId: ${astarChainData.paraId} and proxyType: ${proxyTypeParachain} already exists; skipping creation ...`);
     } else {
-        console.log(`Add a proxy of ${oakChainName.key} (paraId:${oakChainName.paraId}) and proxyType: ${proxyTypeParachain} on ${parachainName} ...\n Proxy address: ${proxyAddressOnParachain}\n`);
+        console.log(`Add a proxy of ${oakChainName} (paraId:${oakChainData.paraId}) and proxyType: ${proxyTypeParachain} on ${parachainName} ...\n Proxy address: ${proxyAddressOnParachain}\n`);
         await sendExtrinsic(astarApi, astarApi.tx.proxy.addProxy(proxyAccoundIdOnParachain, proxyTypeParachain, 0), keyringPair);
     }
 
@@ -138,12 +138,13 @@ export const scheduleTask = async ({
     const sendExtrinsicPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughRemoteDerivativeAccountFlow(
         {
             oakAdapter,
+            destinationChainAdapter: astarAdapter,
             taskPayloadExtrinsic: payloadViaProxy,
             scheduleFeeLocation: astarDefaultAsset.location,
             executionFeeLocation: astarDefaultAsset.location,
+            scheduleAs: u8aToHex(keyringPair.addressRaw),
             keyringPair,
         },
-        astarAdapter,
         schedule,
     );
 
