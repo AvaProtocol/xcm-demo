@@ -24,7 +24,7 @@ const main = async () => {
 
     const scheduleActionType = await askScheduleAction();
 
-    const { turingLocal, moonbaseLocal } = chains;
+    const { DevChains: { turingLocal, moonbaseLocal } } = chains;
     await scheduleTask({
         oakConfig: turingLocal,
         moonbeamConfig: moonbaseLocal,
