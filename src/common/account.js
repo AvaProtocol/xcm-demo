@@ -65,13 +65,15 @@ class Account {
                     return provider.getBalance(chainAssets.address, symbol).then((balance) => {
                         const decimalBN = getDecimalBN(decimals);
 
+                        // From 2.1.0, Turing’s balance object has a different format. For example,
+                        // { free: '96,566,664,971,240,666', reserved: '0', frozen: '0', flags: '170,141,183,460,469,231,731,687,303,715,884,105,728'}
+
                         return {
                             symbol,
                             balance: balance.free.div(decimalBN).toNumber(),
                             balanceBN: balance.free,
                             reserved: balance.reserved.div(decimalBN).toNumber(),
-                            miscFrozen: balance.miscFrozen.div(decimalBN).toNumber(),
-                            feeFrozen: balance.feeFrozen.div(decimalBN).toNumber(),
+                            frozen: balance.frozen.div(decimalBN).toNumber(),
                         };
                     });
                 });
