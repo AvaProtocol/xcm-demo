@@ -12,6 +12,8 @@ import {
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 
+const MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT = new BN('100000000000000000'); // 0.1 DEV
+
 /**
  * Schedule task
  * @param {*} params { oakConfig, moonbeamConfig, scheduleActionType, contract, keyringPair, moonbeamKeyringPair }
@@ -43,29 +45,17 @@ export const scheduleTask = async ({
     const oakAddress = keyring.encodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
     const moonbeamAddress = moonbeamKeyringPair.address;
 
-    const proxyAccountId = oakAdapter.getDerivativeAccount(u8aToHex(moonbeamKeyringPair.addressRaw), moonbeamChainData.paraId);
+    const proxyAccountId = oakAdapter.getDerivativeAccount(moonbeamKeyringPair.address, moonbeamChainData.paraId);
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccountId, oakChainData.ss58Prefix);
-    console.log(`\n1. One-time proxy setup on ${oakChainData.key}`);
-    console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainData.key}\n`);
-    const proxiesResponse = await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw));
-    const proxies = _.first(proxiesResponse.toJSON());
-    const proxyTypeOak = 'Any';
-    const proxyMatchOak = _.find(proxies, { delegate: proxyAddressOnOak, proxyType: 'Any' });
-    if (proxyMatchOak) {
-        console.log(`Proxy address ${proxyAddressOnOak} for paraId: ${moonbeamChainData.paraId} and proxyType: ${proxyTypeOak} already exists; skipping creation ...`);
-    } else {
-        console.log(`Add a proxy of ${moonbeamChainData.key} (paraId:${moonbeamChainData.paraId}) and proxyType: ${proxyTypeOak} on Turing ...\n Proxy address: ${proxyAddressOnOak}\n`);
-        await sendExtrinsic(oakApi, oakApi.tx.proxy.addProxy(proxyAccountId, proxyTypeOak, 0), keyringPair);
-    }
 
     // Reserve transfer DEV to the proxy account on Turing
-    console.log(`\nb) Reserve transfer DEV to the proxy account on ${oakChainData.key}: `);
+    console.log(`\n1. Reserve transfer DEV to the derivative account on ${oakChainData.key}: `);
     const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(moonbeamDefaultAsset.location))
         .unwrapOrDefault()
         .toNumber();
     console.log('paraTokenIdOnOak: ', paraTokenIdOnOak);
     const paraTokenbalanceOnOak = await oakApi.query.tokens.accounts(proxyAddressOnOak, paraTokenIdOnOak);
-    const minBalanceOnOak = new BN('100000000000000000'); // 0.5 DEV
+    const minBalanceOnOak = MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT;
     console.log('minBalanceOnOak: ', minBalanceOnOak.toString());
     console.log('paraTokenbalanceOnOak.free: ', paraTokenbalanceOnOak.free.toString());
 
@@ -87,7 +77,7 @@ export const scheduleTask = async ({
     console.log(`\n2. One-time proxy setup on ${moonbeamChainData.key}`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${moonbeamChainData.key}\n`);
     console.log('oakChainData.paraId: ', oakChainData.paraId);
-    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakChainData.paraId);
+    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDerivativeAccount(proxyAccountId, oakChainData.paraId);
     const proxyTypeMoonbeam = 'Any';
     const proxiesOnMoonbeam = _.first((await moonbeamApi.query.proxy.proxies(u8aToHex(moonbeamKeyringPair.addressRaw))).toJSON());
 
@@ -141,7 +131,6 @@ export const scheduleTask = async ({
         taskPayloadExtrinsic,
         scheduleFeeLocation: moonbeamDefaultAsset.location,
         executionFeeLocation: moonbeamDefaultAsset.location,
-        scheduleAs: u8aToHex(keyringPair.addressRaw),
         keyringPair: moonbeamKeyringPair,
     }, schedule);
     const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
