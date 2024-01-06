@@ -12,7 +12,7 @@ import {
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 
-const MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT = new BN('100000000000000000'); // 0.1 DEV
+const MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT = new BN('50000000000'); // 5 TUR
 
 /**
  * Schedule task
@@ -38,7 +38,8 @@ export const scheduleTask = async ({
     const oakChainData = oakAdapter.getChainConfig();
     const moonbeamChainData = moonbeamAdapter.getChainConfig();
 
-    const [moonbeamDefaultAsset] = moonbeamChainData.assets;
+    const [oakAsset] = oakChainData.assets;
+    const [moonbeamAsset] = moonbeamChainData.assets;
 
     const parachainName = moonbeamChainData.key;
 
@@ -48,30 +49,15 @@ export const scheduleTask = async ({
     const proxyAccountId = oakAdapter.getDerivativeAccount(moonbeamKeyringPair.address, moonbeamChainData.paraId);
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccountId, oakChainData.ss58Prefix);
 
-    // Reserve transfer DEV to the proxy account on Turing
-    console.log(`\n1. Reserve transfer DEV to the derivative account on ${oakChainData.key}: `);
-    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(moonbeamDefaultAsset.location))
-        .unwrapOrDefault()
-        .toNumber();
-    console.log('paraTokenIdOnOak: ', paraTokenIdOnOak);
-    const paraTokenbalanceOnOak = await oakApi.query.tokens.accounts(proxyAddressOnOak, paraTokenIdOnOak);
-    const minBalanceOnOak = MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT;
-    console.log('minBalanceOnOak: ', minBalanceOnOak.toString());
-    console.log('paraTokenbalanceOnOak.free: ', paraTokenbalanceOnOak.free.toString());
+    // Transfer TUR to the derivative account on Turing
+    console.log(`\n1. Transfer TUR to the derivative account on ${oakChainData.key}: `);
 
-    // We have to transfer some more tokens because the execution fee will be deducted.
-    if (paraTokenbalanceOnOak.free.lt(minBalanceOnOak)) {
-        // Transfer DEV from Moonbase to Turing
-        console.log('Transfer DEV from Moonbase to Turing');
-        await moonbeamAdapter.crossChainTransfer(
-            oakAdapter.getLocation(),
-            proxyAccountId,
-            moonbeamDefaultAsset.location,
-            minBalanceOnOak,
-            moonbeamKeyringPair,
-        );
+    const { data: derivativeAccountBalanceOnOak } = await oakApi.query.system.account(proxyAddressOnOak);
+    if (derivativeAccountBalanceOnOak.free.lt(MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT)) {
+        const topUpExtrinsic = oakApi.tx.balances.transfer(proxyAddressOnOak, MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT);
+        await sendExtrinsic(oakApi, topUpExtrinsic, keyringPair);
     } else {
-        console.log(`\nb) Proxy’s parachain token balance is ${`${paraTokenbalanceOnOak.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
+        console.log(`\nb) The balance of derivative account is ${`${derivativeAccountBalanceOnOak.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
     }
 
     console.log(`\n2. One-time proxy setup on ${moonbeamChainData.key}`);
@@ -125,13 +111,16 @@ export const scheduleTask = async ({
         ? { Fixed: { executionTimes: [nextExecutionTime, twoTimeSlotsTimestamp] } }
         : { Fixed: { executionTimes: [0] } };
 
+    console.log('oakAsset.location: ', JSON.stringify(oakAsset.location));
     const sendExtrinsicPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughRemoteDerivativeAccountFlow({
         oakAdapter,
         destinationChainAdapter: moonbeamAdapter,
         taskPayloadExtrinsic,
-        scheduleFeeLocation: moonbeamDefaultAsset.location,
-        executionFeeLocation: moonbeamDefaultAsset.location,
+        scheduleFeeLocation: oakAsset.location,
+        executionFeeLocation: moonbeamAsset.location,
         keyringPair: moonbeamKeyringPair,
+        invoker: moonbeamAdapter,
+        invokeFeeLocation: oakAsset.location,
     }, schedule);
     const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
@@ -140,7 +129,7 @@ export const scheduleTask = async ({
     console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
     const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? nextExecutionTime : moment().valueOf() / 1000;
+        ? nextExecutionTime : (Math.floor(moment().valueOf() / 1000) + 60);
     const timeout = calculateTimeout(nextExecutionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
