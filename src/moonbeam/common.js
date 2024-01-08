@@ -6,9 +6,8 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { OakAdapter, MoonbeamAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 import moment from 'moment';
-import chalkPipe from 'chalk-pipe';
 import {
-    sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, waitPromises, ScheduleActionType, calculateTimeout, getTimeSlotSpanTimestamp,
+    sendExtrinsic, waitPromises, ScheduleActionType, calculateTimeout, getTimeSlotSpanTimestamp, listenEvents, listenXcmpTaskEvents,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
 
@@ -121,45 +120,28 @@ export const scheduleTask = async ({
         caller: moonbeamAdapter,
         callerXcmFeeLocation: oakAsset.location,
     }, schedule);
-    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
-    const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-    const { foundEvent: taskScheduledEvent } = results[1];
-    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
-    const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? nextExecutionTime : (Math.floor(moment().valueOf() / 1000) + 60);
-    const timeout = calculateTimeout(executionTime);
+    const executionTime = scheduleActionType === ScheduleActionType.executeImmediately ? (Math.floor(moment() / 1000) + 60) : nextExecutionTime;
+    const [, { taskId, messageHash }] = await waitPromises([sendExtrinsicPromise, listenXcmpTaskEvents(oakApi, executionTime)]);
 
-    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-
-    const listenEventsResult = await listenEvents(oakApi, 'automationTime', 'TaskTriggered', { taskId }, timeout);
-
-    if (_.isNull(listenEventsResult)) {
-        console.log(`\n${chalkPipe('red')('Error')} No automationTime.TaskTriggered event found.`);
-        return;
-    }
-
-    const { events, foundEventIndex } = listenEventsResult;
-    const xcmpMessageSentEvent = _.find(events, (event) => {
-        const { section, method } = event.event;
-        return section === 'xcmpQueue' && method === 'XcmpMessageSent';
-    }, foundEventIndex);
-    console.log('XcmpMessageSent event: ', xcmpMessageSentEvent.toHuman());
-    const { messageHash } = xcmpMessageSentEvent.event.data;
-    console.log('messageHash: ', messageHash.toString());
-
-    console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find ethereum.Executed event on Parachain...`);
-    const result = await listenEvents(moonbeamApi, 'xcmpQueue', 'Success', { messageHash }, 60000);
+    console.log(`\n4. Listen xcmpQueue.Success event with messageHash(${messageHash}) and find ethereum.Executed event on Parachain...`);
+    const result = await listenEvents(
+        moonbeamApi,
+        'xcmpQueue',
+        'Success',
+        ({ messageHash: messageHashInEvent }) => messageHashInEvent.toString() === messageHash.toString(),
+        60000,
+    );
     if (_.isNull(result)) {
         console.log('No xcmpQueue.Success event found.');
         return;
     }
     const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = result;
-    const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
-        const { section, method } = event.event;
-        return section === 'ethereum' && method === 'Executed';
-    }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+    const proxyExecutedEvent = _.findLast(
+        xcmpQueueEvents,
+        ({ event: { section, method } }) => section === 'ethereum' && method === 'Executed',
+        xcmpQueuefoundEventIndex + 1,
+    );
     console.log('ethereum.Executed event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
 
     if (scheduleActionType === ScheduleActionType.executeImmediately) return;
@@ -172,7 +154,13 @@ export const scheduleTask = async ({
 
     console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(twoTimeSlotsTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotsTimestamp}) to verify that the task was successfully canceled ...`);
 
-    const listenEventsAgainResult = await listenEvents(oakApi, 'automationTime', 'TaskTriggered', { taskId }, nextExecutionTimeout);
+    const listenEventsAgainResult = await listenEvents(
+        oakApi,
+        'automationTime',
+        'TaskTriggered',
+        ({ taskId: taskIdInEvent }) => taskIdInEvent.toString() === taskId,
+        nextExecutionTimeout,
+    );
 
     if (!_.isNull(listenEventsAgainResult)) {
         console.log('Task cancellation failed! It executes again.');

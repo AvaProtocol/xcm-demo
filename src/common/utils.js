@@ -133,7 +133,7 @@ export const getProxies = async (api, address) => {
  * @param {*} timeout - Set timeout to stop event listening.
  * @returns
  */
-export const listenEvents = async (api, section, method, conditions, timeout = undefined) => new Promise((resolve) => {
+export const listenEvents = async (api, section, method, dataConditionFunc, timeout = undefined) => new Promise((resolve) => {
     let unsub = null;
     let timeoutId = null;
 
@@ -152,18 +152,7 @@ export const listenEvents = async (api, section, method, conditions, timeout = u
                     return false;
                 }
 
-                if (!_.isUndefined(conditions)) {
-                    return true;
-                }
-
-                let conditionPassed = true;
-                _.each(_.keys(conditions), (key) => {
-                    if (conditions[key] === data[key]) {
-                        conditionPassed = false;
-                    }
-                });
-
-                return conditionPassed;
+                return _.isUndefined(dataConditionFunc) || dataConditionFunc(data);
             });
 
             if (foundEventIndex !== -1) {
@@ -296,3 +285,38 @@ export const getTaskIdInTaskScheduledEvent = (event) => Buffer.from(event.event.
 export const waitPromises = (promises) => new Promise((resolve, reject) => {
     Promise.all(promises).then(resolve).catch(reject);
 });
+
+/**
+ * Listen XCMP task events
+ * @param {*} oakApi
+ * @param {*} taskExecutionTime
+ * @returns
+ */
+export const listenXcmpTaskEvents = async (oakApi, taskExecutionTime) => {
+    console.log('Listen XCMP task events');
+    const { foundEvent } = await listenEvents(oakApi, 'automationTime', 'TaskScheduled', undefined, 60000);
+    const taskId = getTaskIdInTaskScheduledEvent(foundEvent);
+    console.log(`Found the event and retrieved TaskId, ${taskId}`);
+
+    const timeout = calculateTimeout(taskExecutionTime);
+    console.log(`\nKeep Listening automationTime.TaskExecuted until ${moment(taskExecutionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${taskExecutionTime}) to verify that the task(taskId: ${taskId}) will be successfully triggered ...`);
+    const listenEventsResult = await listenEvents(
+        oakApi,
+        'automationTime',
+        'TaskExecuted',
+        ({ taskId: taskIdInEvent }) => Buffer.from(taskIdInEvent).toString() === taskId,
+        timeout,
+    );
+
+    const { events, foundEventIndex: taskExecutedEventIndex } = listenEventsResult;
+    const xcmpMessageSentEvent = _.findLast(
+        events,
+        ({ event: { section, method } }) => section === 'xcmpQueue' && method === 'XcmpMessageSent',
+        taskExecutedEventIndex + 1,
+    );
+    console.log('XcmpMessageSent event: ', xcmpMessageSentEvent.toHuman());
+    const { messageHash } = xcmpMessageSentEvent.event.data;
+    console.log('messageHash: ', messageHash.toString());
+
+    return { taskId, messageHash };
+};
