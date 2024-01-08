@@ -111,7 +111,6 @@ export const scheduleTask = async ({
         ? { Fixed: { executionTimes: [nextExecutionTime, twoTimeSlotsTimestamp] } }
         : { Fixed: { executionTimes: [0] } };
 
-    console.log('oakAsset.location: ', JSON.stringify(oakAsset.location));
     const sendExtrinsicPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughRemoteDerivativeAccountFlow({
         oakAdapter,
         destinationChainAdapter: moonbeamAdapter,
@@ -119,8 +118,8 @@ export const scheduleTask = async ({
         scheduleFeeLocation: oakAsset.location,
         executionFeeLocation: moonbeamAsset.location,
         keyringPair: moonbeamKeyringPair,
-        invoker: moonbeamAdapter,
-        invokeFeeLocation: oakAsset.location,
+        caller: moonbeamAdapter,
+        callerXcmFeeLocation: oakAsset.location,
     }, schedule);
     const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
     const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
@@ -130,7 +129,7 @@ export const scheduleTask = async ({
 
     const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
         ? nextExecutionTime : (Math.floor(moment().valueOf() / 1000) + 60);
-    const timeout = calculateTimeout(nextExecutionTime);
+    const timeout = calculateTimeout(executionTime);
 
     console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
 
@@ -150,7 +149,7 @@ export const scheduleTask = async ({
     const { messageHash } = xcmpMessageSentEvent.event.data;
     console.log('messageHash: ', messageHash.toString());
 
-    console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
+    console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find ethereum.Executed event on Parachain...`);
     const result = await listenEvents(moonbeamApi, 'xcmpQueue', 'Success', { messageHash }, 60000);
     if (_.isNull(result)) {
         console.log('No xcmpQueue.Success event found.');
