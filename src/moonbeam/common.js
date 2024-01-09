@@ -6,11 +6,12 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { OakAdapter, MoonbeamAdapter } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
 import moment from 'moment';
-import chalkPipe from 'chalk-pipe';
 import {
-    sendExtrinsic, listenEvents, getTaskIdInTaskScheduledEvent, waitPromises, ScheduleActionType, calculateTimeout, getTimeSlotSpanTimestamp,
+    sendExtrinsic, waitPromises, ScheduleActionType, calculateTimeout, getTimeSlotSpanTimestamp, listenEvents, listenXcmpTaskEvents,
 } from '../common/utils';
 import OakHelper from '../common/oakHelper';
+
+const MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT = new BN('50000000000'); // 5 TUR
 
 /**
  * Schedule task
@@ -36,58 +37,32 @@ export const scheduleTask = async ({
     const oakChainData = oakAdapter.getChainConfig();
     const moonbeamChainData = moonbeamAdapter.getChainConfig();
 
-    const [moonbeamDefaultAsset] = moonbeamChainData.assets;
+    const [oakAsset] = oakChainData.assets;
+    const [moonbeamAsset] = moonbeamChainData.assets;
 
     const parachainName = moonbeamChainData.key;
 
     const oakAddress = keyring.encodeAddress(keyringPair.addressRaw, oakChainData.ss58Prefix);
     const moonbeamAddress = moonbeamKeyringPair.address;
 
-    const proxyAccountId = oakAdapter.getDerivativeAccount(u8aToHex(moonbeamKeyringPair.addressRaw), moonbeamChainData.paraId);
+    const proxyAccountId = oakAdapter.getDerivativeAccount(moonbeamKeyringPair.address, moonbeamChainData.paraId);
     const proxyAddressOnOak = keyring.encodeAddress(proxyAccountId, oakChainData.ss58Prefix);
-    console.log(`\n1. One-time proxy setup on ${oakChainData.key}`);
-    console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${oakChainData.key}\n`);
-    const proxiesResponse = await oakApi.query.proxy.proxies(u8aToHex(keyringPair.addressRaw));
-    const proxies = _.first(proxiesResponse.toJSON());
-    const proxyTypeOak = 'Any';
-    const proxyMatchOak = _.find(proxies, { delegate: proxyAddressOnOak, proxyType: 'Any' });
-    if (proxyMatchOak) {
-        console.log(`Proxy address ${proxyAddressOnOak} for paraId: ${moonbeamChainData.paraId} and proxyType: ${proxyTypeOak} already exists; skipping creation ...`);
-    } else {
-        console.log(`Add a proxy of ${moonbeamChainData.key} (paraId:${moonbeamChainData.paraId}) and proxyType: ${proxyTypeOak} on Turing ...\n Proxy address: ${proxyAddressOnOak}\n`);
-        await sendExtrinsic(oakApi, oakApi.tx.proxy.addProxy(proxyAccountId, proxyTypeOak, 0), keyringPair);
-    }
 
-    // Reserve transfer DEV to the proxy account on Turing
-    console.log(`\nb) Reserve transfer DEV to the proxy account on ${oakChainData.key}: `);
-    const paraTokenIdOnOak = (await oakApi.query.assetRegistry.locationToAssetId(moonbeamDefaultAsset.location))
-        .unwrapOrDefault()
-        .toNumber();
-    console.log('paraTokenIdOnOak: ', paraTokenIdOnOak);
-    const paraTokenbalanceOnOak = await oakApi.query.tokens.accounts(proxyAddressOnOak, paraTokenIdOnOak);
-    const minBalanceOnOak = new BN('100000000000000000'); // 0.5 DEV
-    console.log('minBalanceOnOak: ', minBalanceOnOak.toString());
-    console.log('paraTokenbalanceOnOak.free: ', paraTokenbalanceOnOak.free.toString());
+    // Transfer TUR to the derivative account on Turing
+    console.log(`\n1. Transfer TUR to the derivative account on ${oakChainData.key}: `);
 
-    // We have to transfer some more tokens because the execution fee will be deducted.
-    if (paraTokenbalanceOnOak.free.lt(minBalanceOnOak)) {
-        // Transfer DEV from Moonbase to Turing
-        console.log('Transfer DEV from Moonbase to Turing');
-        await moonbeamAdapter.crossChainTransfer(
-            oakAdapter.getLocation(),
-            proxyAccountId,
-            moonbeamDefaultAsset.location,
-            minBalanceOnOak,
-            moonbeamKeyringPair,
-        );
+    const { data: derivativeAccountBalanceOnOak } = await oakApi.query.system.account(proxyAddressOnOak);
+    if (derivativeAccountBalanceOnOak.free.lt(MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT)) {
+        const topUpExtrinsic = oakApi.tx.balances.transfer(proxyAddressOnOak, MIN_BALANCE_IN_DERIVIATIVE_ACCOUNT);
+        await sendExtrinsic(oakApi, topUpExtrinsic, keyringPair);
     } else {
-        console.log(`\nb) Proxy’s parachain token balance is ${`${paraTokenbalanceOnOak.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
+        console.log(`\nb) The balance of derivative account is ${`${derivativeAccountBalanceOnOak.free.toString()} blanck`}, no need to top it up with reserve transfer ...`);
     }
 
     console.log(`\n2. One-time proxy setup on ${moonbeamChainData.key}`);
     console.log(`\na) Add a proxy for ${keyringPair.meta.name} If there is none setup on ${moonbeamChainData.key}\n`);
     console.log('oakChainData.paraId: ', oakChainData.paraId);
-    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDerivativeAccount(u8aToHex(keyringPair.addressRaw), oakChainData.paraId);
+    const proxyAccountIdOnMoonbeam = moonbeamAdapter.getDerivativeAccount(proxyAccountId, oakChainData.paraId);
     const proxyTypeMoonbeam = 'Any';
     const proxiesOnMoonbeam = _.first((await moonbeamApi.query.proxy.proxies(u8aToHex(moonbeamKeyringPair.addressRaw))).toJSON());
 
@@ -139,50 +114,34 @@ export const scheduleTask = async ({
         oakAdapter,
         destinationChainAdapter: moonbeamAdapter,
         taskPayloadExtrinsic,
-        scheduleFeeLocation: moonbeamDefaultAsset.location,
-        executionFeeLocation: moonbeamDefaultAsset.location,
-        scheduleAs: u8aToHex(keyringPair.addressRaw),
+        scheduleFeeLocation: oakAsset.location,
+        executionFeeLocation: moonbeamAsset.location,
         keyringPair: moonbeamKeyringPair,
+        caller: moonbeamAdapter,
+        callerXcmFeeLocation: oakAsset.location,
     }, schedule);
-    const listenEventsPromise = listenEvents(oakApi, 'automationTime', 'TaskScheduled', 60000);
-    const results = await waitPromises([sendExtrinsicPromise, listenEventsPromise]);
-    const { foundEvent: taskScheduledEvent } = results[1];
-    const taskId = getTaskIdInTaskScheduledEvent(taskScheduledEvent);
-    console.log(`Found the event and retrieved TaskId, ${taskId}`);
 
-    const executionTime = scheduleActionType === ScheduleActionType.executeOnTheHour
-        ? nextExecutionTime : moment().valueOf() / 1000;
-    const timeout = calculateTimeout(nextExecutionTime);
+    const executionTime = scheduleActionType === ScheduleActionType.executeImmediately ? (Math.floor(moment() / 1000) + 60) : nextExecutionTime;
+    const [, { taskId, messageHash }] = await waitPromises([sendExtrinsicPromise, listenXcmpTaskEvents(oakApi, executionTime)]);
 
-    console.log(`\n4. Keep Listening events on ${parachainName} until ${moment(executionTime * 1000).format('YYYY-MM-DD HH:mm:ss')}(${executionTime}) to verify that the task(taskId: ${taskId}) will be successfully executed ...`);
-
-    const listenEventsResult = await listenEvents(oakApi, 'automationTime', 'TaskTriggered', { taskId }, timeout);
-
-    if (_.isNull(listenEventsResult)) {
-        console.log(`\n${chalkPipe('red')('Error')} No automationTime.TaskTriggered event found.`);
-        return;
-    }
-
-    const { events, foundEventIndex } = listenEventsResult;
-    const xcmpMessageSentEvent = _.find(events, (event) => {
-        const { section, method } = event.event;
-        return section === 'xcmpQueue' && method === 'XcmpMessageSent';
-    }, foundEventIndex);
-    console.log('XcmpMessageSent event: ', xcmpMessageSentEvent.toHuman());
-    const { messageHash } = xcmpMessageSentEvent.event.data;
-    console.log('messageHash: ', messageHash.toString());
-
-    console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
-    const result = await listenEvents(moonbeamApi, 'xcmpQueue', 'Success', { messageHash }, 60000);
+    console.log(`\n4. Listen xcmpQueue.Success event with messageHash(${messageHash}) and find ethereum.Executed event on Parachain...`);
+    const result = await listenEvents(
+        moonbeamApi,
+        'xcmpQueue',
+        'Success',
+        ({ messageHash: messageHashInEvent }) => messageHashInEvent.toString() === messageHash.toString(),
+        60000,
+    );
     if (_.isNull(result)) {
         console.log('No xcmpQueue.Success event found.');
         return;
     }
     const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = result;
-    const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
-        const { section, method } = event.event;
-        return section === 'ethereum' && method === 'Executed';
-    }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+    const proxyExecutedEvent = _.findLast(
+        xcmpQueueEvents,
+        ({ event: { section, method } }) => section === 'ethereum' && method === 'Executed',
+        xcmpQueuefoundEventIndex + 1,
+    );
     console.log('ethereum.Executed event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
 
     if (scheduleActionType === ScheduleActionType.executeImmediately) return;
@@ -195,7 +154,13 @@ export const scheduleTask = async ({
 
     console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(twoTimeSlotsTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotsTimestamp}) to verify that the task was successfully canceled ...`);
 
-    const listenEventsAgainResult = await listenEvents(oakApi, 'automationTime', 'TaskTriggered', { taskId }, nextExecutionTimeout);
+    const listenEventsAgainResult = await listenEvents(
+        oakApi,
+        'automationTime',
+        'TaskTriggered',
+        ({ taskId: taskIdInEvent }) => taskIdInEvent.toString() === taskId,
+        nextExecutionTimeout,
+    );
 
     if (!_.isNull(listenEventsAgainResult)) {
         console.log('Task cancellation failed! It executes again.');
