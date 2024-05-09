@@ -368,9 +368,9 @@ MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
 ### Pre-requisites
 | Chain      | Version | 
 | :---        |    :----:   | 
-| Kusama      | [v0.9.43](https://github.com/paritytech/polkadot/releases/tag/v0.9.43)      |
-| Turing Network   | [v2.0.0](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v2.0.0)     |
-| Moonriver | [runtime-2403](https://github.com/moonbeam-foundation/moonbeam/releases/tag/runtime-2403)   |
+| Kusama      | [v1.11.0](https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-v1.11.0)      |
+| Turing Network   | [v2.1.4](https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v2.1.4)     |
+| Moonriver | [runtime-2500](https://github.com/moonbeam-foundation/moonbeam/releases/tag/runtime-2500)   |
 
 ### Steps & Logs
 
@@ -380,18 +380,37 @@ MessageHash: 0xff304ed6aeab3e174ec667e9f69a18ebe23506836c4f53bd35aeb78503193453
 
 The local environment of Moonbeam is named Moonbase Local in its chain config.
 
+1. Launch OAK-blockchain, Rococo and Moonriver.
+
+	- Compile oak-collator v2.1.4
+
+		https://github.com/OAK-Foundation/OAK-blockchain/releases/tag/v2.1.4
+
+		```
+		cargo build --release --features turing-node --features dev-queue
+		```
+
+
+	- Compile moonbase
+
+		https://github.com/moonbeam-foundation/moonbeam/releases/tag/runtime-2500
+
+		```
+		cargo build --release
+		```
+
 1. Launch Rococo Local, Turing Dev and Moonbase Local with zombienet. The zombienet config file is located at [OAK-blockchain repo](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/zombienets/turing/moonbase.toml). Assuming you are at OAK-blockchain’s root folder, run the below command to spin up the networks.
 
 	```
 	zombienet spawn zombienets/turing/moonbase.toml
 	```
 
-2. Run this program to schedule automation and wait for cross-chain execution
+1. Run this program to schedule automation and wait for cross-chain execution
 	```
 	npm run moonbase-local
 	```
 
-3. The above step outlines the process of XCM automation with Moonbase Local. Upon completing the program, an 'ethereum.executed' event from Moonbase Local will be emitted. However, the event will exit with an EvmCoreErrorExitReason, which occurs because a smart contract has not been deployed yet. To successfully demonstrate smart contract automation, please follow the subsequent steps to set up a test smart contract.
+1. The above step outlines the process of XCM automation with Moonbase Local. Upon completing the program, an 'ethereum.executed' event from Moonbase Local will be emitted. However, the event will exit with an EvmCoreErrorExitReason, which occurs because a smart contract has not been deployed yet. To successfully demonstrate smart contract automation, please follow the subsequent steps to set up a test smart contract.
 
     The default sudo wallet of Moonbase Local Alith is used to deploy a smart contract. Run the below commands to deploy a smart contract to Moonbase Local.
 
