@@ -124,16 +124,16 @@ export const scheduleTask = async ({
     const executionTime = scheduleActionType === ScheduleActionType.executeImmediately ? (Math.floor(moment() / 1000) + 60) : nextExecutionTime;
     const [, { taskId, messageHash }] = await waitPromises([sendExtrinsicPromise, listenXcmpTaskEvents(oakApi, executionTime)]);
 
-    console.log(`\n4. Listen xcmpQueue.Success event with messageHash(${messageHash}) and find ethereum.Executed event on Parachain...`);
+    console.log(`\n4. Listen messageQueue.Processed event with messageHash(${messageHash}) and find ethereum.Executed event on Parachain...`);
     const result = await listenEvents(
         moonbeamApi,
-        'xcmpQueue',
-        'Success',
-        ({ messageHash: messageHashInEvent }) => messageHashInEvent.toString() === messageHash.toString(),
+        'messageQueue',
+        'Processed',
+        ({ id: messageHashInEvent }) => messageHashInEvent.toString() === messageHash.toString(),
         60000,
     );
     if (_.isNull(result)) {
-        console.log('No xcmpQueue.Success event found.');
+        console.log('No messageQueue.Processed event found.');
         return;
     }
     const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = result;
