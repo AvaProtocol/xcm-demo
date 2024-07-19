@@ -3,8 +3,9 @@ import Keyring from '@polkadot/keyring';
 import BN from 'bn.js';
 import { u8aToHex } from '@polkadot/util';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { OakAdapter, MoonbeamAdapter } from '@oak-network/adapter';
+import { OakAdapter, MoonbeamAdapter, InstructionSequenceType } from '@oak-network/adapter';
 import { Sdk } from '@oak-network/sdk';
+import { Weight } from '@oak-network/config';
 import moment from 'moment';
 import {
     sendExtrinsic, waitPromises, ScheduleActionType, calculateTimeout, getTimeSlotSpanTimestamp, listenEvents, listenXcmpTaskEvents,
@@ -147,9 +148,47 @@ export const scheduleTask = async ({
     if (scheduleActionType === ScheduleActionType.executeImmediately) return;
 
     console.log('\n5. Cancel the task ...');
-    const cancelTaskExtrinsic = oakApi.tx.automationTime.cancelTaskWithScheduleAs(proxyAccountId, taskId);
-    await sendExtrinsic(oakApi, cancelTaskExtrinsic, keyringPair);
 
+    // Wait for 20 seconds to avoid extrinsic execution failure.
+    // This is a temporary solution to avoid extrinsic execution failure due to the extrinsic being sent too quickly.
+    console.log('Wait for 20 seconds to avoid extrinsic execution failure...');
+    await new Promise((resolve) => { setTimeout(() => resolve(), 20000); });
+
+    console.log(`Send xcm message from ${moonbeamChainData.key} to ${oakChainData.key} to cancel the task...`);
+    const call = oakApi.tx.automationTime.cancelTask(taskId);
+    const encodedCall = call.method.toHex();
+    const { weight: { refTime, proofSize } } = (await call.paymentInfo(oakAddress));
+    const transactCallWeight = new Weight(new BN(refTime.unwrap()), new BN(proofSize.unwrap()));
+    const instructionCount = oakAdapter.getTransactXcmInstructionCount(InstructionSequenceType.PayThroughSoverignAccount)
+    const overallWeight = await oakAdapter.calculateXcmOverallWeight(transactCallWeight, instructionCount);
+    const feeAmount = await oakAdapter.weightToFee(overallWeight, oakAsset.location);
+
+    // moonbeamApi.
+    const cancelTaskExtrinsic = moonbeamApi.tx.xcmTransactor.transactThroughSigned(
+        {
+            V3: {
+                parents: 1,
+                interior: { X1: { Parachain: oakChainData.paraId } },
+            },
+        },
+        {
+            currency: {
+                AsMultiLocation: {
+                    V3: oakAsset.location,
+                },
+            },
+            feeAmount,
+        },
+        encodedCall,
+        {
+            transactRequiredWeightAtMost: transactCallWeight,
+            overallWeight: { Limited: overallWeight },
+        },
+        false,
+    );
+
+    console.log('Cancel task extrinsic: ', cancelTaskExtrinsic.method.toHex());
+    await sendExtrinsic(moonbeamApi, cancelTaskExtrinsic, moonbeamKeyringPair);
     const nextExecutionTimeout = calculateTimeout(twoTimeSlotsTimestamp);
 
     console.log(`\n6. Keep Listening events on ${parachainName} until ${moment(twoTimeSlotsTimestamp * 1000).format('YYYY-MM-DD HH:mm:ss')}(${twoTimeSlotsTimestamp}) to verify that the task was successfully canceled ...`);
