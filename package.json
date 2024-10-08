@@ -19,7 +19,7 @@
   "dependencies": {
     "@inquirer/confirm": "^2.0.10",
     "@inquirer/select": "^1.2.9",
-    "@mangata-finance/sdk": "^1.20.1",
+    "@mangata-finance/sdk": "^2.2.0",
     "@oak-network/adapter": "0.2.9",
     "@oak-network/api-augment": "2.1.2",
     "@oak-network/config": "1.0.5",

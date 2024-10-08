@@ -51,7 +51,7 @@ export const scheduleTask = async ({
     );
 
     console.log('1. Reading assets ...');
-    let assets = await mangataSdk.getAssetsInfo();
+    let assets = await mangataSdk.query.getAssetsInfo();
     assets = _.map(assets, (asset) => asset);
     const turAsset = _.find(assets, { symbol: oakDefaultAsset.symbol });
     const mangataAsset = _.find(assets, { symbol: mangataDefaultAsset.symbol });
@@ -83,7 +83,7 @@ export const scheduleTask = async ({
         await sendExtrinsic(mangataApi, mangataApi.tx.proxy.addProxy(proxyAccountId, proxyType, 0), keyringPair);
     }
 
-    const pools = await mangataSdk.getPools();
+    const pools = await mangataSdk.query.getPools();
     let pool = _.find(pools, { firstTokenId: mangataAsset.id, secondTokenId: turAsset.id });
     pool = mangataHelper.formatPool(pool);
     const liquidityAsset = _.find(assets, { id: pool.liquidityTokenId });
@@ -103,7 +103,7 @@ export const scheduleTask = async ({
         const rewardAmount = await mangataHelper.calculateRewardsAmount(mangataAddress, liquidityAsset);
         console.log(`Claimable reward in ${poolName}: `, rewardAmount);
 
-        const liquidityBalance = await mangataSdk.getTokenBalance(liquidityTokenId, mangataAddress);
+        const liquidityBalance = await mangataSdk.query.getTokenBalance(liquidityTokenId, mangataAddress);
 
         const poolNameDecimalBN = getDecimalBN(liquidityAsset.decimals);
         const numReserved = (new BN(liquidityBalance.reserved)).div(poolNameDecimalBN);
@@ -219,7 +219,7 @@ export const scheduleTask = async ({
             await delay(20000);
 
             // Account’s reserved LP token after auto-compound
-            const newLiquidityBalance = await mangataSdk.getTokenBalance(liquidityTokenId, mangataAddress);
+            const newLiquidityBalance = await mangataSdk.query.getTokenBalance(liquidityTokenId, mangataAddress);
             console.log(`\nAfter auto-compound, reserved ${poolName} is: ${newLiquidityBalance.reserved.toString()} planck ...`);
 
             console.log(`${keyringPair.meta.name} has compounded ${(newLiquidityBalance.reserved.sub(liquidityBalance.reserved)).toString()} planck more ${poolName} ...`);

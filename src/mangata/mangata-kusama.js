@@ -21,10 +21,10 @@ const main = async () => {
     const keyringPair = keyring.addFromJson(json);
     keyringPair.unlock(process.env.PASS_PHRASE);
 
-    const { turing, mangataKusama } = chains;
+    const { KusamaChains: { turing, mangata } } = chains;
     await scheduleTask({
         oakConfig: turing,
-        mangataConfig: mangataKusama,
+        mangataConfig: mangata,
         scheduleActionType: ScheduleActionType.executeOnTheHour,
         keyringPair,
     });
