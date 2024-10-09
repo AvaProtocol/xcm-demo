@@ -182,7 +182,7 @@ export const scheduleTask = async ({
                 ? { Fixed: { executionTimes: [timestampNextHour, twoTimeSlotTimestamp] } }
                 : { Fixed: { executionTimes: [0] } };
 
-            const scheduleTaskPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughSoverignAccountFlow({
+            const scheduleTaskPromise = Sdk().scheduleXcmpTimeTaskWithPayThroughSovereignAccountFlow({
                 oakAdapter,
                 destinationChainAdapter: mangataAdapter,
                 taskPayloadExtrinsic,
