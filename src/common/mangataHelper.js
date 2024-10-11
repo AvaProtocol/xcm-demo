@@ -1,13 +1,14 @@
 import _ from 'lodash';
 import BN from 'bn.js';
-import { Mangata } from '@mangata-finance/sdk';
 import { getDecimalBN, sendExtrinsic } from './utils';
 import ChainHelper from './chainHelper';
+import { dynamicImport } from './esm-dynamic-imports';
 
 class MangataHelper extends ChainHelper {
     initialize = async () => {
-        this.mangataSdk = Mangata.getInstance([this.config.endpoint]);
-        this.api = await this.mangataSdk.getApi();
+        const { Mangata } = await dynamicImport('@mangata-finance/sdk');
+        this.mangataSdk = Mangata.instance([this.config.endpoint]);
+        this.api = await this.mangataSdk.api();
     };
 
     getMangataSdk() {
@@ -111,7 +112,7 @@ class MangataHelper extends ChainHelper {
     };
 
     calculateRewardsAmount = async (address, liquidityAsset) => {
-        const amountBN = await this.mangataSdk.calculateRewardsAmount(address, _.toString(liquidityAsset.id));
+        const amountBN = await this.mangataSdk.rpc.calculateRewardsAmount(address, _.toString(liquidityAsset.id));
         const decimalBN = getDecimalBN(liquidityAsset.decimals);
         const result = amountBN.div(decimalBN);
         return result.toString();
