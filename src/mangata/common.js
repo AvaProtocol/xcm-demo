@@ -179,7 +179,8 @@ export const scheduleTask = async ({
         // The second parameter of compoundRewards is a Permill type in Rust,
         // of which 10% equates to 1,000 and 100% equates to 10,000.
         // We use 100% here to make sure all rewards to be claimed after task execution.
-        const compoundRewardsExtrinsic = mangataApi.tx.xyk.compoundRewards(liquidityTokenId, 10000);
+        // const compoundRewardsExtrinsic = mangataApi.tx.xyk.compoundRewards(liquidityTokenId, 10000);
+        const compoundRewardsExtrinsic = mangataApi.tx.xyk.multiswapSellAsset([7, 0], '1000000000', '1');
         const taskPayloadExtrinsic = mangataApi.tx.proxy.proxy(u8aToHex(keyringPair.addressRaw), 'AutoCompound', compoundRewardsExtrinsic);
 
         // Schedule task with sdk
